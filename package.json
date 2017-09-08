@@ -1,0 +1,28 @@
+{
+  "name": "lan-superv",
+  "version": "0.1.0",
+  "description": "Node.js app for lan supervision",
+  "repository": {},
+  "dependencies": {
+    "child_process": "^1.0.2",
+    "express": "^4.15.4",
+    "ext-ip": "^0.3.8",
+    "fs": "0.0.1-security",
+    "gun": "^0.8.3",
+    "http": "0.0.0",
+    "my-local-netmask": "^1.0.0",
+    "netmask": "^1.0.6",
+    "network": "^0.3.2",
+    "node-machine-id": "^1.1.9",
+    "node-nmap": "^4.0.0",
+    "power-off": "^1.1.2",
+    "sleep-mode": "^1.1.0",
+    "socket.io": "^2.0.3",
+    "wol": "^1.0.3"
+  },
+  "engines": {
+    "node": "4.0.0"
+  },
+  "author": "Damien Pointier",
+  "license": "MIT"
+}

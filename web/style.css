@@ -1,0 +1,29 @@
+.initial-box-sizing, .initial-box-sizing:before{
+    //necessaire pour compatibilite pace et bootstrap (border-box => content-box)
+    -webkit-box-sizing: initial;
+    -moz-box-sizing: initial;
+    box-sizing: initial;
+}
+
+#app{
+	margin-top: 10px;
+}
+
+/*
+#pcList{
+    padding: 10px;
+}
+*/
+
+
+.card{
+    margin: 10px;
+}
+
+.card-block{
+    padding: 4px;
+}
+
+.card-header.online{
+    background-color: rgba(56, 183, 138, 0.8);
+}

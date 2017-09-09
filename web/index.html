@@ -13,12 +13,13 @@
         
         <!-- JAVASCRIPS -->
         <script src="assets/jquery-3.2.1.min.js"></script>
+        <script src="assets/bootstrap.min.js"></script>
     </head>
     
     <body>
         
 		<div id="loader" class="pace pace-active initial-box-sizing">
-            <div class="pace-progress initial-box-sizing" data-progress="50" data-progress-text="50%" style="-webkit-transform: translate3d(50%, 0px, 0px); -ms-transform: translate3d(50%, 0px, 0px); transform: translate3d(50%, 0px, 0px);">
+            <div class="pace-progress initial-box-sizing" data-progress="50" data-progress-text="50%">
 				<div class="pace-progress-inner initial-box-sizing"></div>
             </div>
             <div class="pace-activity initial-box-sizing"></div>
@@ -35,19 +36,31 @@
                         <div class="pcElem col-xs-12 col-sd-6 col-md-4 col-lg-3 col-xl-2">
                             <div class="card">
                                 <div class="card-header">
-                                    <span class="nickname"></span> (<span class="hostname"></span>)
+                                    <span class="nickname"></span>
+                                    <span class="hostname"></span>
                                 </div>
                                 <div class="card-block">
-                                    <div>
-                                        IP: <span class="lanIP"></span>
+                                    
+                                   <div class="btn-group btn-plugin-container" role="group" >
+                                       <div class="btn-group btn-plugin-choice" role="group">
+                                            <a class="btn btn-secondary dropdown-toggle btn-plugin-link" data-toggle="dropdown" href="#">
+                                                 <span class='btn-plugin-value'></span><span class="caret"></span>
+                                            </a>
+                                            <ul class="dropdown-menu">
+                                                  <li class="dropdown-item"></li>
+                                            </ul>
+                                        </div>
+                                        <button type="button" onclick="sendRequest(this);" class="btn btn-primary btn-plugin-submit">Send</button>
                                     </div>
-                                    <div>
-                                        MAC: <span class="lanMAC"></span>
-                                    </div>
-                                    <div>
-                                        <button type="button" onclick="sendRequest(this, 'wol');" class="btn btn-primary">WOL</button>
-                                        <button type="button" onclick="sendRequest(this, 'power-off');" class="btn btn-primary">PowerOff</button>
-                                    </div>
+                                    
+
+                                        <div class="row">
+                                            <span class="col-3 nowrap">IP :</span><span class="lanIP col-9"></span>
+                                        </div>
+                                        <div class="row">
+                                            <span class="col-3 nowrap">MAC :</span><span class="lanMAC col-9"></span>
+                                        </div>
+                                    
                                 </div>
                             </div>
                         </div>

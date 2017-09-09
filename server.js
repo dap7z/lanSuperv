@@ -82,8 +82,10 @@ function getPlugins(type='all',result='dirPath', format='object'){
     if(format=='object'){
         //array to object for gun.js compatibility
         var obj = {};
+        var pluginsId = 0;
         results.forEach(function(key) {
-            obj[key] = 1;
+            pluginsId += 1;
+            obj['plugin'+pluginsId] = key;
         });
         results = obj;
     }
@@ -133,7 +135,7 @@ Network.get_active_interface(function(err, activeInterface) {
         var obj = activeInterface;
         var block = new Netmask(obj.gateway_ip +'/'+ obj.netmask);
         obj.fullmask = obj.netmask;
-        delete obj.netmask;
+        delete obj.netmask; //unset
         obj.bitmask = block.bitmask;
         obj.network = block.base;
         obj.mac_address = obj.mac_address.toUpperCase();
@@ -246,19 +248,19 @@ Network.get_active_interface(function(err, activeInterface) {
                     lastCheck: scanTimeStamp,
                     lanIP: d.ip,
                     lanMAC: d.mac,
-                    plugins: remotePlugins
                 };
                 pc = pcObject(params, lanInterface, wanInterface);
                 
                 //Gun.js do not support array, pc must be an object
                 //pc simple key value object for simlper gun.js database
                 
-                //standardize mac address :
+                var plugins = remotePlugins;
+                //self scan specific :
                 if(pc.lanIP == lanInterface.ip_address){
                     pc.lanMAC = lanInterface.mac_address;
                     console.log('fixed null mac address returned for server');
-                    pc.plugins = getPlugins('all','dirName');
                     console.log('fixed not only remote plugins for server');
+                    plugins = getPlugins('all','dirName');
                 }
                 //computer identifier :
                 var idPC = pc.lanMAC;
@@ -270,6 +272,11 @@ Network.get_active_interface(function(err, activeInterface) {
                 //for compare that scan to the others:
                 visibleComputers[idPC] = scanTimeStamp;
                 scannedComputers[idPC] = scanTimeStamp;
+                
+                //each plugins as a key of pc object:
+                for (var key in plugins) {
+                    pc[key] = plugins[key];
+                }
                 
                 dbComputers.get(idPC).put(pc);
             }

@@ -4,26 +4,57 @@
     -moz-box-sizing: initial;
     box-sizing: initial;
 }
+.pace-progress{
+    -webkit-transform: translate3d(50%, 0px, 0px);
+    -ms-transform: translate3d(50%, 0px, 0px);
+    transform: translate3d(50%, 0px, 0px);
+}
 
 #app{
 	margin-top: 10px;
 }
 
-/*
-#pcList{
-    padding: 10px;
-}
-*/
-
 
 .card{
     margin: 10px;
+    border: 1px solid #d3d3d3;
 }
 
 .card-block{
     padding: 4px;
+    background-color: #e6e6e6; 
+    /*#e0e0eb;*/
 }
 
-.card-header.online{
+.card-header.onlinePc{
     background-color: rgba(56, 183, 138, 0.8);
+}
+
+.nowrap{
+    white-space:nowrap;
+}
+
+
+
+.btn-plugin-container{
+    display: flex;
+}
+.btn-plugin-choice{
+    flex: 5;
+    cursor: pointer;
+}
+.btn-plugin-submit{
+    flex: 1;
+    cursor: pointer;
+}
+.btn-plugin-link{
+    width:100%;
+}
+.btn-plugin-value{
+    width:90%;
+    overflow-x:hidden;
+    display:inline-block;
+}
+.dropdown-item{
+    cursor: pointer;
 }

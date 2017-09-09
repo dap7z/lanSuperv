@@ -1,6 +1,9 @@
+*shared.json
 plugins/local-responses-enabled/*
 plugins/local-responses-available/*_todo
 docs_todo/
+lanSuperv.bat
+
 
 # Logs
 logs

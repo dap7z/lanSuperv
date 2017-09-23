@@ -1,17 +1,64 @@
 function clientJS(){
     
+    //use bootstrap popover on dynamically generated element :
+    $(document).on('mouseenter', '.cutword', function(){
+        if($(this).hasClass('popover-initialized') == false)
+        {
+            if($(this).text().trim() != '')
+            {
+                $(this).addClass('clickable');
+                $(this).popover({
+                    html : true,
+                    container: 'body',
+                    placement: 'top',
+                    trigger: 'click',
+                    content: function(){
+                      return $(this).html();
+                    }
+                });
+            }
+            $(this).addClass('popover-initialized');
+        }
+    });
+    
     
     //use bootstrap drowpdown as select :
-     $(document).on("click", ".dropdown-menu li", function(){
-      var selText = $(this).text();
-      $(this).parents('.btn-group').find('.btn-plugin-value').html(selText);
+    $(document).on("click", function(event){
+        var $elem = $(event.target);
+        //click anywhere on document :
+        if($elem.hasClass('popover-initialized') == false)
+        {
+            var hasAnyPopoverClass = false;
+            var classes = $elem.attr('class').split(' ');
+            for(var i = 0; i < classes.length; i++) {
+                if(classes[i].indexOf('popover') == 0){
+                   hasAnyPopoverClass = true;
+                }
+            }
+            
+            //close all popover:
+            if(!hasAnyPopoverClass){
+                $('.popover-initialized').popover('hide');
+            }
+        }
+        //click on li inside .dropdown-menu :
+        if(event.target.nodeName.toLowerCase() == 'li')
+        {
+            if($elem.closest(".dropdown-menu").length > 0)
+            {
+                var selText = $elem.text();
+                $elem.parents('.btn-group').find('.btn-plugin-value').html(selText);
+            }
+        }
     });
     
+
     
     //connect to server nodejs server :
-    socket = io.connect(Config.val('SOCKET_URL'), {path: Config.val('PATH_EVENTS')}, function(){
+    socket = io.connect(Config.val('SOCKET_URL'), {path: Config.val('PATH_SOCKET_EVENTS')}, function(){
         console.log('socket connected');
     });
+    
 
     var gun = Gun( Config.val('SOCKET_URL_DATABASE') );
     var tableName = Config.val('TABLE_COMPUTERS');
@@ -30,8 +77,8 @@ function clientJS(){
 
         var $elem = $('#' + id);
         if(!$elem.get(0)){
+            //clone the model if $('#'+id) not found
             $elem = $('#pcModel').find('.pcElem').clone(true).attr('id', id).appendTo('#pcList');
-            console.log('#'+ id +' not found => model has been cloned');
         }
         
         //online status
@@ -50,6 +97,11 @@ function clientJS(){
             if($dataContainer.length > 0){
                 //update html (.hostname/.lanIP/.lanMAC/...)
                 $dataContainer.text(pc[key]);
+                var htmlObj = $dataContainer.get(0);
+                if(htmlObj.hasAttribute('alt')){
+                    //htmlObj.alt = pc[key];    //NOK
+                    $dataContainer.attr('alt', pc[key]);
+                }
             }
             //plugins availables
             else if(key.startsWith("plugin")){
@@ -67,7 +119,7 @@ function clientJS(){
            defaultPlugin = powerOffPlugin;
         }
         $elem.find('.btn-plugin-value').text(defaultPlugin);
-
+        
         $('#loader').hide();
     });
 
@@ -77,26 +129,16 @@ function clientJS(){
 //=========== function ===========
 function sendRequest(btn){
     var $pc =  $(btn).closest(".pcElem");
+    var reqData = {
+        eventName: $pc.find('.btn-plugin-value').text(),
+        pcTarget: {
+            lanMAC: $pc.find(".lanMAC").html(),
+            machineID: $pc.find(".machineID").html()
+        }
+    };
     
-    target = {};
-    target.lanMAC = $pc.find(".lanMAC").html()
-    
-    var req = $pc.find('.btn-plugin-value').text();
-    socket.emit(req, target);
-    alert(req +' command send to '+target.lanMAC);
+    socket.emit('pluginRequest', reqData);
+    alert(reqData.eventName +' command send to '+ reqData.pcTarget.lanMAC);
     
     //TODO: show return result from socket
 }
-
-
-
-    //[--autres actions necessites serveur installe sur PC Cible
-        //socket.emit('powerOff');
-        //socket.emit('hardwareInfos');
-        //socket.emit('internetProxy');
-        //socket.emit('messanger');
-        //socket.emit('receiveFile');
-        //socket.emit('executeFile');
-        //socket.emit('remoteControl');
-
-    //]

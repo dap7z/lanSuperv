@@ -1,9 +1,19 @@
-*shared.json
-plugins/local-responses-enabled/*
-plugins/local-responses-available/*_todo
-docs_todo/
-lanSuperv.bat
+#=====================================================
+#database:
+*-shared.json
+*-shared.json
 
+#actual plugins setup:
+plugins/local-responses-enabled/*
+!plugins/local-responses-enabled/COPY_HERE_PLUGINS_DIRS
+
+#todo things:
+docs_todo/
+plugins/local-responses-available/*_todo
+
+#In dir cmder launcher:
+lanSuperv.bat
+#=====================================================
 
 # Logs
 logs
@@ -64,3 +74,5 @@ typings/
 # dotenv environment variables file
 .env
 
+
+package-lock\.json

@@ -1,5 +1,24 @@
+.nowrap{
+    white-space:nowrap;
+    /*not add line on space*/
+}
+.breakword{
+    word-wrap:break-word;
+    /*add line in word*/
+}
+.cutword{
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+}
+.clickable{
+    cursor:pointer !important;
+}
+
+
+
 .initial-box-sizing, .initial-box-sizing:before{
-    //necessaire pour compatibilite pace et bootstrap (border-box => content-box)
+    //required for pace and bootstrap compatibility (border-box => content-box)
     -webkit-box-sizing: initial;
     -moz-box-sizing: initial;
     box-sizing: initial;
@@ -10,6 +29,8 @@
     transform: translate3d(50%, 0px, 0px);
 }
 
+
+
 #app{
 	margin-top: 10px;
 }
@@ -19,19 +40,15 @@
     margin: 10px;
     border: 1px solid #d3d3d3;
 }
-
 .card-block{
     padding: 4px;
-    background-color: #e6e6e6; 
-    /*#e0e0eb;*/
+    background-color: #e6e6e6;
 }
-
+.card-header{
+	background-color: #e6e6e6;
+}
 .card-header.onlinePc{
     background-color: rgba(56, 183, 138, 0.8);
-}
-
-.nowrap{
-    white-space:nowrap;
 }
 
 

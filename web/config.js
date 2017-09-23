@@ -4,14 +4,16 @@
 
 // -- START CONFIG --
 var ACCESS_FROM_REVERSE_PROXY = true;   //true or false
-var DATABASE_NAME = 'db1';   //change string to reset data
+var DATABASE_NAME = 'db7';   //change string to reset data
 
 var SERVER_ADDRESS = 'http://localhost';
 var SERVER_PORT = 842;
 var SOCKET_PORT = 842;
 
-var PATH_EVENTS = '/events';    //default: '/socket.io'
-var PATH_DATABASE = '/gun';     //default: '/gun'   //20170901 gun.js does not allow custom path
+var PATH_SOCKET_EVENTS = '/cmd-socket';     //default: '/socket.io'
+var PATH_HTTP_EVENTS = '/cmd';              //example: http://localhost:842/cmd/power-off
+var PATH_DATABASE = '/gun';                 //default: '/gun'   //20170901 gun.js does not allow custom path
+//(SOCKET_PORT and PATH_SOCKET_EVENTS has to be the same on each server to allow event redirection)
 //-- END CONFIG --
 
 
@@ -44,7 +46,7 @@ else
 var config_object = {
     val : function(varName){
         var error = '';
-        var verbose = true;
+        var verbose = false;
         var result = '';
         switch(varName){
             case 'SERVER_ADDRESS':
@@ -59,8 +61,11 @@ var config_object = {
                     result += ':'+ SERVER_PORT; 
                 }
                 break;
-            case 'PATH_EVENTS':
-                result = PATH_EVENTS;
+            case 'PATH_HTTP_EVENTS':
+                result = PATH_HTTP_EVENTS;
+                break;
+            case 'PATH_SOCKET_EVENTS':
+                result = PATH_SOCKET_EVENTS;
                 break;
             case 'PATH_DATABASE':
                 result = PATH_DATABASE;
@@ -74,8 +79,11 @@ var config_object = {
                     result += ':'+ SOCKET_PORT; 
                 }
                 break;
+            case 'SERVER_URL_EVENTS':
+                result = this.val('SERVER_URL') + PATH_HTTP_EVENTS;
+                break;
             case 'SOCKET_URL_EVENTS':
-                result = this.val('SOCKET_URL') + PATH_EVENTS;
+                result = this.val('SOCKET_URL') + PATH_SOCKET_EVENTS;
                 break;
             case 'SOCKET_URL_DATABASE':
                 result = this.val('SOCKET_URL') + PATH_DATABASE;

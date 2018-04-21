@@ -14,7 +14,13 @@
 .clickable{
     cursor:pointer !important;
 }
-
+.respondsTo .badge-container{
+    padding: 0!important;
+}
+.respondsTo .badge{
+    margin-left: 4px!important;
+    margin-right: 4px!important;
+}
 
 
 .initial-box-sizing, .initial-box-sizing:before{
@@ -52,7 +58,6 @@
 }
 
 
-
 .btn-plugin-container{
     display: flex;
 }
@@ -70,8 +75,26 @@
 .btn-plugin-value{
     width:90%;
     overflow-x:hidden;
+    overflow-y:hidden;
     display:inline-block;
 }
 .dropdown-item{
     cursor: pointer;
+}
+
+
+/* smartphones */
+@media only screen and (max-width : 992px) {
+    body{
+        font-size: 1.4rem;
+    }
+    .btn{
+        font-size: 1.4rem;
+    }
+    .dropdown-menu{
+        font-size: 1.4rem;
+    }
+    .popover{
+        font-size: 1.2rem;
+    }
 }

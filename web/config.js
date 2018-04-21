@@ -1,43 +1,69 @@
-// Common configuration between client and server
-// File path: web/config.js
-// =======================================
+// Common configuration between client and server (file location: web/config.js)
+var CONFIG = new Array();
 
-// -- START CONFIG --
-var ACCESS_FROM_REVERSE_PROXY = true;   //true or false
-var DATABASE_NAME = 'db7';   //change string to reset data
+//-------- START CONFIGURATION BLOCK --------
+CONFIG['APP_AUTO_UPDATE'] = true;       //NEXTS RELEASES
+CONFIG['APP_AUTO_START'] = true;        //NEXTS RELEASES
 
-var SERVER_ADDRESS = 'http://localhost';
-var SERVER_PORT = 842;
-var SOCKET_PORT = 842;
 
-var PATH_SOCKET_EVENTS = '/cmd-socket';     //default: '/socket.io'
-var PATH_HTTP_EVENTS = '/cmd';              //example: http://localhost:842/cmd/power-off
-var PATH_DATABASE = '/gun';                 //default: '/gun'   //20170901 gun.js does not allow custom path
-//(SOCKET_PORT and PATH_SOCKET_EVENTS has to be the same on each server to allow event redirection)
-//-- END CONFIG --
+CONFIG['DATABASE_NAME'] = 'db12';   //change string to reset data
+
+CONFIG['SERVER_ADDRESS'] = '';
+//'' or 'http://localhost'    //AS DEFAULT (create a new gun.js database for each installed application)
+//'https://lan.dapo.fr.cr'    //SHARED GUN.JS DATABASE
+
+CONFIG['SERVER_PORT'] = 842;
+CONFIG['SOCKET_PORT'] = 842;
+CONFIG['SERVER_BEHIND_REVERSE_PROXY'] = true;
+
+CONFIG['PATH_HTTP_EVENTS'] = '/cmd';              //example: http://localhost:842/cmd/power-off
+CONFIG['PATH_DATABASE'] = '/gun';                 //default: '/gun'   //20170901 gun.js does not allow custom path
+
+CONFIG['NMAP_LOCATION'] = 'nmap';   //default
+CONFIG['NMAP_LOCATION'] = 'C:/Program Files (x86)/Nmap/nmap.exe';       //windows
+
+CONFIG['GUN_ADDITIONAL_PEERS'] = [];
+CONFIG['GUN_ADDITIONAL_PEERS'] = ['https://lan.dapo.fr.cr/gun'];
+//GUN_ADDITIONAL_PEERS is empty by default => no link between servers
+//You can hosts and add one or some urls in this table, example:
+//['https://main-server-domain.com/gun', 'http://2nd-without-reverse-proxy.fr:842/gun']
+//-------- END CONFIGURATION BLOCK --------
+
+
+
+//======================================================================================================================
+// Set default config :
+if(CONFIG['SERVER_ADDRESS'] == ''){
+    CONFIG['SERVER_ADDRESS'] = 'http://localhost';
+}
+CONFIG['LOCAL_DATABASE'] = (CONFIG['SERVER_ADDRESS'].indexOf("localhost") >- 1);
 
 
 // Check if client or server side :
-var CLIENT_SIDE;
 if((typeof module != 'undefined')&&(typeof module.exports != 'undefined'))
 {
     //nodejs plugin system detected
-    CLIENT_SIDE = false;
+    CONFIG['CLIENT_SIDE'] = false;
+
 }
 else
 {
-    CLIENT_SIDE = true;
-    //get server address from browser :
-    var host = window.location.host;
-    if(host=='') host = 'localhost';
-    var protocol = window.location.protocol;
-    if(protocol=='') protocol = 'http:';
-    SERVER_ADDRESS = protocol + '//'+ host;
+    CONFIG['CLIENT_SIDE'] = true;
 
+    if(CONFIG['LOCAL_DATABASE']){
+        //(gun.js web client have address the MAIN_SERVER_ADDRESS)
+
+        //get server address from browser and update SERVER_ADDRESS :
+        var host = window.location.host;
+        if(host=='') host = 'localhost';
+        var protocol = window.location.protocol;
+        if(protocol=='') protocol = 'http:';
+        CONFIG['SERVER_ADDRESS'] = protocol + '//'+ host;
+    }
     //remove ports if reverse proxy listening on 80/443:
-    if(ACCESS_FROM_REVERSE_PROXY){
-        SERVER_PORT = '';
-        SOCKET_PORT = '';
+    if(CONFIG['SERVER_BEHIND_REVERSE_PROXY']){
+        CONFIG['SERVER_PORT'] = '';
+        CONFIG['SOCKET_PORT'] = '';
     }
 }
 
@@ -48,62 +74,57 @@ var config_object = {
         var error = '';
         var verbose = false;
         var result = '';
-        switch(varName){
-            case 'SERVER_ADDRESS':
-                result = SERVER_ADDRESS;
-                break;
-            case 'SERVER_PORT':
-                result = SERVER_PORT;
-                break;
-            case 'SERVER_URL':
-                result = SERVER_ADDRESS;
-                if(SERVER_PORT != ''){
-                    result += ':'+ SERVER_PORT; 
-                }
-                break;
-            case 'PATH_HTTP_EVENTS':
-                result = PATH_HTTP_EVENTS;
-                break;
-            case 'PATH_SOCKET_EVENTS':
-                result = PATH_SOCKET_EVENTS;
-                break;
-            case 'PATH_DATABASE':
-                result = PATH_DATABASE;
-                break;
-            case 'SOCKET_PORT':
-                result = SOCKET_PORT;
-                break;
-            case 'SOCKET_URL':
-                result = SERVER_ADDRESS;
-                if(SOCKET_PORT != ''){
-                    result += ':'+ SOCKET_PORT; 
-                }
-                break;
-            case 'SERVER_URL_EVENTS':
-                result = this.val('SERVER_URL') + PATH_HTTP_EVENTS;
-                break;
-            case 'SOCKET_URL_EVENTS':
-                result = this.val('SOCKET_URL') + PATH_SOCKET_EVENTS;
-                break;
-            case 'SOCKET_URL_DATABASE':
-                result = this.val('SOCKET_URL') + PATH_DATABASE;
-                break;
-            case 'DATABASE_NAME':
-                result = DATABASE_NAME;
-                break;
-            case 'TABLE_COMPUTERS':
-                result = DATABASE_NAME +'/computers';
-                break;
-            case 'FILE_SHARED_DB':
-                result = DATABASE_NAME +'-shared.json';
-                break;
-            //case 'FILE_LOCAL_DB':
-            //    result = DATABASE_NAME +'-local.json';
-            //    break;
+        if(CONFIG.hasOwnProperty(varName))
+        {
+           result = CONFIG[varName];
+        }
+        else
+        {
+            //calculated wich multiples config property
+            switch(varName){
+                case 'SERVER_URL':
+                    result = this.val('SERVER_ADDRESS');
+                    if(this.val('SERVER_PORT') != ''){
+                        result += ':'+ this.val('SERVER_PORT'); 
+                    }
+                    break;
+                case 'SOCKET_URL':
+                    result = this.val('SERVER_ADDRESS');
+                    if(this.val('SOCKET_PORT') != ''){
+                        result += ':'+ this.val('SOCKET_PORT'); 
+                    }
+                    break;
+                case 'SERVER_URL_EVENTS':
+                    result = this.val('SERVER_URL') + this.val('PATH_HTTP_EVENTS');
+                    break;
+                case 'SOCKET_URL_DATABASE':
+                    result = this.val('SOCKET_URL') + this.val('PATH_DATABASE');
+                    break;
+                case 'TABLE_COMPUTERS':
+                    result = this.val('DATABASE_NAME') +'/computers';
+                    break;
+                case 'TABLE_MESSAGES':
+                    result = this.val('DATABASE_NAME') +'/messages';
+                    break;
+                case 'FILE_SHARED_DB':
+                    result = this.val('DATABASE_NAME') +'-shared.json';
+                    break;
+                case 'FILE_LOCAL_DB':
+                    result = this.val('DATABASE_NAME') +'-local.json';
+                    break;
+				case 'GUN_PEERS':
+					result = [this.val('SOCKET_URL_DATABASE')]; //array
+					CONFIG['GUN_ADDITIONAL_PEERS'].forEach(function(url) {
+						if(url !== result[0]){
+							result.push(url);
+						}
+					});
+					break;
 
-            default:
-                error = '[ERROR] ';
-                result = false;
+                default:
+                    error = '[ERROR] ';
+                    result = false;
+            }
         }
         if(error!='' || verbose) console.log(error+"GET CONFIG "+varName+": '"+ result +"'");
 
@@ -113,7 +134,7 @@ var config_object = {
 
 
 //function declaration :
-if(CLIENT_SIDE)
+if(config_object.val('CLIENT_SIDE'))
 {
     //use as include in index.html / client.js
     Config = config_object;

@@ -1,19 +1,28 @@
 #=====================================================
 #database:
 *-shared.json
-*-shared.json
+*-local.json
+visibleComputers.json
 
 #actual plugins setup:
 plugins/local-responses-enabled/*
 !plugins/local-responses-enabled/COPY_HERE_PLUGINS_DIRS
 
+#auto update:
+publish.sh
+dist/
+yarn.lock
+
 #todo things:
 docs_todo/
 plugins/local-responses-available/*_todo
 
-#In dir cmder launcher:
-lanSuperv.bat
+#package.json tests or old versions:
+package-*
 #=====================================================
+
+# IDE WebStorm 
+.idea/
 
 # Logs
 logs

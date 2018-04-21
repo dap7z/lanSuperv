@@ -7,6 +7,7 @@ const Fs = require('fs');
 const Path = require('path');
 const { fork } = require('child_process');
 
+
 //public functions
 module.exports = {
     
@@ -25,20 +26,25 @@ module.exports = {
     getPlugins: function(type='all',result='dirPath', format='object'){
         var results;
         var pluginsDirPath;
-        if(type=='all'){
-            var remoteRequestsPlugins = this.getDirectories('./plugins/remote-requests/');
-            var localResponsesPlugins = this.getDirectories('./plugins/local-responses-enabled/');
-            pluginsDirPath = remoteRequestsPlugins.concat(localResponsesPlugins);
+        switch(type){
+            case 'all':
+                var remoteRequestsPlugins = this.getDirectories('./plugins/remote-requests/');
+                var localResponsesPlugins = this.getDirectories('./plugins/local-responses-enabled/');
+                pluginsDirPath = remoteRequestsPlugins.concat(localResponsesPlugins);
+                break;
+            case 'remote':
+                pluginsDirPath = this.getDirectories('./plugins/remote-requests/');
+                break;
+            case 'local':
+                pluginsDirPath = this.getDirectories('./plugins/local-responses-enabled/');
+                break;
+            default:
+                pluginsDirPath = '';
         }
-        else if(type=='remote'){
-            pluginsDirPath = this.getDirectories('./plugins/remote-requests/');
-        }
-        else if(type=='local'){
-            pluginsDirPath = this.getDirectories('./plugins/local-responses-enabled/');
-        }
+
         //get results :
-        if(result=='dirName'){
-            pluginsDirName = new Array();
+        if(result==='dirName'){
+            pluginsDirName = [];
             pluginsDirPath.forEach(function(dirPath) {
                 pluginsDirName.push(Path.basename(dirPath));
             });
@@ -47,7 +53,7 @@ module.exports = {
             results = pluginsDirPath;
         }
         //format results :
-        if(format=='object'){
+        if(format==='object'){
             //array to object for gun.js compatibility
             var obj = {};
             var pluginsId = 0;
@@ -61,13 +67,15 @@ module.exports = {
     },
     
     
-    pcObject: function(params, lanInterface, wanInterface, diagCallFrom=''){
-        var expectedParams = new Array('hostname', 'lastCheck', 'lanIP', 'lanMAC');
+    pcObject: function(params, THIS_PC, diagCallFrom=''){
+        var lanInterface = THIS_PC.lanInterface;
+        var wanInterface = THIS_PC.wanInterface;
+        var expectedParams = ['hostname', 'lastCheck', 'lanIP', 'lanMAC'];
         var missingSomeParams = false;
         expectedParams.forEach(function(paramKey) {
             if(!params[paramKey]){
                 params[paramKey]='';
-                console.log('pcObject() missing parameter: '+ paramKey);
+                console.log('WARNING! pcObject() missing parameter: '+ paramKey);
                 missingSomeParams = true;
             } 
         });
@@ -79,7 +87,7 @@ module.exports = {
         pc.lanFullmask = lanInterface.fullmask;
         pc.lanGateway = lanInterface.gateway_ip;
         pc.wanIP = wanInterface.ip;
-        if(typeof pc.lanMAC != 'undefined' && pc.lanMAC != null){
+        if(typeof pc.lanMAC !== 'undefined' && pc.lanMAC != null){
             pc.lanMAC = pc.lanMAC.toUpperCase();
         }
         //if(missingSomeParams){
@@ -88,17 +96,49 @@ module.exports = {
         //}
         return pc;
     },
+
+
+    checkData: function(THIS_PC, respondTo){
+        var params = {
+            hostname: THIS_PC.hostnameLocal,
+            lastCheck: new Date().toISOString(),
+            lanIP: THIS_PC.lanInterface.ip_address,
+            lanMAC: THIS_PC.lanInterface.mac_address,
+            machineID: THIS_PC.machineID
+        };
+        var pc = this.pcObject(params, THIS_PC);
+        //each plugins as a key of pc object:
+        var plugins = this.getPlugins('all','dirName');
+        for (var key in plugins) {
+            pc[key] = plugins[key];
+        }
+        //respondsTo information:
+        if(respondTo){
+            pc['respondsTo-'+respondTo] = true;
+        }
+        return pc;
+    },
     
     
     getPcIdentifier: function(pc){
         var idPC = pc.lanMAC;   //computer identifier (simplified MAC adress)
         //used as unique identifier (it's supposed to be and we cant machine-id if app is not installed)
-        return idPC.replace(new RegExp(':', 'g'), '');
+        if(idPC){
+            idPC = idPC.replace(new RegExp(':', 'g'), '');
+        }
+        return idPC;
     },
     
     
-    eventRedirection: function(pcTarget, eventName, dbComputers, method='http'){
+    eventRedirection: function(eventData, dbComputers, method='http'){
+        var pcTarget = eventData.pcTarget;
+        var eventName = eventData.eventName;
+        
         console.log('[PLUGIN '+ eventName +']: local execution only => resend event through socket');
+        //console.log('pcTarget');
+        //console.log(pcTarget);
+        
+
 
         //Search computer that have the same machineID in (gun.js bdd|local array!) and get his actual IP:
         //console.log('Search for machineID:'+ pcTarget.machineID);
@@ -109,25 +149,13 @@ module.exports = {
         var idTargetPC = this.getPcIdentifier(pcTarget);
         dbComputers.get(idTargetPC).val(function(pcTarget, id){
             //necessite dbComputers en parametre fonction eventRedirection...
-            
-            
-            if(method=='socket')
-            {
-                //NOT WORKING YET
-                //TODO: TESTS AND DEV
-                
-                //====[SOCKET]====
-                var newRoute = 'http://'+pcTarget.lanIP+':'+Config.val('SOCKET_PORT')+Config.val('PATH_SOCKET_EVENTS');
-                console.log('newRoute: '+ newRoute); //"http://10.10.22.36:842/whatever"
-                var ioClient = require("socket.io-client");
-                var socketClient = ioClient.connect(newRoute);
-                socketClient.on('connect', function () { console.log("socket connected to "+ pcTarget.lanIP); });   //OK?
-                socketClient.emit(eventName, pcTarget);
 
-                console.log('=> socket redirected to :'+ newRoute);
-                //===============
+            if(method==='socket')
+            {
+                //====[SOCKET]====
+                console.log("[ERROR] GUN.JS SOCKETS EVENTS NO NEED REDIRECTION !");
             }
-            else
+            else if(method==='http')
             {
                 //HALF WORKING (form post data is not sended => selfTarget => OK FOR ONE REDIRECTION, NOT MORE)
                 //TODO: TESTS AND DEV
@@ -138,16 +166,16 @@ module.exports = {
                 var headers = {
                     'User-Agent':       'LanSuperv Agent/1.0.0',
                     'Content-Type':     'application/x-www-form-urlencoded'
-                }
+                };
 
                 var jsonString = JSON.stringify({
                     'eventName': eventName,
-                    'password' : 'notImplemented',
-                    'pcTarget': pcTarget
+                    'pcTarget': pcTarget,
+                    'password' : '*not*Implemented*',
                 });
 
                 var reqUrl = 'http://'+ pcTarget.lanIP +':'+ Config.val('SERVER_PORT') + Config.val('PATH_HTTP_EVENTS') +'/'+ eventName;
-                console.log('reqUrl: '+reqUrl); //OK?
+                console.log('[eventRedirection with http] reqUrl: '+reqUrl);
 
                 // Configure the request
                 var options = {
@@ -155,25 +183,8 @@ module.exports = {
                     method: 'POST',
                     headers: headers,
                     form: {'jsonString': jsonString}
-                }
-                
-                
-//                // Start the request
-//                Request(options, function (error, response, body) {
-//
-//                    console.log(Config.val('PATH_HTTP_EVENTS') +' response.statusCode: '+ response.statusCode);
-//                    console.log(body);
-//                    console.log(response);
-//                    //OK?
-//
-//                    if (!error && response.statusCode == 200) {
-//                        // Print out the response body
-//                        console.log('sucess');
-//                        console.log(body);
-//                    }
-//                })
-                
-                
+                };
+
                 Request(options, function(err, res, body) {  
                     if(err)
                     {
@@ -182,70 +193,85 @@ module.exports = {
                     }
                     else
                     {
-                        //console.log("resRES");
-                        //console.log(res);
-
-                        console.log("bodyBODY");
-                        console.log(body); //undefined
+                        console.log("JSON response:");
+                        console.log(body);
                     }
                 });
-
                 
                 //===============
             }
-            
-
-//#### OTHERS SOCKETS TESTS            
-//#         var ioClient = require('socket.io-client');
-//#         var socketClient = ioClient.connect('http://'+pcTarget.lanIP, {
-//#             port: Config.val('SOCKET_PORT'),
-//#             path: Config.val('PATH_SOCKET_EVENTS')
-//#         });
-//#         socketClient.on('connect', function () { console.log("socket connected to "+ pcTarget.lanIP); });
-//#         socketClient.emit('private message', { user: 'me', msg: 'whazzzup?' });
-
-            
-//#         //FAIL var Io2 = require('socket.io')({path: Config.val('PATH_SOCKET_EVENTS')});
-//#         //var ioClient = require('socket.io-client'); 
-//#         var ioClient = require('socket.io-client')({path: Config.val('PATH_SOCKET_EVENTS')});
-//#         function emitMessageToServer( socketClient ){
-//#             console.log('emit to other server <3');
-//#             
-//#             socketClient.emit('my other event', { my: 'data' });
-//#             
-//#             setTimeout(function(){
-//#                 emitMessage(socket);
-//#             }, 1000);
-//#         }
-//#         //FAIL var socketClient = ioClient.connect("http://localhost:3000");
-//#         var socketClient = ioClient.connect(newRoute, {path: Config.val('PATH_SOCKET_EVENTS')});
-//#         emitMessageToServer(socketClient);
-//#         
-//#//         //FAIL
-//#//         var clientSocket = Io2.connect(newRoute, {path: Config.val('PATH_SOCKET_EVENTS')}, function(){
-//#//             console.log('............................');
-//#//             console.log('connected to other server <3');
-//#//    
-//#//    
-//#//             //socket.emit(eventName, pcTarget);
-//#//         });
-//#         
-//#         //ERREUR: Io2.connect is not a function
-//####
-
+            else
+            {
+                console.log('[error] function eventRedirection: unknow method parameter');
+            }
             
         });
         
     },
     
     
-    eventExecution: function(pcTarget, eventName, execPath){
-        var compute = fork(execPath);
-        compute.send(pcTarget);
-        compute.on('message', (msg) => {
-            console.log('[PLUGIN '+ eventName +'] message: '+ msg);
-        });
-    }
+    eventExecution: function(eventParams){
+        var eventName = eventParams.eventName;
+        var execPath = eventParams.execPath;
+        //var pcTarget = eventParams.pcTarget;
+        //var eventFrom = eventParams.eventFrom;
 
+        var compute = fork(execPath);
+        compute.send(eventParams);
+        compute.on('message', (msg) => {
+            var text = '[PLUGIN '+ eventName +'] message: ';
+            if(typeof msg === 'object'){
+                console.log(text);
+                console.log(msg);
+            }else{
+                console.log(text + msg);
+            }
+        });
+    },
+
+
+    //http://2ality.com/2015/08/es6-map-json.html
+    strMapToObj: function(strMap) {
+        let obj = Object.create(null);
+        for (let [k,v] of strMap) {
+            // We don’t escape the key '__proto__'
+            // which can cause problems on older engines
+            obj[k] = v;
+        }
+        return obj;
+    },
+    objToStrMap: function(obj) {
+        let strMap = new Map();
+        for (let k of Object.keys(obj)) {
+            strMap.set(k, obj[k]);
+        }
+        return strMap;
+    },
+    strMapToJson: function(strMap) {
+        return JSON.stringify(this.strMapToObj(strMap));
+    },
+    jsonToStrMap: function(jsonStr) {
+        return this.objToStrMap(JSON.parse(jsonStr));
+    },
+
+
+
+    logCheckResult: function(checkType, pcToUpdate) {
+        var log = "##Promise## AFTER " + checkType + "Check() UPDATE PC " + pcToUpdate.lanIP + " IN DATABASE  (";
+        if (!pcToUpdate['respondsTo-' + checkType]) {
+            log += "NOT ";
+        }
+        log += "respondsTo-" + checkType + ")";
+
+        console.log(log);
+    },
+    logCheckWarning: function(checkType, dbComputers, finalResult) {
+        if (typeof dbComputers === 'undefined') {
+            console.log("WARNING! [" + checkType + "] gun.js dbComputers required !");
+        }
+        if (typeof finalResult.idPC === 'undefined') {
+            console.log("WARNING! [" + checkType + "] finalResult.idPC required !");
+        }
+    }
 
 };

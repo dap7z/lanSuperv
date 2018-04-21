@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr">
+    
+    <head>
+        <meta charset="utf-8">
+        <title>lanSuperv</title>
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+        
+        <!-- STYLES -->
+        <link rel="stylesheet" href="assets/bootstrap.min.css">
+        <link rel="stylesheet" href="assets/toastr.min.css">
+        <link rel="stylesheet" href="assets/pace.css">
+        <link rel="stylesheet" href="style.css">
+		<!-- START CHAT https://github.com/ronaldaug/gunjschat -->
+		<!--
+		<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+		<link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css" rel="stylesheet" />
+		-->
+		<link rel="stylesheet" href="chat.css">
+		<!-- END CHAT -->
+		
+        
+        <!-- JAVASCRIPS -->
+        <script src="assets/jquery-3.2.1.min.js"></script>
+        <script src="assets/jquery.timeago.js"></script>
+        <script src="assets/tether.min.js"></script>
+        <script src="assets/bootstrap.min.js"></script>
+        <script src="assets/toastr.min.js"></script>
+        <script src="assets/gun.min.js"></script>
+		<script src="assets/moment.min.js"></script>
+    </head>
+    
+    <body>
+        
+		<div id="loader" class="pace pace-active initial-box-sizing">
+            <div class="pace-progress initial-box-sizing" data-progress="50" data-progress-text="50%">
+				<div class="pace-progress-inner initial-box-sizing"></div>
+            </div>
+            <div class="pace-activity initial-box-sizing"></div>
+        </div>
+
+        
+        <div class="container-fluid">
+            <div class="row">
+                <div id="app" class="col-12">
+                    
+                    <h1>Lan Superv</h1>
+                    
+                    <div id="pcModel" style="display: none;">
+                        <div class="pcElem col-12 col-sm-6 col-md-6 col-lg-4 col-xl-2">
+                            <div class="card">
+                                <div class="card-header">
+                                    <span class="nickname"></span>
+                                    <span class="hostname"></span>
+                                </div>
+                                <div class="card-block">
+                                    
+                                    <div class="btn-group btn-plugin-container" role="group" >
+                                        <div class="btn-group btn-plugin-choice" role="group">
+                                            <a class="btn btn-secondary dropdown-toggle btn-plugin-link" data-toggle="dropdown" href="#">
+                                                <span class='btn-plugin-value'></span><span class="caret"></span>
+                                            </a>
+                                            <ul class="dropdown-menu">
+                                                <li class="dropdown-item"></li>
+                                            </ul>
+                                        </div>
+                                        <button type="button" onclick="sendRequest(this);" class="btn btn-primary btn-plugin-submit">Send</button>
+                                    </div>
+
+
+                                    <div class="row">
+                                        <span class="col-3 nowrap">IP :</span><span class="lanIP col-9 breakword"></span>
+                                    </div>
+                                    <div class="row">
+                                        <span class="col-3 nowrap">MAC :</span><span class="lanMAC col-9 breakword"></span>
+                                    </div>
+                                    <div class="row">
+                                        <span class="col-3 nowrap">IDPC :</span><span class="machineID col-9 cutword" alt=""></span>
+                                    </div>
+
+                                    <div class="row">
+                                        <span class="col-12">
+                                            <div class="d-flex flex-wrap respondsTo">
+                                                <div class="p-2 badge-container">Responds to :</div>
+                                                <div class="p-2 badge-container">
+                                                    <span class="badge badge-default respondsTo-ping">ping</span>
+                                                    <span class="badge badge-default respondsTo-http requireApp">http</span>
+                                                    <span class="badge badge-default respondsTo-socket requireApp">socket</span>
+                                                </div>
+                                            </div>
+                                        </span>
+                                    </div>
+
+                                    <div class="row">
+                                        <span class="col-12">
+                                            <div class="d-flex flex-wrap respondsTo">
+                                                <div class="p-2 badge-container">Last response :</div>
+                                                <div class="p-2 badge-container">
+                                                    <span class="lastResponse col-9 breakword">
+                                                        <time class="timeago" datetime=""></time>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </span>
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="pcList" class="row"></div>
+                    
+                </div>
+            </div>
+        
+			<!-- CHAT START -->
+            <div class="chat-container">
+                <div class="model" style="display: none;">
+                    <li>
+                        <i class="status"></i>
+                        <b class="who"></b>
+                        <span class="when-style">(</span><span class="when"></span><span class="when-style">)</span>
+                        : <span class="what"></span>
+                        <i class="deletemsg"></i>
+                    </li>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <hr>
+                    </div>
+                    <div class="col-4">
+                        <p>Online Users</p>
+                        <hr>
+                        <div class="onlinebox">
+                        </div>
+                    </div>
+                    <div class="col-8">
+                        <p>Message Systems</p>
+                        <hr>
+                        <div class="clearfix"></div>
+                        <div class="chatbox">
+                            <ul class="collection chatmessage"></ul>
+                        </div>
+                        <form id="chat">
+                            <input placeholder="Message" class="msg msgTextBox" required>
+                            <button class="waves-effect waves-light btn msgSubmitBtn">send</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <!-- CHAT END -->
+			
+		</div>
+
+
+        <!-- INIT APP -->
+        <script>
+            var module = {};
+            //var gunMessenger = null;
+            var sharedObject = {
+                socket:null,
+                gun:null,
+                dbMessages:null
+            };
+        </script>
+        <script src="config.js"></script>
+        <script src="client.js"></script>
+        <script src="chat.js"></script>
+        <!-- JsonDisplay() FUNCTION -->
+        <script src="assets/json-formatter.js"></script>
+        <script>
+            //var JsonFormatter = require('../dist/json-formatter.js').default;
+            var JsonFormatter = module.exports.default;
+            function JsonDisplay(jsonOrObject){
+                var renderConfig = {
+                    theme: 'dark',		//dark theme (font colors)
+                    sortPropertiesBy: function(a,b){ return a>b; }
+                };
+                var formatter = new JsonFormatter(jsonOrObject, 1, renderConfig);
+                var element = formatter.render();
+                element.style['backgroundColor'] = '#1E1E1E';	//dark theme (background color)
+                element.style['border'] = '1px solid lightgray';
+                element.style['border-radius'] = '5px';
+                element.style['padding'] = '10px';
+                return element;
+            }
+        </script>
+
+        <!-- LAUNCH APP -->
+        <script>
+            clientJS();
+            //==========================
+            //gunMessenger = sharedObject.gun.get(Config.val('TABLE_MESSAGES'));  //dbMessages ??
+            function sendGunMessage(message){
+                console.log("execute function sendGunMessage() with msg:");
+                console.log(message);
+                sharedObject.dbMessages.set(message);
+            }
+            //==========================
+            chatJS();
+        </script>
+        
+    </body>
+    
+</html>

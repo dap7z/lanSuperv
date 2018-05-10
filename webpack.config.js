@@ -6,6 +6,10 @@ const config = {
     filename: '[name].js',
     path: __dirname + '/web/dist'
   },
+  node: {
+    __dirname: false,
+    __filename: false
+  },
   module: {
     rules: [
       {

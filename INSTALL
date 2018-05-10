@@ -1,0 +1,20 @@
+[INSTALLATION]
+
+- on windows :
+install cmder
+#cmd:
+cd lanSuperv
+npm install
+
+- on linux :
+#cmd:
+cd lanSuperv
+npm install -g electron --unsafe-perm=true --allow-root
+npm install
+
+
+
+[START ELECTRON APP]
+
+#cmd:
+npm start

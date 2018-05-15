@@ -1,142 +1,223 @@
 // This is free and unencumbered software released into the public domain.
 // See LICENSE for details
 
-const {app, BrowserWindow, Menu, protocol, ipcMain} = require('electron');
 const log = require('electron-log');
-const {autoUpdater} = require("electron-updater");
+const {app, BrowserWindow, Menu, protocol, ipcMain} = require('electron');
+const {fork} = require('child_process');
+
+// AutoLaunch
+const AutoLaunch = require('auto-launch');
+var lanSupervAutoLauncher = new AutoLaunch({
+    name: 'lanSuperv'
+});
+lanSupervAutoLauncher.enable();
+lanSupervAutoLauncher.isEnabled()
+	.then(function(isEnabled){
+		if(isEnabled){
+			return;
+		}
+		lanSupervAutoLauncher.enable();
+	}).catch(function(err){
+		// handle error
+	});
+
+
+
 
 //-------------------------------------------------------------------
-// Logging
-//
-// THIS SECTION IS NOT REQUIRED
-//
-// This logging setup is not required for auto-updates to work,
-// but it sure makes debugging easier :)
-//-------------------------------------------------------------------
-autoUpdater.logger = log;
-autoUpdater.logger.transports.file.level = 'info';
-log.info('App starting...');
-
-//-------------------------------------------------------------------
-// Define the menu
-//
-// THIS SECTION IS NOT REQUIRED
+// Check if graphic interface is available or not
 //-------------------------------------------------------------------
 let template = []
-if (process.platform === 'darwin') {
-  // OS X
-  const name = app.getName();
-  template.unshift({
-    label: name,
-    submenu: [
-      {
-        label: 'About ' + name,
-        role: 'about'
-      },
-      {
-        label: 'Quit',
-        accelerator: 'Command+Q',
-        click() { app.quit(); }
-      },
-    ]
-  })
+switch(process.platform){
+    case 'darwin':
+
+        // OS X
+        const name = app.getName();
+        template.unshift({
+            label: name,
+            submenu: [
+                {
+                    label: 'About ' + name,
+                    role: 'about'
+                },
+                {
+                    label: 'Quit',
+                    accelerator: 'Command+Q',
+                    click() { app.quit(); }
+                },
+            ]
+        })
+
+        break;
+    case 'linux':
+
+//Detect if it's command line server or not :
+        const exec = require('child_process').exec;
+        const testscript = exec('sh isDesktop.sh /.');
+
+
+        testscript.stdout.on('data', function(data){
+            console.log('data from isDeskyop.sh: ', data);
+            // sendBackInfo();
+        });
+
+
+        break;
+    case 'win32':
+        console.log('...win32...');
+        break;
+    default:
+        console.log('Unknow platform: '+ process.platform);
+
 }
 
 
-//-------------------------------------------------------------------
-// Open a window that displays the version
-//
-// THIS SECTION IS NOT REQUIRED
-//
-// This isn't required for auto-updates to work, but it's easier
-// for the app to show a window than to have to click "About" to see
-// that updates are working.
-//-------------------------------------------------------------------
-let win;
 
-function sendStatusToWindow(text) {
+
+
+
+let win, childProcess, headLess;
+
+
+//-------------------------------------------------------------------
+// Window that displays the version and working update
+//-------------------------------------------------------------------
+function statusMessage(text) {
+  if(win){
+      win.webContents.send('message', text);
+  }
+  text += ' (displayOnWindow)';
   log.info(text);
-  win.webContents.send('message', text);
 }
-function createDefaultWindow() {
-  win = new BrowserWindow();
-  win.webContents.openDevTools();
+
+function createDefaultWindow(callback) {
+  win = new BrowserWindow({show: false});
   win.on('closed', () => {
     win = null;
   });
-  win.loadURL(`file://${__dirname}/version.html#v${app.getVersion()}`);
+  win.loadURL(`file://${__dirname}/main.html#v${app.getVersion()}`);
+  win.once('ready-to-show', () => {
+      win.show();
+      if(typeof callback === 'function'){
+          callback();
+      }
+  });
   return win;
 }
-autoUpdater.on('checking-for-update', () => {
-  sendStatusToWindow('Checking for update...');
-})
-autoUpdater.on('update-available', (info) => {
-  sendStatusToWindow('Update available.');
-})
-autoUpdater.on('update-not-available', (info) => {
-  sendStatusToWindow('Update not available.');
-})
-autoUpdater.on('error', (err) => {
-  sendStatusToWindow('Error in auto-updater. ' + err);
-})
-autoUpdater.on('download-progress', (progressObj) => {
-  let log_message = "Download speed: " + progressObj.bytesPerSecond;
-  log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
-  log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
-  sendStatusToWindow(log_message);
-})
-autoUpdater.on('update-downloaded', (info) => {
-  sendStatusToWindow('Update downloaded');
+
+
+function startApplication(){
+    //Due to compatibility issues, We cant: require('./app').start();
+    //To isolate from updater, we have to launch an app only process:
+    childProcess = require('child_process').fork('./app.js');
+    childProcess.on('message', (data) => {
+        //console.log('/!\\ Message received from childProcess: ', data);
+        if(win){
+            if (typeof data.type !== 'undefined'){
+                win.webContents.send(data.type, data);
+            }else{
+                win.webContents.send('message', data);
+            }
+        }
+    });
+}
+
+
+
+var StandaloneAutoUpdater = require('auto-updater');
+
+var autoUpdater = new StandaloneAutoUpdater({
+    pathToJson: '',
+    autoupdate: false,
+    checkgit: true,
+    jsonhost: 'raw.githubusercontent.com',
+    contenthost: 'codeload.github.com',
+    progressDebounce: 0,
+    devmode: false
 });
+
+// State the events
+autoUpdater.on('git-clone', function() {
+    // .git folder detected...
+    statusMessage("You have a clone of the repository. Use 'git pull' to be up-to-date");
+});
+autoUpdater.on('check.up-to-date', function(v) {
+    statusMessage("You have the latest version: " + v);
+    startApplication();
+});
+autoUpdater.on('check.out-dated', function(v_old, v) {
+    statusMessage("Your version is outdated. " + v_old + " of " + v);
+    autoUpdater.fire('download-update'); // If autoupdate: false, you'll have to do this manually.
+    // Maybe ask if the'd like to download the update.
+});
+autoUpdater.on('update.downloaded', function() {
+    statusMessage("Update downloaded and ready for install");
+    autoUpdater.fire('extract'); // If autoupdate: false, you'll have to do this manually.
+});
+autoUpdater.on('update.not-installed', function() {
+    statusMessage("The Update was already in your folder! It's read for install");
+    autoUpdater.fire('extract'); // If autoupdate: false, you'll have to do this manually.
+});
+autoUpdater.on('update.extracted', function() {
+    statusMessage("Update extracted successfully!");
+    statusMessage("RESTART THE APP!");
+    //TODO
+});
+autoUpdater.on('download.start', function(name) {
+    statusMessage("Starting downloading: " + name);
+});
+autoUpdater.on('download.progress', function(name, perc) {
+    process.stdout.write("Downloading " + perc + "% \033[0G");
+});
+autoUpdater.on('download.end', function(name) {
+    statusMessage("Downloaded " + name);
+});
+autoUpdater.on('download.error', function(err) {
+    statusMessage("Error when downloading: " + err);
+});
+autoUpdater.on('end', function() {
+    statusMessage("The app is ready to function");
+});
+autoUpdater.on('error', function(name, e) {
+    statusMessage(name, e);
+});
+
+
+
+
+
+
+
+
+//-------------------------------------------------------------------
+// Application
+//-------------------------------------------------------------------
 app.on('ready', function() {
-  // Create the Menu
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
+   // Check for update at launch (before show GUI)
+   autoUpdater.fire('check');
 
-  createDefaultWindow();
+
+  // Try open a window, if it fail app still works in head less mode
+  headLess = false;
+  try{
+      // Create the Menu
+      const menu = Menu.buildFromTemplate(template);
+      Menu.setApplicationMenu(menu);
+      // Create window
+      createDefaultWindow(function(){
+          statusMessage('Checking for update...');
+      });
+  }catch(error){
+    headLess = true;
+    log.info(error);
+    log.info("headLess mode");
+  }
+
+
 });
+
+
 app.on('window-all-closed', () => {
-  app.quit();
+  //app.quit();
+  console.log('app has to stay running in background');
 });
-
-//
-// CHOOSE one of the following options for Auto updates
-//
-
-//-------------------------------------------------------------------
-// Auto updates - Option 1 - Simplest version
-//
-// This will immediately download an update, then install when the
-// app quits.
-//-------------------------------------------------------------------
-app.on('ready', function()  {
-  autoUpdater.checkForUpdates();
-});
-
-//-------------------------------------------------------------------
-// Auto updates - Option 2 - More control
-//
-// For details about these events, see the Wiki:
-// https://github.com/electron-userland/electron-builder/wiki/Auto-Update#events
-//
-// The app doesn't need to listen to any events except `update-downloaded`
-//
-// Uncomment any of the below events to listen for them.  Also,
-// look in the previous section to see them being used.
-//-------------------------------------------------------------------
-// app.on('ready', function()  {
-//   autoUpdater.checkForUpdates();
-// });
-// autoUpdater.on('checking-for-update', () => {
-// })
-// autoUpdater.on('update-available', (info) => {
-// })
-// autoUpdater.on('update-not-available', (info) => {
-// })
-// autoUpdater.on('error', (err) => {
-// })
-// autoUpdater.on('download-progress', (progressObj) => {
-// })
-// autoUpdater.on('update-downloaded', (info) => {
-//   autoUpdater.quitAndInstall();  
-// })

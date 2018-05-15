@@ -5,7 +5,7 @@
 //used libraries
 const Fs = require('fs');
 const Path = require('path');
-const { fork } = require('child_process');
+const {fork} = require('child_process');
 
 
 //public functions

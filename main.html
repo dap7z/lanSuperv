@@ -1,24 +1,73 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Electron Updater Example</title>
-</head>
-<body>
-  Current version: <span id="version">vX.Y.Z</span>
-  <div id="messages"></div>
-<script>
-// Display the current version
-let version = window.location.hash.substring(1);
-document.getElementById('version').innerText = version;
+  <head>
+    <title>LanSuperv</title>
+    <style>
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #panelTop{
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        right: 0px;
+        background-color: white;
+      }
+      #messageContainer{
+        float: left;
+        margin-left: 2px;
+      }
+      #versionContainer{
+        float: right;
+        margin-right: 2px;
+      }
+      #webView{
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="panelTop">
+      <div id="messageContainer"></div>
+      <div id="versionContainer">Current version: <span id="version">vX.Y.Z</span></div>
+    </div>
+    <webview id="webView" src="" autosize="on" minwidth="600" minheight="800" ></webview>
+    <script>
 
-// Listen for messages
-const {ipcRenderer} = require('electron');
-ipcRenderer.on('message', function(event, text) {
-  var container = document.getElementById('messages');
-  var message = document.createElement('div');
-  message.innerHTML = text;
-  container.appendChild(message);
-})
-</script>
-</body>
+        const {ipcRenderer} = require('electron');
+        var messageContainer = document.getElementById('messageContainer');
+        function clearMessages(){
+            messageContainer.innerHTML = '';
+        }
+        function showMessage(text){
+            var message = document.createElement('div');
+            message.innerHTML = text;
+            messageContainer.appendChild(message);
+        }
+
+        // Display the current version
+      let version = window.location.hash.substring(1);
+      document.getElementById('version').innerText = version;
+
+
+      // Listen for messages
+      ipcRenderer.on('message', function(event, text) {
+          showMessage(text);
+      })
+
+      // Listen for ready events
+      ipcRenderer.on('ready', function(event, data) {
+          clearMessages();
+          showMessage(data.serverUpNotification);
+
+          var webView = document.getElementById('webView');
+          webView.src = data.url;
+      })
+
+    </script>
+  </body>
 </html>

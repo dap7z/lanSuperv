@@ -53,6 +53,8 @@ var THIS_PC = {
 
 
 
+module.exports.start = function(){
+
 //----- LAUNCH HTTP SERVER -----
 var app = Express();
 var server = null;
@@ -157,16 +159,24 @@ getDefaultInterface().then(function(defaultInterface){
             server = app.listen(app.get('port'), function () {
                 //get listening port
                 var port = server.address().port;
-                var serverUpNotification = 'OK! lanSuperv web server available on http://localhost:' + port;
+                var url = 'http://localhost:'+port;
+                var serverUpNotification = 'Web server available on '+ url +' (lanIP: '+ THIS_PC.lanInterface.ip_address +', ';
                 //get public ip
                 ExtIP((err, ip) => {
                     if (err) {
-                        serverUpNotification += ' (unknow wanIP)';
+                        serverUpNotification += 'unknow wanIP)';
                     } else {
-                        serverUpNotification += ' (wanIP: ' + ip + ')';
+                        serverUpNotification += 'wanIP: ' + ip + ')';
                     }
                     THIS_PC.wanInterface = {ip: ip};
-                    console.log(serverUpNotification);
+                    console.log('OK! '+ serverUpNotification);
+                    //== notify app is ready to master process
+                    process.send({
+                        type: 'ready',
+                        url: url,
+                        serverUpNotification: serverUpNotification
+                    });
+                    //==
 
 
                     //----- DECENTRALIZED DB (GUN.JS) -----
@@ -713,4 +723,10 @@ getDefaultInterface().then(function(defaultInterface){
 }).catch(function(err){
     //ERROR CATCHED IN MAIN
     console.log("main got error => restart ?");
+    console.log(err);
+
+    process.exit();
 });
+
+
+};    //end-module-export

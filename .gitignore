@@ -4,9 +4,9 @@
 *-local.json
 visibleComputers.json
 
-#actual plugins setup:
-plugins/local-responses-enabled/*
-!plugins/local-responses-enabled/COPY_HERE_PLUGINS_DIRS
+##actual plugins setup (disabled - has to be refactor for lan-superv npm module comptatibility):
+#plugins/local-responses-enabled/*
+#!plugins/local-responses-enabled/COPY_HERE_PLUGINS_DIRS
 
 #auto update:
 publish.sh

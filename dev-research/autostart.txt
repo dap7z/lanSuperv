@@ -1,5 +1,0 @@
-https://medium.com/the-node-js-collection/switching-from-cluster-module-to-pm2-rabbitmq-in-node-js-d0cce5eb96f4
-https://blog.cloudboost.io/nodejs-pm2-startup-on-windows-db0906328d75
-
-retenu:
-https://www.npmjs.com/package/auto-launch

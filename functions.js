@@ -28,15 +28,15 @@ module.exports = {
         var pluginsDirPath;
         switch(type){
             case 'all':
-                var remoteRequestsPlugins = this.getDirectories('./plugins/remote-requests/');
-                var localResponsesPlugins = this.getDirectories('./plugins/local-responses-enabled/');
+                var remoteRequestsPlugins = this.getDirectories(__dirname+'/plugins/remote-requests/');
+                var localResponsesPlugins = this.getDirectories(__dirname+'/plugins/local-responses-enabled/');
                 pluginsDirPath = remoteRequestsPlugins.concat(localResponsesPlugins);
                 break;
             case 'remote':
-                pluginsDirPath = this.getDirectories('./plugins/remote-requests/');
+                pluginsDirPath = this.getDirectories(__dirname+'/plugins/remote-requests/');
                 break;
             case 'local':
-                pluginsDirPath = this.getDirectories('./plugins/local-responses-enabled/');
+                pluginsDirPath = this.getDirectories(__dirname+'/plugins/local-responses-enabled/');
                 break;
             default:
                 pluginsDirPath = '';

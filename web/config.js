@@ -107,10 +107,10 @@ var config_object = {
                     result = this.val('DATABASE_NAME') +'/messages';
                     break;
                 case 'FILE_SHARED_DB':
-                    result = this.val('DATABASE_NAME') +'-shared.json';
+                    result = __dirname +'/../'+ this.val('DATABASE_NAME') +'-shared.json';
                     break;
                 case 'FILE_LOCAL_DB':
-                    result = this.val('DATABASE_NAME') +'-local.json';
+                    result = __dirname +'/../'+ this.val('DATABASE_NAME') +'-local.json';
                     break;
 				case 'GUN_PEERS':
 					result = [this.val('SOCKET_URL_DATABASE')]; //array

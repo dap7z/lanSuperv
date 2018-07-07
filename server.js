@@ -221,7 +221,7 @@ getDefaultInterface().then(function(defaultInterface){
                     var installedComputers = new Map();
                     //Reload visibleComputers map on server restart
                     var visibleComputers = new Map();
-                    Fs.readFile('visibleComputers.json', 'utf8', function (err, data) {
+                    Fs.readFile(__dirname+'/visibleComputers.json', 'utf8', function (err, data) {
                         if (err){
                             console.log("WARNING! cant read file visibleComputers.json");
                             //console.log(err) //example: file doesnt exist after a fresh install

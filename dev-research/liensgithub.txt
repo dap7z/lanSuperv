@@ -40,3 +40,13 @@ https://github.com/jaz303/render-object     //=> winner ligth categorie
 https://github.com/mohsen1/json-formatter-js	//=> winnner fat category
 
 https://togetherjs.com/
+
+
+
+
+
+//mise a jour automatique
+https://www.npmjs.com/package/cli-autoupdate
+https://www.npmjs.com/package/auto-updater
+https://www.npmjs.com/package/cli-autoupdater
+https://github.com/zhw2590582/auto-update-from-github

@@ -68,7 +68,7 @@
     ]
   },
   "auto-updater": {
-    "repo": "/dap7z/lanSuperv",
+    "repo": "dap7z/lanSuperv",
     "branch": "master"
   },
   "main": "main.js",

@@ -1,14 +1,17 @@
 // This is free and unencumbered software released into the public domain.
 // See LICENSE for details
 
+//Variables:
+let win, childProcess, headLess;
+//Librairies:
 const log = require('electron-log');
-const {app, BrowserWindow, Menu, protocol, ipcMain} = require('electron');
 const {fork} = require('child_process');
-
-// AutoLaunch
 const AutoLaunch = require('auto-launch');
+
+
 var lanSupervAutoLauncher = new AutoLaunch({
-    name: 'lanSuperv'
+    name: 'lanSuperv',
+    path: process.execPath,
 });
 lanSupervAutoLauncher.enable();
 lanSupervAutoLauncher.isEnabled()
@@ -27,11 +30,11 @@ lanSupervAutoLauncher.isEnabled()
 //-------------------------------------------------------------------
 // Check if graphic interface is available or not
 //-------------------------------------------------------------------
-let template = []
+let template = [];
 switch(process.platform){
     case 'darwin':
 
-        // OS X
+        //OS X
         const name = app.getName();
         template.unshift({
             label: name,
@@ -51,7 +54,8 @@ switch(process.platform){
         break;
     case 'linux':
 
-//Detect if it's command line server or not :
+        //Linux (Ubuntu/Debian)
+        // detect if it's command line server or not :
         const exec = require('child_process').exec;
         const testscript = exec('sh isDesktop.sh /.');
 
@@ -61,9 +65,10 @@ switch(process.platform){
             // sendBackInfo();
         });
 
-
         break;
     case 'win32':
+
+        //Windows
         console.log('...win32...');
         break;
     default:
@@ -76,7 +81,7 @@ switch(process.platform){
 
 
 
-let win, childProcess, headLess;
+
 
 
 //-------------------------------------------------------------------
@@ -87,6 +92,7 @@ function statusMessage(text) {
       win.webContents.send('message', text);
   }
   text += ' (displayOnWindow)';
+  console.log(text);
   log.info(text);
 }
 
@@ -107,6 +113,7 @@ function createDefaultWindow(callback) {
 
 
 function startApplication(){
+    console.log("== START APPLICAITON ==");
     //Due to compatibility issues, We cant: require('./app').start();
     //To isolate from updater, we have to launch an app only process:
     childProcess = require('child_process').fork('./app.js');
@@ -123,11 +130,11 @@ function startApplication(){
 }
 
 
-
+//https://www.npmjs.com/package/auto-updater
 var StandaloneAutoUpdater = require('auto-updater');
 
 var autoUpdater = new StandaloneAutoUpdater({
-    pathToJson: '',
+    pathToJson: '', //from repo main folder to package.json (only subfolders. Can't go backwards)
     autoupdate: false,
     checkgit: true,
     jsonhost: 'raw.githubusercontent.com',
@@ -174,6 +181,8 @@ autoUpdater.on('download.end', function(name) {
 });
 autoUpdater.on('download.error', function(err) {
     statusMessage("Error when downloading: " + err);
+    //can be:
+    //Error when downloading: Error: self signed certificate in certificate chain
 });
 autoUpdater.on('end', function() {
     statusMessage("The app is ready to function");
@@ -182,16 +191,39 @@ autoUpdater.on('error', function(name, e) {
     statusMessage(name, e);
 });
 
+//Start checking for updates:
+autoUpdater.fire('check');
 
 
+
+//TEST ONLY [OK]
+//startApplication();
+
+/*
+//TEST SIMPLE EXPRESS
+const express = require('express')
+const justWait = express()
+justWait.get('/', function (req, res) {
+    res.send('Hello World!')
+})
+justWait.listen(3000, function () {
+    console.log('Example app listening on port 3000!')
+})
+*§
+
+//END
+statusMessage("This is the End !");
 
 
 
 
 
 //-------------------------------------------------------------------
-// Application
+// Electron application (Only if graphic display available)
 //-------------------------------------------------------------------
+/*
+
+const {app, BrowserWindow, Menu, protocol, ipcMain} = require('electron');
 app.on('ready', function() {
    // Check for update at launch (before show GUI)
    autoUpdater.fire('check');
@@ -221,3 +253,5 @@ app.on('window-all-closed', () => {
   //app.quit();
   console.log('app has to stay running in background');
 });
+
+*/

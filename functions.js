@@ -210,22 +210,29 @@ module.exports = {
     },
     
     
-    eventExecution: function(eventParams){
-        var eventName = eventParams.eventName;
-        var execPath = eventParams.execPath;
-        //var pcTarget = eventParams.pcTarget;
-        //var eventFrom = eventParams.eventFrom;
+    eventExecution: async function(eventParams){
+        return new Promise(function (resolve) {
+            var eventName = eventParams.eventName;
+            var execPath = eventParams.execPath;
 
-        var compute = fork(execPath);
-        compute.send(eventParams);
-        compute.on('message', (msg) => {
-            var text = '[PLUGIN '+ eventName +'] message: ';
-            if(typeof msg === 'object'){
-                console.log(text);
-                console.log(msg);
-            }else{
-                console.log(text + msg);
-            }
+            var lastObjectMsg = {};
+            var compute = fork(execPath);
+            compute.send(eventParams);
+            compute.on('message', (msg) => {
+                var text = '[PLUGIN ' + eventName + '] message: ';
+                if (typeof msg === 'object') {
+                    //console.log(text);
+                    //console.log(msg);
+                    lastObjectMsg = msg;
+                } else {
+                    console.log(text + msg);
+                }
+
+                if (msg === 'end') {
+                    //promise return lastObjectMsg
+                    resolve(lastObjectMsg);
+                }
+            });
         });
     },
 

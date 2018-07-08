@@ -546,7 +546,7 @@ getDefaultInterface().then(function(defaultInterface){
 
 
                     //same process (and parameters) on socket or http :
-                    function eventDispatcher(p, f) {
+                    async function eventDispatcher(p, f) {
                         let eventResult = null;
 
                         //used globals: pluginsInfos THIS_PC.lanInterface dbComputers
@@ -586,7 +586,8 @@ getDefaultInterface().then(function(defaultInterface){
                                 //(required for self check event)
                             }
                             //exec plugin in child process
-                            eventResult = F.eventExecution(p);
+                            eventResult = await F.eventExecution(p);
+                            //console.log(eventResult);  //OK
                         }
 
                         return eventResult;  //stay null in case of event redirection
@@ -594,7 +595,7 @@ getDefaultInterface().then(function(defaultInterface){
 
 
                     //++++++++++ HTTP EVENT ++++++++++ (support only self target)
-                    app.all(Config.val('PATH_HTTP_EVENTS') + '/:eventName', function (request, response) {
+                    app.all(Config.val('PATH_HTTP_EVENTS') + '/:eventName', async function (request, response) {
                         //app.all() GET, POST, PUT, DELETE, or any other HTTP request method
                         //request.query comes from query parameters in the URL
                         //request.body properties come from a form post where the form data
@@ -606,7 +607,7 @@ getDefaultInterface().then(function(defaultInterface){
                         //example:
                         //http://localhost:842/cmd/check
                         //http://localhost:842/cmd/power-off
-                        let responseData = eventDispatcher(p, 'http');
+                        let responseData = await eventDispatcher(p, 'http');
                         response.json(responseData); //json response
                     });
                     console.log("OK! setup http events listeners");

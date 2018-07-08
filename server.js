@@ -470,7 +470,7 @@ getDefaultInterface().then(function(defaultInterface){
                                         F.logCheckWarning("ping", dbComputers, finalResult);
                                         //  ORG dbComputers.get(result.idPC).get('online').put(result.online);
                                         //  ORG dbComputers.get(result.idPC).get('respondsTo-ping').put(result.online);
-                                        dbComputers.get(finalResult.idPC).val(function (pcToUpdate, id) {
+                                        dbComputers.get(finalResult.idPC).once(function (pcToUpdate, id) {
                                             for (var key in finalResult) {
                                                 pcToUpdate[key] = finalResult[key];
                                             }
@@ -489,7 +489,7 @@ getDefaultInterface().then(function(defaultInterface){
                                     var result = httpCheck(pcObject, key).then(function (finalResult) {
                                         //Update pc infos :
                                         F.logCheckWarning("http", dbComputers, finalResult);
-                                        dbComputers.get(finalResult.idPC).val(function (pcToUpdate, id) {
+                                        dbComputers.get(finalResult.idPC).once(function (pcToUpdate, id) {
                                             for (var key in finalResult) {
                                                 pcToUpdate[key] = finalResult[key];
                                             }
@@ -640,7 +640,7 @@ getDefaultInterface().then(function(defaultInterface){
                                         online: true,
                                         lastResponse: new Date().toISOString(),
                                     };
-                                    dbComputers.get(finalResult.idPC).val(function (pcToUpdate, id) {
+                                    dbComputers.get(finalResult.idPC).once(function (pcToUpdate, id) {
                                         for (var key in finalResult) {
                                             pcToUpdate[key] = finalResult[key];
                                         }

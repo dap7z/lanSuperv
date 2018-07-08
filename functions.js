@@ -147,7 +147,7 @@ module.exports = {
 
         //Retrieve pc info from database :
         var idTargetPC = this.getPcIdentifier(pcTarget);
-        dbComputers.get(idTargetPC).val(function(pcTarget, id){
+        dbComputers.get(idTargetPC).once(function(pcTarget, id){
             //necessite dbComputers en parametre fonction eventRedirection...
 
             if(method==='socket')

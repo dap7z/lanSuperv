@@ -1,4 +1,7 @@
 #=====================================================
+#git ignore:
+git_ignore/
+
 #database:
 *-shared.json
 *-local.json

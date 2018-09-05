@@ -170,13 +170,15 @@ getDefaultInterface().then(function(defaultInterface){
                     }
                     THIS_PC.wanInterface = {ip: ip};
                     console.log('OK! '+ serverUpNotification);
-                    //== notify app is ready to master process
-                    process.send({
-                        type: 'ready',
-                        url: url,
-                        serverUpNotification: serverUpNotification
-                    });
-                    //==
+
+
+                    // //== notify app is ready to master process
+                    // process.send({
+                    //     type: 'ready',
+                    //     url: url,
+                    //     serverUpNotification: serverUpNotification
+                    // });
+                    // //==
 
 
                     //----- DECENTRALIZED DB (GUN.JS) -----

@@ -3,110 +3,138 @@
 const log = require('electron-log');
 const {fork} = require('child_process');
 
+/******************************************************
+ lan-superv npm module, usage :
+     const LanSuperv = require('./module.js');
+     const app = new LanSuperv();
+     app.startApplication();
+ *****************************************************/
 
 class LanSuperv {
-	
-	constructor() {
-		this.win = null;
-		this.headLess = false;
 
-		//-------------------------------------------------------------------
-		// Check if graphic interface is available or not
-		//-------------------------------------------------------------------
-		let template = [];
-		switch(process.platform){
-			case 'darwin':
+    constructor() {
+        this.win = null;
+        this.childProcess = null;
+        this.headLess = false;
 
-				//OS X
-				const name = app.getName();
-				template.unshift({
-					label: name,
-					submenu: [
-						{
-							label: 'About ' + name,
-							role: 'about'
-						},
-						{
-							label: 'Quit',
-							accelerator: 'Command+Q',
-							click() { app.quit(); }
-						},
-					]
-				})
+        //-------------------------------------------------------------------
+        // Check if graphic interface is available or not
+        //-------------------------------------------------------------------
+        let template = [];
+        switch(process.platform){
+            case 'darwin':
 
-				break;
-			case 'linux':
+                //OS X
+                const name = app.getName();
+                template.unshift({
+                    label: name,
+                    submenu: [
+                        {
+                            label: 'About ' + name,
+                            role: 'about'
+                        },
+                        {
+                            label: 'Quit',
+                            accelerator: 'Command+Q',
+                            click() { app.quit(); }
+                        },
+                    ]
+                })
 
-				//Linux (Ubuntu/Debian)
-				// detect if it's command line server or not :
-				const exec = require('child_process').exec;
-				const testscript = exec('sh isDesktop.sh /.');
+                break;
+            case 'linux':
+
+                //Linux (Ubuntu/Debian)
+                // detect if it's command line server or not :
+                const exec = require('child_process').exec;
+                const testscript = exec('sh isDesktop.sh /.');
 
 
-				testscript.stdout.on('data', function(data){
-					console.log('data from isDeskyop.sh: ', data);
-					// sendBackInfo();
-				});
+                testscript.stdout.on('data', function(data){
+                    console.log('data from isDeskyop.sh: ', data);
+                    // sendBackInfo();
+                });
 
-				break;
-			case 'win32':
+                break;
+            case 'win32':
 
-				//Windows
-				console.log('...win32...');
-				break;
-			default:
-				console.log('Unknow platform: '+ process.platform);
+                //Windows
+                console.log('...win32...');
+                break;
+            default:
+                console.log('Unknow platform: '+ process.platform);
 
-		}
-		
-		//END
-		this.statusMessage("This is the constructor End !");
-	}
-	
-	//-------------------------------------------------------------------
-	// Window that displays the version and working update
-	//-------------------------------------------------------------------
-	statusMessage(text) {
-		if(this.win){
-			this.win.webContents.send('message', text);
-		}
-		text += ' (displayOnWindow)';
-		console.log(text);
-	}
-	
-	createDefaultWindow(callback) {
-		this.win = new BrowserWindow({show: false});
-		this.win.on('closed', () => {
-			this.win = null;
-		});
-		this.win.loadURL(`file://${__dirname}/main.html#v${app.getVersion()}`);
-		this.win.once('ready-to-show', () => {
-			this.win.show();
-			if(typeof callback === 'function'){
-				callback();
-			}
-		});
-	}
-	
-	
-	startApplication(){
-		console.log("== START APPLICAITON ==");
-		
-		//Due to compatibility issues, We cant: require(__dirname+'/cluster').start();
-		//To isolate from updater, we have to launch an app only process:
-		let childProcess = require('child_process').fork(__dirname+'/cluster.js');
-		childProcess.on('message', (data) => {
-			//console.log('/!\\ Message received from childProcess: ', data);
-			if(this.win){
-				if (typeof data.type !== 'undefined'){
-					this.win.webContents.send(data.type, data);
-				}else{
-					this.win.webContents.send('message', data);
-				}
-			}
-		});
-	}
-	
+        }
+
+        //END
+        this.statusMessage("This is the constructor End !");
+    }
+
+    //-------------------------------------------------------------------
+    // Window that displays the version and working update
+    //-------------------------------------------------------------------
+    statusMessage(text) {
+        if(this.win){
+            this.win.webContents.send('message', text);
+        }
+        text += ' (displayOnWindow)';
+        console.log(text);
+    }
+
+    createDefaultWindow(callback) {
+        this.win = new BrowserWindow({show: false});
+        this.win.on('closed', () => {
+            this.win = null;
+        });
+        this.win.loadURL(`file://${__dirname}/main.html#v${app.getVersion()}`);
+        this.win.once('ready-to-show', () => {
+            this.win.show();
+            if(typeof callback === 'function'){
+                callback();
+            }
+        });
+    }
+
+
+    startApplication(){
+        console.log("== START APPLICAITON ==");
+
+        //Due to compatibility issues, We cant: require(__dirname+'/cluster').start();
+        //To isolate from updater, we have to launch an app only process:
+        //this.childProcess = require('child_process').fork(__dirname+'/application.js');
+        //this.childProcess = require('child_process').spawn(__dirname+'/application.js', {detached: true}); //NOK
+        this.childProcess = require('child_process').fork(__dirname+'/application.js', {detached:true});	 //OK LAUNCH NOK EXIT (BUT MULTIPLES LAUNCH)
+        //this.childProcess = require('child_process').fork(__dirname+'/application.js');  //OK LAUNCH (FIX MULTI LAUNCH ? not really, +1 process at every http request)
+        if(this.childProcess)
+        {
+            this.childProcess.on('message', (data) => {
+                //console.log('/!\\ Message received from childProcess: ', data);
+                if(this.win){
+                    if (typeof data.type !== 'undefined'){
+                        this.win.webContents.send(data.type, data);
+                    }else{
+                        this.win.webContents.send('message', data);
+                    }
+                }
+            });
+        }
+        else
+        {
+            console.error('startApplication() error: this.childProcess == null');
+        }
+    }
+
+
+    stopApplication(){
+        if(this.childProcess){
+            //process.kill(-this.childProcess.pid);
+            this.childProcess.disconnect();
+            this.childProcess.unref();
+
+            //process.exit()
+        }
+    }
+
 }
 
 

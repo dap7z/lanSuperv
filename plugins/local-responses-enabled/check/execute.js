@@ -16,6 +16,7 @@ process.on('message', (eventParams) => {
         process.send(eventResult);
 		
 		process.send('end');
+        process.exit();
 
     } catch (e) {
         console.warn('Catched error on '+PluginName, e);

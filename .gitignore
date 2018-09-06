@@ -7,7 +7,10 @@ git_ignore/
 *-local.json
 visibleComputers.json
 
-##actual plugins setup (disabled - has to be refactor for lan-superv npm module comptatibility):
+#current config file:
+config.js
+
+##current plugins setup (disabled - has to be refactor for lan-superv npm module comptatibility):
 #plugins/local-responses-enabled/*
 #!plugins/local-responses-enabled/COPY_HERE_PLUGINS_DIRS
 

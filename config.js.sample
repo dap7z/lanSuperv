@@ -5,26 +5,22 @@ var CONFIG = new Array();
 CONFIG['APP_AUTO_UPDATE'] = true;       //NEXTS RELEASES
 CONFIG['APP_AUTO_START'] = true;        //NEXTS RELEASES
 
+CONFIG['DATABASE_NAME'] = 'db1';  //change db name to reset data (by creating a new db)
 
-CONFIG['DATABASE_NAME'] = 'db12';   //change string to reset data
-
-CONFIG['SERVER_ADDRESS'] = '';
-//'' or 'http://localhost'    //AS DEFAULT (create a new gun.js database for each installed application)
-//'https://lan.dapo.fr.cr'    //SHARED GUN.JS DATABASE
+CONFIG['SERVER_ADDRESS'] = '';    //'' or 'http://localhost' AS DEFAULT (create database for each installed application)
+//CONFIG['SERVER_ADDRESS'] = 'https://main-server-domain.com';    //SHARED GUN.JS DATABASE
 
 CONFIG['SERVER_PORT'] = 842;
 CONFIG['SOCKET_PORT'] = 842;
-CONFIG['SERVER_BEHIND_REVERSE_PROXY'] = true;
 
 CONFIG['PATH_HTTP_EVENTS'] = '/cmd';              //example: http://localhost:842/cmd/power-off
 CONFIG['PATH_DATABASE'] = '/gun';                 //default: '/gun'   //20170901 gun.js does not allow custom path
 
-CONFIG['NMAP_LOCATION'] = 'nmap';   //default
-CONFIG['NMAP_LOCATION'] = 'C:/Program Files (x86)/Nmap/nmap.exe';       //windows
+CONFIG['NMAP_LOCATION'] = 'nmap';   //linux
+//CONFIG['NMAP_LOCATION'] = 'C:/Program Files (x86)/Nmap/nmap.exe';       //windows
 
-CONFIG['GUN_ADDITIONAL_PEERS'] = [];
-CONFIG['GUN_ADDITIONAL_PEERS'] = ['https://lan.dapo.fr.cr/gun'];
-//GUN_ADDITIONAL_PEERS is empty by default => no link between servers
+CONFIG['GUN_ADDITIONAL_PEERS'] = [];  //empty by default: no link between servers
+//CONFIG['GUN_ADDITIONAL_PEERS'] = ['https://main-server-domain.com/gun']; 
 //You can hosts and add one or some urls in this table, example:
 //['https://main-server-domain.com/gun', 'http://2nd-without-reverse-proxy.fr:842/gun']
 //-------- END CONFIGURATION BLOCK --------

@@ -1,6 +1,6 @@
 {
   "name": "lan-superv",
-  "version": "0.3.396",
+  "version": "0.3.397",
   "description": "Node.js app for lan supervision",
   "author": "Damien Pointier",
   "license": "MIT",

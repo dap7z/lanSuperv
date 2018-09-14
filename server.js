@@ -7,9 +7,9 @@
  poweroff / messanger / filetransfert / netsharing / remotecontrole / ...
  *************************************************************************************/
 
- 
+
 //LIBRARIES:
-const Os = require("os");
+const Os = require('os');
 const NodeMachineId = require('node-machine-id');
 
 const Fs = require('fs');
@@ -17,14 +17,15 @@ const Path = require('path');
 const Gun = require('gun');
 
 const Express = require('express'); //nodejs framework
-const BodyParser = require("body-parser"); //to get POST data
+const BodyParser = require('body-parser'); //to get POST data
 
 const Crypto = require('crypto');  //hash PCID
 
 const Netmask = require('netmask').Netmask;
 
-const IsPortAvailable = require('is-port-available');
-const ExtIP = require("ext-ip")();
+//const IsPortAvailable = require('is-port-available'); //COMPATIBILITY ISSUE WITH COMMAND LINE ARGUMENT
+const IsPortAvailable = require('./node_modules_custom/is-port-available/index.js');
+const ExtIP = require('ext-ip')();
 
 const Request = require('request-promise');  //'request' deprecated
 const Ping = require('ping-bluebird');  //ping with better promise

@@ -96,19 +96,19 @@ class LanSuperv {
     }
 
 
-    startApplication(){
-        console.log("== START APPLICAITON ==");
+    startApplication(ConfigFile){
+        console.log("== START APPLICAITON == (ConfigFile:"+ ConfigFile +")");
 
         //Due to compatibility issues, We cant: require(__dirname+'/cluster').start();
         //To isolate from updater, we have to launch an app only process:
         //this.childProcess = require('child_process').fork(__dirname+'/application.js');
         //this.childProcess = require('child_process').spawn(__dirname+'/application.js', {detached: true}); //NOK
-        this.childProcess = require('child_process').fork(__dirname+'/application.js', {detached:true});	 //OK LAUNCH NOK EXIT (BUT MULTIPLES LAUNCH)
-        //this.childProcess = require('child_process').fork(__dirname+'/application.js');  //OK LAUNCH (FIX MULTI LAUNCH ? not really, +1 process at every http request)
+        //this.childProcess = require('child_process').fork(__dirname+'/application.js', {detached:true});	 //OK LAUNCH NOK EXIT (BUT MULTIPLES LAUNCH, BUT NO CONSOLE LOG)
+        this.childProcess = require('child_process').fork(__dirname+'/application.js', ['--config='+ConfigFile]);  //NOT DETACHED: OK LAUNCH (FIX MULTI LAUNCH ? not really, +1 process at every http request)
         if(this.childProcess)
         {
             this.childProcess.on('message', (data) => {
-                //console.log('/!\\ Message received from childProcess: ', data);
+                console.log('/!\\ Message received from childProcess: ', data);
                 if(this.win){
                     if (typeof data.type !== 'undefined'){
                         this.win.webContents.send(data.type, data);

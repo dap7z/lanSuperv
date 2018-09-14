@@ -1,6 +1,6 @@
 {
   "name": "lan-superv",
-  "version": "0.3.397",
+  "version": "0.3.401",
   "description": "Node.js app for lan supervision",
   "author": "Damien Pointier",
   "license": "MIT",
@@ -41,7 +41,8 @@
     "request-promise": "^4.2.2",
     "sleep-mode": "^1.1.0",
     "then-request": "^4.1.0",
-    "wol": "^1.0.3"
+    "wol": "^1.0.3",
+    "yargs": "^12.0.1"
   },
   "repository": {
     "type": "git",

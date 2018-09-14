@@ -32,16 +32,13 @@ const Nmap = require('node-nmap');
 
 
 //MODULE
-module.exports.start = function(){
-	
-	//INIT CONFIGURATION
-	var ConfigFile = __dirname + '/config.js';
-	console.log("read config file: " + ConfigFile);
-	var Config = require(ConfigFile);
-	//(LanSuperv/config.js or LanSupervLauncher/config.js)
+module.exports.start = function(ConfigFile){
 
 	//GLOBALS:
-	var F = require('./functions');
+	console.log('avant require '+ ConfigFile);
+	var Config = require(ConfigFile);
+	console.log('apres require '+ ConfigFile);
+	var F = require(__dirname + '/functions');
 	var NMAP_IS_WORKING = false;
 	var THIS_PC = {
 		hostnameLocal: Os.hostname(),

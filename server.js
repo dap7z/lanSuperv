@@ -36,9 +36,7 @@ const Nmap = require('node-nmap');
 module.exports.start = function(ConfigFile){
 
 	//GLOBALS:
-	console.log('avant require '+ ConfigFile);
 	var Config = require(ConfigFile);
-	console.log('apres require '+ ConfigFile);
 	var F = require(__dirname + '/functions');
 	var NMAP_IS_WORKING = false;
 	var THIS_PC = {
@@ -173,53 +171,59 @@ module.exports.start = function(ConfigFile){
 						console.log('OK! '+ serverUpNotification);
 
 
-						// //== notify app is ready to master process
-						// process.send({
-						//     type: 'ready',
-						//     url: url,
-						//     serverUpNotification: serverUpNotification
-						// });
-						// //==
-
-
 						//----- DECENTRALIZED DB (GUN.JS) -----
 						var gunOptions = {};
 						var tableName = Config.val('TABLE_COMPUTERS');
+
+
 						if(Config.val('LOCAL_DATABASE')){
-							//local gun url (json file storage) + remote gun url :
+                            //local gun url (json file storage) + remote gun url :
 							gunOptions = {
 								file: Config.val('FILE_SHARED_DB'),
+                                peers: Config.val('GUN_PEERS'),
 								web: server,
-								peers: Config.val('GUN_PEERS')
 							};
+                        	//NOK WINDOWS, RESULTATS TEST 20180915:
+							//{ file: 'D:\\SRV_APACHE\\lanSuperv\\db1-shared.json',
+							//	peers: [ 'http://main-server.fr.cr:842/gun' ],
+							//	web: '[exclude from dump]' }
+							//(node:14688) UnhandledPromiseRejectionWarning: TypeError: this.ee.on is not a function
+							//at Ultron.on (D:\SRV_APACHE\lanSuperv\node_modules\ultron\index.js:42:11)
+							//at new WebSocketServer (D:\SRV_APACHE\lanSuperv\node_modules\gun\node_modules\ws\lib\websocket-server.js:85:20)
+
+							//VOIR:
+							//https://github.com/amark/gun/issues/422
+							//https://github.com/mochiapp/gun/commit/fd0866ed872f6acb8537541e1c3b06f18648420a
+							//... pourtant merged ...
+
 						}else{
 							//only remote gun url :
 							gunOptions = Config.val('SOCKET_URL_DATABASE');
+							//PASSE ICI DANS LE CAS LANSUPERV LANCER SUR PC-XX-LAN AVEC :
+							//	PARAMS['SERVER_ADDRESS'] = 'http://main-server.fr.cr';
+							//	PARAMS['GUN_ADDITIONAL_PEERS'] = [];
+							//=> http://main-server.fr.cr:842/gun
+							//
+							//OK RESULTATS TEST 20180915:
+							// - l'arret PC-XX-LAN peut bien être declenché depuis l'exterieur en https derriere reverse proxy
+							// - l'arret PC-XX-LAN peut bien être declenché depuis localhost en http port 842
 						}
-						console.log("[GUN.JS] LOCAL_DATABASE:"+ Config.val('LOCAL_DATABASE'));
 
 
-						//object clone to limit dump :
-						gunOptionsDump = {};
-						if(gunOptions.file) gunOptionsDump.file = gunOptions.file;
-						if(gunOptions.web) gunOptionsDump.web = ['...'];
-						if(gunOptions.peers) gunOptionsDump.peers = gunOptions.peers;
-						console.log(gunOptionsDump);
+                        //----- DUMP GUN.JS OPTIONS -----
+						var gunOptionsDump = Object.assign({}, gunOptions); //clone to not modify gunOptions
+                        if(gunOptionsDump.web){
+                            gunOptionsDump.web = '[exclude from dump]';
+						}
+						console.log("[GUN.JS] LOCAL_DATABASE='"+ Config.val('LOCAL_DATABASE') +"', OPTIONS:");
+                        console.log(gunOptionsDump);
 
 
-
-						//var gun = Gun(gunOptions);  //NOK??
-						var gun = Gun({file: Config.val('FILE_SHARED_DB'), web: server});  //OK?
-
+						var gun = Gun(gunOptions);
 						var dbComputers = gun.get(tableName);
 						//dbComputers is decentralized db and can be updated by multiples servers and so represents multiples lans
 						//we need a way to determine if one computer is in the lan of the server (to declare him offline).
 
-
-
-
-						////----- LOCAL DB -----
-						//NO MORE USED: Config.val('FILE_LOCAL_DB')
 
 						var installedComputers = new Map();
 						//Reload visibleComputers map on server restart

@@ -6,8 +6,9 @@ PARAMS['APP_AUTO_START'] = true;        //NEXTS RELEASES
 
 PARAMS['DATABASE_NAME'] = 'db1';  //change db name to reset data (by creating a new db)
 
-PARAMS['SERVER_ADDRESS'] = '';    //'' or 'http://localhost' AS DEFAULT (create database for each installed application)
-//PARAMS['SERVER_ADDRESS'] = 'https://main-server-domain.com';    //SHARED GUN.JS DATABASE
+PARAMS['SERVER_ADDRESS'] = '';
+//'' AS DEFAULT (localhost, create database for each installed application)
+//'https://main-server-domain.com' AS SHARED GUN.JS DATABASE
 
 PARAMS['SERVER_PORT'] = 842;
 PARAMS['SOCKET_PORT'] = 842;
@@ -103,10 +104,12 @@ var config_object = {
                     result = this.val('DATABASE_NAME') +'/messages';
                     break;
                 case 'FILE_SHARED_DB':
-                    result = __dirname +'/../'+ this.val('DATABASE_NAME') +'-shared.json';
+                    result = __dirname +'/'+ this.val('DATABASE_NAME') +'-shared.json';
+					//quickfix +'/../'+ only in lanSupervLauncher
                     break;
                 case 'FILE_LOCAL_DB':
-                    result = __dirname +'/../'+ this.val('DATABASE_NAME') +'-local.json';
+                    result = __dirname +'/'+ this.val('DATABASE_NAME') +'-local.json';
+					//quickfix +'/../'+ only in lanSupervLauncher
                     break;
 				case 'GUN_PEERS':
 					result = [this.val('SOCKET_URL_DATABASE')]; //array

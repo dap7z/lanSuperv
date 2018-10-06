@@ -91,3 +91,5 @@ typings/
 
 
 package-lock\.json
+
+data\.json

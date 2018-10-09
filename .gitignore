@@ -10,10 +10,6 @@ visibleComputers.json
 #current config file:
 config.js
 
-##current plugins setup (disabled - has to be refactor for lan-superv npm module comptatibility):
-#plugins/local-responses-enabled/*
-#!plugins/local-responses-enabled/COPY_HERE_PLUGINS_DIRS
-
 #auto update:
 publish.sh
 dist/
@@ -21,7 +17,8 @@ yarn.lock
 
 #todo things:
 docs_todo/
-plugins/local-responses-available/*_todo
+plugins/local-responses/PLUGINS_TODO_LOCAL_RESPONSES
+plugins/remote-requests/PLUGINS_TODO_REMOTE_REQUESTS
 
 #package.json tests or old versions:
 package-*

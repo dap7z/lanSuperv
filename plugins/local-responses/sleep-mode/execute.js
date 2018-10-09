@@ -1,12 +1,13 @@
-const PluginName = 'poweroff';
-const PowerOff = require('power-off');
+const PluginName = 'sleepmode';
+const SleepMode = require('sleep-mode');
 
 process.on('message', (pcTarget) => {
-	process.send('start');
+    process.send('start');
     try {
-        PowerOff( function (err, stderr, stdout) {
-            //tested on [W7,W10]
-            if(!err && !stderr) {
+
+        SleepMode(function (err, stderr, stdout) {
+            if (!err && !stderr) {
+
                 console.log(PluginName +' result: '+ stdout);
                 process.send('done');
             }

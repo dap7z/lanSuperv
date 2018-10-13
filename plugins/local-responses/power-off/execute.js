@@ -1,7 +1,7 @@
 const PluginName = 'poweroff';
 const PowerOff = require('power-off');
 
-process.on('message', (pcTarget) => {
+process.on('message', (eventParams) => {
 	process.send('start');
     try {
         PowerOff( function (err, stderr, stdout) {

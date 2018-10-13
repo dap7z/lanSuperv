@@ -224,19 +224,24 @@ module.exports.start = function(ConfigFile){
 						//dbComputers is decentralized db and can be updated by multiples servers and so represents multiples lans
 						//we need a way to determine if one computer is in the lan of the server (to declare him offline).
 
-
-						var installedComputers = new Map();
-						//Reload visibleComputers map on server restart
+                        //Reload visibleComputers map on server restart
+						var visibleComputersFile = __dirname+'/visibleComputers.json';
 						var visibleComputers = new Map();
-						Fs.readFile(__dirname+'/visibleComputers.json', 'utf8', function (err, data) {
+						Fs.readFile(visibleComputersFile, 'utf8', function (err, data) {
 							if (err){
 								console.log("WARNING! cant read file visibleComputers.json");
 								//console.log(err) //example: file doesnt exist after a fresh install
 							}else{
 								visibleComputers = F.jsonToStrMap(data);
-								//no need await function (only used at the end of lan scan to mark pc as offline)
+                                console.log("------------------------START-VISIBLE-COMPUTERS-------------------------------");
+                                console.log(visibleComputers);
+                                console.log("------------------------END-VISIBLE-COMPUTERS---------------------------------");
 							}
 						});
+						///!\ here visibleComputers is not yet loaded /!\
+                        //but no need await function (only used at the end of lan scan to mark pc as offline)
+
+
 
 
 						var pluginsInfos = [];
@@ -625,22 +630,59 @@ module.exports.start = function(ConfigFile){
 						dbMessages.map().on(function (eventData, id) {
 
 							if (eventData && eventData.eventReceivedAt == null) {
-								//if event recipient has not installed application (detected by machineID)
-								//then, if lanMAC is know in visibleComputers, we redirect the event on local network.
+
+								//calculate idPC of target
 								var pcTarget = {
 									lanMAC: eventData.pcTargetLanMAC,
 									machineID: eventData.pcTargetMachineID
 								};
-								var idPC = F.getPcIdentifier(pcTarget);
+                                pcTarget.idPC = F.getPcIdentifier(pcTarget);
+                                //(idPC: lanMAC sans les deux points ou machineID, pour l'instant uniquement lanMAC')
 
-								if(pcTarget.lanMAC === THIS_PC.lanInterface || pcTarget.machineID === THIS_PC.machineID)
+
+								readEvent = false;
+								if(pcTarget.lanMAC === THIS_PC.lanInterface) readEvent = true;
+								if(pcTarget.machineID === THIS_PC.machineID) readEvent = true;
+
+								//If eventData.type == remote-request && eventData.target in visibleComputers -> read and process event
+                                let remoteRequestPlugins = F.getPlugins('remote', 'dirName', 'array');
+                                if(remoteRequestPlugins.indexOf(eventData.eventName) > -1){
+
+                                    //Reminder: visibleComputers is empty before 1st scan and then contains only powered on pc
+									//May be not the thing to use here ... (for wol)
+									//But still acceptable since we save it in a file :)
+
+                                    // visibleComputers.forEach(function (value, key) {
+                                    // 	if(!readEvent && key===pcTarget.idPC){
+                                    //         readEvent=true;
+									//	   }
+                                    // });
+
+                                    readEvent = visibleComputers.has(pcTarget.idPC);
+								}
+
+
+								if(readEvent)
 								{
+									//DIAG
+                                    console.log("$_$ foreach visibleComputer -> readEvent="+readEvent);
+                                    console.log(pcTarget);
+                                    /*
+                                    { 	  lanMAC: '00:0C:29:80:77:CB',
+										  machineID: '',
+										  idPC: '000C298077CB'
+									}
+										LOG! eventDispatcher receive wol event from socket, pcTarget:00:0C:29:80:77:CB
+										Catched error on wol undefined Error: undefined macAddress
+                                     */
+
+
 									if(eventData.eventName === 'check')
 									{
 										//specific for check event over gun.js database :
 										console.log("==== SOCKET CHECK UPDATE DATABASE DIRECTLY ! ====");
 										var finalResult = {
-											idPC: idPC,
+											idPC: pcTarget.idPC,
 											lanMAC: pcTarget.lanMAC,
 											machineID: pcTarget.machineID,
 											'respondsTo-socket': true,

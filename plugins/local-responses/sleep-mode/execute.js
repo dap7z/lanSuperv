@@ -1,7 +1,7 @@
 const PluginName = 'sleepmode';
 const SleepMode = require('sleep-mode');
 
-process.on('message', (pcTarget) => {
+process.on('message', (eventParams) => {
     process.send('start');
     try {
 

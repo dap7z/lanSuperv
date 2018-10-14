@@ -159,6 +159,7 @@
         <script src="config.js"></script>
         <script src="client.js"></script>
         <script src="chat.js"></script>
+
         <!-- JsonDisplay() FUNCTION -->
         <script src="assets/json-formatter.js"></script>
         <script>
@@ -182,14 +183,6 @@
         <!-- LAUNCH APP -->
         <script>
             clientJS();
-            //==========================
-            //gunMessenger = sharedObject.gun.get(Config.val('TABLE_MESSAGES'));  //dbMessages ??
-            function sendGunMessage(message){
-                console.log("execute function sendGunMessage() with msg:");
-                console.log(message);
-                sharedObject.dbMessages.set(message);
-            }
-            //==========================
             chatJS();
         </script>
         

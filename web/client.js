@@ -137,9 +137,11 @@ function clientJS(){
             //plugins availables
             else if(key.startsWith("plugin")){
                 var pluginName = pc[key];
-                $pluginList.append('<li class="dropdown-item">'+ pluginName +'</li>');
-                if(pluginName==powerOffPlugin){
-                   powerOffAvailable = true;
+                if(pluginName !== null){
+                    $pluginList.append('<li class="dropdown-item">'+ pluginName +'</li>');
+                    if(pluginName==powerOffPlugin){
+                        powerOffAvailable = true;
+                    }
                 }
             }
         }
@@ -157,12 +159,10 @@ function clientJS(){
     //Events notifications
     var pageLoadedAt = new Date().toISOString();
     var lastNotification = '';
-	
-    //var dbMessages = sharedObject.gun.get(Config.val('TABLE_MESSAGES'));
+
     sharedObject.dbMessages = sharedObject.gun.get(Config.val('TABLE_MESSAGES'));
 
     sharedObject.dbMessages.map().on(function(eventData, id) {
-        //if(eventData && eventData.eventSendedAt && eventData.eventReceivedAt && eventData.eventResult){
         if(eventData && eventData.eventSendedAt){
             if(pageLoadedAt < eventData.eventSendedAt && lastNotification != eventData.eventResult)
             {
@@ -171,7 +171,20 @@ function clientJS(){
                 //... make .on() function called twice with filled .eventResult
 
                 response = JSON.parse(lastNotification);
-                toastr.success(response.msg);
+
+                var informations = '';
+                informations += 'Event '+ eventData.eventName +', target :';
+                if(eventData.pcTargetLanMAC){
+                    informations += '<br>[lanMAC] '+ eventData.pcTargetLanMAC;
+                }
+                if(eventData.pcTargetMachineID){
+                    informations += '<br>[MachineID] '+ eventData.pcTargetMachineID;
+                }
+                if(response.msg){
+                    informations += '<br>'+ response.msg;
+                }
+
+                toastr.success(informations);
             }
         }
     });
@@ -205,6 +218,13 @@ function clearGunDatabase(){
 }
 
 
+function sendGunMessage(message){
+    console.log("execute function sendGunMessage() with msg:");
+    console.log(message);
+    sharedObject.dbMessages.set(message);
+}
+
+
 function sendRequest(btn){
     var $pc =  $(btn).closest(".pcElem");
     var reqData = {
@@ -217,17 +237,8 @@ function sendRequest(btn){
     };
     //gun.js cant handle JS multiple dimensions objects, only key:value.
 
-    //PAS NECESSAIRE var reqJsonString = JSON.stringify(reqData);
-    //sendGunMessage(reqJsonString);
-
-    //var dbMessages = sharedObject.gun.get(Config.val('TABLE_MESSAGES'));
-
-    //ORG dbMessages.get('singleton').put(reqData);
-    //NEW
     reqData.who = localStorage.getItem('userName'); //uname
     sendGunMessage(reqData);
-
-
 }
 
 

@@ -121,6 +121,8 @@ class F {
         //respondsTo information:
         if(respondTo){
             pc['respondsTo-'+respondTo] = true;
+            pc['lastResponse'] = new Date().toISOString();
+            pc['online'] = true;
         }
         return pc;
     }
@@ -133,6 +135,32 @@ class F {
             idPC = idPC.replace(new RegExp(':', 'g'), '');
         }
         return idPC;
+    }
+
+
+    static eventTargetIsThisPC(eventData, THIS_PC){
+        let pcTargetLanMAC = null;
+        let pcTargetMachineID = null;
+
+        if (typeof eventData.pcTarget === 'undefined') {
+            if(typeof eventData.pcTargetLanMAC === 'undefined' && typeof eventData.pcTargetMachineID === 'undefined'){
+                return true;  //not specified -> self event
+            }
+
+            //gun js event :
+            pcTargetLanMAC = eventData.pcTargetLanMAC;
+            pcTargetMachineID = eventData.pcTargetMachineID;
+        }else{
+
+            //http event :
+            pcTargetLanMAC = eventData.pcTarget.lanMAC;
+            pcTargetMachineID = eventData.pcTarget.machineID;
+        }
+
+        if(pcTargetLanMAC === THIS_PC.lanInterface.mac_address) return true;
+        if(pcTargetMachineID === THIS_PC.machineID) return true;
+
+        return false;
     }
 
 

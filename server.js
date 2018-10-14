@@ -229,13 +229,11 @@ module.exports.start = function(ConfigFile){
 						var visibleComputers = new Map();
 						Fs.readFile(visibleComputersFile, 'utf8', function (err, data) {
 							if (err){
-								console.log("WARNING! cant read file visibleComputers.json");
+								console.log("WARNING! cant read file: "+ visibleComputersFile);
 								//console.log(err) //example: file doesnt exist after a fresh install
 							}else{
 								visibleComputers = F.jsonToStrMap(data);
-                                console.log("------------------------START-VISIBLE-COMPUTERS-------------------------------");
-                                console.log(visibleComputers);
-                                console.log("------------------------END-VISIBLE-COMPUTERS---------------------------------");
+                                //console.log(visibleComputers);
 							}
 						});
 						///!\ here visibleComputers is not yet loaded /!\
@@ -255,9 +253,10 @@ module.exports.start = function(ConfigFile){
 							});
 
 							if (exec.length === 1) {
+                                execPath = dirPath + Path.sep + exec;
 								pluginsInfos[eventName] = {
 									dirPath: dirPath,
-									execPath: dirPath + Path.sep + exec
+									execPath: execPath
 								};
 							}
 
@@ -298,11 +297,13 @@ module.exports.start = function(ConfigFile){
 									for (var i = 0; i < data.length; i++) {
 										var d = data[i];
 										var params = {
+                                            lastCheck: scanTimeStamp,
 											hostname: d.hostname,
-											lastCheck: scanTimeStamp,
-											lanIP: d.ip, //(<> THIS_PC.lanInterface.ip_address)
+											lanIP: d.ip,
 											lanMAC: d.mac
+											//machineID: nmap scan cant return that :(
 										};
+
 
 										var pc = F.pcObject(params, THIS_PC, "SCAN");
 										//Gun.js do not support array, pc must be an object
@@ -319,6 +320,7 @@ module.exports.start = function(ConfigFile){
 											console.log("FIXED! add local-responses plugins for server");
 										}
 
+
 										var idPC = F.getPcIdentifier(pc);
 										//for compare that scan to the others:
 										visibleComputers.set(idPC, pc);
@@ -329,10 +331,16 @@ module.exports.start = function(ConfigFile){
 										}
 										dbComputers.get(idPC).put(pc);
 									}
+
+
+									console.log("[INFO] Save visibleComputers: "+ visibleComputersFile);
+									//console.log(visibleComputers);
+
 									//save visibleComputers map in json file for reloading after restart
-									Fs.writeFile('visibleComputers.json', F.strMapToJson(visibleComputers), 'binary', function (err) {
+									Fs.writeFile(visibleComputersFile, F.strMapToJson(visibleComputers), 'binary', function (err) {
 										if (err) console.log(err);
 									});
+
 
 									visibleComputers.forEach(function (value, key) {
 										var idPC = key;
@@ -342,6 +350,8 @@ module.exports.start = function(ConfigFile){
 											dbComputers.get(idPC).get('respondsTo-ping').put(false);
 										}
 									});
+
+
 									//[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
 									NMAP_IS_WORKING = false;
 									var nbSecsBeforeNextScan = 60 * 60;
@@ -387,8 +397,8 @@ module.exports.start = function(ConfigFile){
 												'respondsTo-ping': res.alive
 											};
 											//res.time non supporte par npm package ping-bluebird
-											finalResult.online = finalResult["respondsTo-ping"];
-											if (finalResult.online) {
+											finalResult.online = finalResult["respondsTo-ping"];	//TO_REMOVE
+											if (finalResult["respondsTo-ping"]) {
 												finalResult.lastResponse = new Date().toISOString();
 											}
 											resolve(finalResult);
@@ -422,9 +432,6 @@ module.exports.start = function(ConfigFile){
 												}
 											}
 											else {
-												//finalResult.online = false;
-												//TODO: only if doesnt responds to ping+http+socket then offline
-												//CURRENTLY: online status based on ping only
 												finalResult['respondsTo-http'] = false;
 											}
 											finalResult.idPC = idPC;
@@ -437,6 +444,7 @@ module.exports.start = function(ConfigFile){
 								}
 
 
+								/*
 								function socketCheck(pc, idPC) {
 									var lanMAC = pc.lanMAC;
 									var machineID = pc.machineID;
@@ -444,21 +452,8 @@ module.exports.start = function(ConfigFile){
 									return new Promise(function (resolve) {
 
 										if(lanMAC && machineID){
-											console.log("#Check socket for machineID: \n" + machineID +"\n");
 
-											//like sendRequest function in client.js :
-											var reqData = {
-												eventName: 'check',
-												eventResult: '',
-												eventSendedAt: new Date().toISOString(),
-												eventReceivedAt: null,
-												pcTargetLanMAC: lanMAC,
-												pcTargetMachineID: machineID,
-											};
-											var dbMsg = global.gun.get(Config.val('TABLE_MESSAGES'));
-											dbMsg.get('singleton').put(reqData);
-											//we cant wait for a response as with http event
-											//respondTo-socket update is done in gun.js database directly
+											//[...]
 										}
 
 										var finalResult = {
@@ -469,15 +464,67 @@ module.exports.start = function(ConfigFile){
 
 										resolve(finalResult);
 									});
-								}
+								}*/
+
+
+                                function socketCheckNoNeedPromise(pc, idPC) {
+									//like sendRequest function in client.js :
+									var reqData = {
+										eventName: 'check',
+										eventResult: '',
+										eventSendedAt: new Date().toISOString(),
+										eventReceivedAt: null,
+										pcTargetLanMAC: pc.lanMAC,
+
+										who: "socketCheck"
+									};
+									if(pc.machineID){
+                                        reqData['pcTargetMachineID'] = pc.machineID;
+									}
+
+                                    //20181014: attention PC-LAN-AVEC-LANSUPERV-INSTALLE n'a pas de machineID ici...
+                                    //(alors qu'il en renvoi bien un lors appel http://localhost:842/cmd/check)
+                                    //console.log("exec socketCheckWithoutPromise(), lanMAC:"+pc.lanMAC);
+                                    //console.log("machineID:"+pc.machineID);
+
+									var dbMsg = gun.get(Config.val('TABLE_MESSAGES'));
+									dbMsg.set(reqData);
+									//we cant wait for a response as with http event
+									//respondTo-socket update is done in gun.js database directly
+
+									console.log("[INFO] socketCheckNoNeedPromise dbMsg.set:");
+									console.log(reqData);
+                                }
 
 
 								async function launchQuickScan(visibleComputers) {
 									var arrayReturn = [];
 
-									//PING CHECK PROMISES
 									for (let [key, pcObject] of visibleComputers) {
-										var result = pingCheck(pcObject, key).then(function (finalResult) {
+
+
+										//TO FIX
+										//problem pcObject of visibleComputers haven't machineID !
+
+
+
+										//RESET (PLUGINS AND RESPONDSTO)
+                                        for (let [idPC, pcObject] of visibleComputers) {
+                                            //dbComputers.get(idPC).put(null);  //NOK :(
+                                            dbComputers.get(idPC).once(function (pcToUpdate, id) {
+                                                for (var key in pcToUpdate) {
+                                                    var value = pcToUpdate[key];
+                                                    if(key.startsWith("plugin") || key.startsWith("respondsTo-")){
+                                                        value = null;
+                                                    }
+                                                    pcToUpdate[key] = value;
+                                                }
+                                                dbComputers.get(idPC).put(pcToUpdate);
+                                            });
+                                        }
+
+                                        //PING CHECK PROMISES
+										var pingPromise = pingCheck(pcObject, key).then(function (finalResult) {
 											//Update pc infos :
 											F.logCheckWarning("ping", dbComputers, finalResult);
 											//  ORG dbComputers.get(result.idPC).get('online').put(result.online);
@@ -486,42 +533,43 @@ module.exports.start = function(ConfigFile){
 												for (var key in finalResult) {
 													pcToUpdate[key] = finalResult[key];
 												}
-												dbComputers.get(finalResult.idPC).put(pcToUpdate);      //=> un seul event declenché coté client ? [A VERIFIER]
+												dbComputers.get(finalResult.idPC).put(pcToUpdate);
 												F.logCheckResult("ping", pcToUpdate);
 											});
 
 										}, function (reason) {
 											console.log("##Promise## [pingCheck] Promise rejected");
 										});
-										arrayReturn.push(result);
-									}
+										arrayReturn.push(pingPromise);
 
-									//HTTP CHECK PROMISES
-									for (let [key, pcObject] of visibleComputers) {
-										var result = httpCheck(pcObject, key).then(function (finalResult) {
-											//Update pc infos :
-											F.logCheckWarning("http", dbComputers, finalResult);
-											dbComputers.get(finalResult.idPC).once(function (pcToUpdate, id) {
-												for (var key in finalResult) {
-													pcToUpdate[key] = finalResult[key];
-												}
-												dbComputers.get(finalResult.idPC).put(pcToUpdate);
-												F.logCheckResult("http", pcToUpdate);
-											});
-										}, function (reason) {
-											console.log("##Promise## [httpCheck] Promise rejected");
-										});
-										arrayReturn.push(result);
-									}
+                                        //HTTP CHECK PROMISES
+                                        var httpPromise = httpCheck(pcObject, key).then(function (finalResult) {
+                                            //Update pc infos :
+                                            F.logCheckWarning("http", dbComputers, finalResult);
+                                            dbComputers.get(finalResult.idPC).once(function (pcToUpdate, id) {
+                                                for (var key in finalResult) {
+                                                    pcToUpdate[key] = finalResult[key];
+                                                }
+                                                dbComputers.get(finalResult.idPC).put(pcToUpdate);
+                                                F.logCheckResult("http", pcToUpdate);
+                                            });
+                                        }, function (reason) {
+                                            console.log("##Promise## [httpCheck] Promise rejected");
+                                        });
+                                        arrayReturn.push(httpPromise);
 
-									//SOCKET (GUN.JS) PROMISES
-									for (let [key, pcObject] of visibleComputers) {
-										var result = socketCheck(pcObject, key).then(function (finalResult) {
-											F.logCheckWarning("socket", dbComputers, finalResult);
-										}, function (reason) {
-											console.log("##Promise## [socketCheck] Promise rejected");
-										});
-										arrayReturn.push(result);
+                                        /*
+                                        //SOCKET (GUN.JS) PROMISES
+                                        var socketPromise = socketCheck(pcObject, key).then(function (finalResult) {
+                                            F.logCheckWarning("socket", dbComputers, finalResult);
+                                        }, function (reason) {
+                                            console.log("##Promise## [socketCheck] Promise rejected");
+                                        });
+                                        arrayReturn.push(socketPromise);
+                                        */
+                                        socketCheckNoNeedPromise(pcObject, key);
+
+
 									}
 
 									console.log("OK! QuickScan launched (work in promises, not finished yet)");
@@ -529,7 +577,7 @@ module.exports.start = function(ConfigFile){
 								}
 
 
-								//OK
+                                //OK
 								// Par contre lance LanScan avant fin QuickScan
 								// ... aussi bien sinon obliger d'attendre fin timeout ???
 								// ... seulement si QuickScan est limite a quelque address IP
@@ -579,7 +627,7 @@ module.exports.start = function(ConfigFile){
 							let processEvent = true;
 							if (p.dirPath.indexOf('local-responses') >= 0) //if local-response
 							{
-								if ((typeof p.pcTarget === 'undefined') || (p.pcTarget.lanMAC === p.lanInterface.mac_address)) {
+								if (F.eventTargetIsThisPC(p, THIS_PC)) {
 									p.pcTarget = 'self';
 								}
 								else if (p.pcTarget !== 'self') {
@@ -640,9 +688,9 @@ module.exports.start = function(ConfigFile){
                                 //(idPC: lanMAC sans les deux points ou machineID, pour l'instant uniquement lanMAC')
 
 
-								readEvent = false;
-								if(pcTarget.lanMAC === THIS_PC.lanInterface) readEvent = true;
-								if(pcTarget.machineID === THIS_PC.machineID) readEvent = true;
+								readMessage = false;
+								if(pcTarget.lanMAC === THIS_PC.lanInterface) readMessage = true;
+								if(pcTarget.machineID === THIS_PC.machineID) readMessage = true;
 
 								//If eventData.type == remote-request && eventData.target in visibleComputers -> read and process event
                                 let remoteRequestPlugins = F.getPlugins('remote', 'dirName', 'array');
@@ -652,84 +700,64 @@ module.exports.start = function(ConfigFile){
 									//May be not the thing to use here ... (for wol)
 									//But still acceptable since we save it in a file :)
 
-                                    // visibleComputers.forEach(function (value, key) {
-                                    // 	if(!readEvent && key===pcTarget.idPC){
-                                    //         readEvent=true;
-									//	   }
-                                    // });
-
-                                    readEvent = visibleComputers.has(pcTarget.idPC);
+                                    readMessage = visibleComputers.has(pcTarget.idPC);
 								}
 
 
-								if(readEvent)
+								if(readMessage)
 								{
-									//DIAG
-                                    console.log("$_$ foreach visibleComputer -> readEvent="+readEvent);
-                                    console.log(pcTarget);
-                                    /*
-                                    { 	  lanMAC: '00:0C:29:80:77:CB',
-										  machineID: '',
-										  idPC: '000C298077CB'
-									}
-										LOG! eventDispatcher receive wol event from socket, pcTarget:00:0C:29:80:77:CB
-										Catched error on wol undefined Error: undefined macAddress
-                                     */
+									eventData.eventResult = '';
+									eventData.eventReceivedAt = new Date().toISOString();
+									//we have to update database first if event is going to stop the server (power-off/sleep-mode/...)
+									gun.get(Config.val('TABLE_MESSAGES')).get(id).put(eventData, function () {
+                                        //then we can process event:
 
+                                        if(eventData.eventName === 'check')
+                                        {
+                                        	if(F.eventTargetIsThisPC(eventData, THIS_PC))
+                                        	{
+                                                //check events (specific, socketCheck update database directly) :
+                                                let finalResult = F.checkData(THIS_PC, 'socket');
+                                                finalResult['idPC'] = pcTarget.idPC;
 
-									if(eventData.eventName === 'check')
-									{
-										//specific for check event over gun.js database :
-										console.log("==== SOCKET CHECK UPDATE DATABASE DIRECTLY ! ====");
-										var finalResult = {
-											idPC: pcTarget.idPC,
-											lanMAC: pcTarget.lanMAC,
-											machineID: pcTarget.machineID,
-											'respondsTo-socket': true,
-											online: true,
-											lastResponse: new Date().toISOString(),
-										};
-										dbComputers.get(finalResult.idPC).once(function (pcToUpdate, id) {
-											for (var key in finalResult) {
-												pcToUpdate[key] = finalResult[key];
+                                                dbComputers.get(finalResult.idPC).once(function (pcToUpdate, id) {
+                                                    for (var key in finalResult) {
+                                                        pcToUpdate[key] = finalResult[key];
+                                                    }
+                                                    dbComputers.get(finalResult.idPC).put(pcToUpdate);
+                                                    F.logCheckResult("socket", pcToUpdate);
+                                                    console.log("[INFO] event check (socket) : sended that PC response over gun.js database");
+                                                    console.log(pcToUpdate);
+                                                });
 											}
-											dbComputers.get(finalResult.idPC).put(pcToUpdate);      //=> un seul event declenché coté client ? [A VERIFIER]
-											F.logCheckResult("socket", pcToUpdate);
-										});
-									}
-									else
-									{
+                                        }
+                                        else
+										{
+                                            //standard events :
+                                            var p = {
+                                                eventName: eventData.eventName,
+                                                pcTarget: pcTarget,
+                                            };
+                                            let responseData = eventDispatcher(p, 'socket');
 
-										eventData.eventResult = '';
-										eventData.eventReceivedAt = new Date().toISOString();
-										//we have to update database first if event is going to stop the server (power-off/sleep-mode/...)
-										gun.get(Config.val('TABLE_MESSAGES')).get(id).put(eventData, function () {
+                                            evtResult = {};
+                                            if (responseData) {
+                                                evtResult = responseData;
+                                                //contain evtResult.msg
+                                            }
+                                            else {
+                                                evtResult.msg = eventData.eventName + ' event received (no response)';
+                                            }
+                                            //send response message by updating eventResult database field:
+                                            eventData.eventResult = JSON.stringify(evtResult);
 
-											//then we can process event:
-											var p = {
-												eventName: eventData.eventName,
-												pcTarget: pcTarget,
-											};
-											let responseData = eventDispatcher(p, 'socket');
+                                            gun.get(Config.val('TABLE_MESSAGES')).get(id).put(eventData);
 
-											evtResult = {};
-											if (responseData) {
-												evtResult = responseData;
-												//contain evtResult.msg
-											}
-											else{
-												evtResult.msg = eventData.eventName + ' event received (no response)';
-											}
-											//send response message by updating eventResult database field:
-											eventData.eventResult = JSON.stringify(evtResult);
+                                        }
 
-											gun.get(Config.val('TABLE_MESSAGES')).get(id).put(eventData);
-										});
-
-									}
+									});
 
 								}
-
 							}
 						});
 						console.log("OK! setup gun.js socket events listeners");

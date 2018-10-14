@@ -149,8 +149,8 @@
 
         <!-- INIT APP -->
         <script>
-            var module = {};
-            var sharedObject = {
+            let module = {};
+            let sharedObject = {
                 socket:null,
                 gun:null,
                 dbMessages:null
@@ -163,15 +163,15 @@
         <!-- JsonDisplay() FUNCTION -->
         <script src="assets/json-formatter.js"></script>
         <script>
-            //var JsonFormatter = require('../dist/json-formatter.js').default;
-            var JsonFormatter = module.exports.default;
+            //let JsonFormatter = require('../dist/json-formatter.js').default;
+            let JsonFormatter = module.exports.default;
             function JsonDisplay(jsonOrObject){
-                var renderConfig = {
+                let renderConfig = {
                     theme: 'dark',		//dark theme (font colors)
                     sortPropertiesBy: function(a,b){ return a>b; }
                 };
-                var formatter = new JsonFormatter(jsonOrObject, 1, renderConfig);
-                var element = formatter.render();
+                let formatter = new JsonFormatter(jsonOrObject, 1, renderConfig);
+                let element = formatter.render();
                 element.style['backgroundColor'] = '#1E1E1E';	//dark theme (background color)
                 element.style['border'] = '1px solid lightgray';
                 element.style['border-radius'] = '5px';

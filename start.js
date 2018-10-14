@@ -4,5 +4,5 @@
 const LanSuperv = require('./module.js');
 app = new LanSuperv();
 
-var ConfigFile = __dirname + '/config.js';
+let ConfigFile = __dirname + '/config.js';
 app.startApplication(ConfigFile);

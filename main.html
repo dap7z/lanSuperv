@@ -39,12 +39,12 @@
     <script>
 
         const {ipcRenderer} = require('electron');
-        var messageContainer = document.getElementById('messageContainer');
+        let messageContainer = document.getElementById('messageContainer');
         function clearMessages(){
             messageContainer.innerHTML = '';
         }
         function showMessage(text){
-            var message = document.createElement('div');
+            let message = document.createElement('div');
             message.innerHTML = text;
             messageContainer.appendChild(message);
         }
@@ -64,7 +64,7 @@
           clearMessages();
           showMessage(data.serverUpNotification);
 
-          var webView = document.getElementById('webView');
+          let webView = document.getElementById('webView');
           webView.src = data.url;
       })
 

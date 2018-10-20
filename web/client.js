@@ -24,15 +24,15 @@ function clientJS(){
 
     //use bootstrap drowpdown as select :
     $(document).on("click", function(event){
-        var $elem = $(event.target);
+        let $elem = $(event.target);
         //click anywhere on document :
         if($elem.hasClass('popover-initialized') == false)
         {
-            var hasAnyPopoverClass = false;
-            var attrClass = $elem.attr('class');
+            let hasAnyPopoverClass = false;
+            let attrClass = $elem.attr('class');
             if(attrClass) {
-                var tabClass = attrClass.split(' ');
-                for(var i = 0; i < tabClass.length; i++) {
+                let tabClass = attrClass.split(' ');
+                for(let i = 0; i < tabClass.length; i++) {
                     if(tabClass[i].indexOf('popover') == 0){
                         hasAnyPopoverClass = true;
                     }
@@ -48,7 +48,7 @@ function clientJS(){
         {
             if($elem.closest(".dropdown-menu").length > 0)
             {
-                var selText = $elem.text();
+                let selText = $elem.text();
                 $elem.parents('.btn-group').find('.btn-plugin-value').html(selText);
             }
         }
@@ -56,11 +56,11 @@ function clientJS(){
 
 	
     localStorage.clear();
-    var gunPeers = Config.val('GUN_PEERS');
+    let gunPeers = Config.val('GUN_PEERS');
     console.log("gunPeers: ", gunPeers);
     sharedObject.gun = new Gun(gunPeers);
-    var tableName = Config.val('TABLE_COMPUTERS');
-    var dbComputers = sharedObject.gun.get(tableName);
+    let tableName = Config.val('TABLE_COMPUTERS');
+    let dbComputers = sharedObject.gun.get(tableName);
 	
 	
     dbComputers.map().on(function(pc, id) {
@@ -68,9 +68,9 @@ function clientJS(){
         //.val exec one time | .on exec at every change
         //console.log("dbComputers has been updated, we have to update the view");
 
-        var wolPlugin = 'wol';
-        var powerOffPlugin = 'power-off';
-        var powerOffAvailable = false;
+        let wolPlugin = 'wol';
+        let powerOffPlugin = 'power-off';
+        let powerOffAvailable = false;
 
         if(id=='' || id==tableName){
             return true; //ignore root element
@@ -83,7 +83,7 @@ function clientJS(){
              return true; //ignore "removed" gun.js entry //see clearGunDatabase()
         }
 
-        var $elem = $('#' + id);
+        let $elem = $('#' + id);
         if(!$elem.get(0)){
             //clone the model if $('#'+id) not found
             $elem = $('#pcModel').find('.pcElem').clone(true).attr('id', id).appendTo('#pcList');
@@ -97,7 +97,7 @@ function clientJS(){
         }
 
         //hide some badges if app is not installed :
-        var $badges = $elem.find(".badge.requireApp");
+        let $badges = $elem.find(".badge.requireApp");
         if(pc.machineID){
             $badges.show();
         }else{
@@ -105,11 +105,11 @@ function clientJS(){
         }
 
 
-        var $pluginList = $elem.find('.btn-plugin-choice').find('.dropdown-menu');
+        let $pluginList = $elem.find('.btn-plugin-choice').find('.dropdown-menu');
         $pluginList.html(''); //empty plugin list of this pc
 
-        for (var key in pc){
-            var $dataContainer = $elem.find('.'+key);
+        for (let key in pc){
+            let $dataContainer = $elem.find('.'+key);
             //badges respondsTo
             if($dataContainer.hasClass("badge")){
                 if(pc[key]){
@@ -122,7 +122,7 @@ function clientJS(){
             }
             //lastResponse
             else if(key == "lastResponse"){
-                var $time = $dataContainer.find("time").first();
+                let $time = $dataContainer.find("time").first();
                 $time.attr("datetime", pc[key]);
                 $time.timeago(); //has to be called after datetime change
                 //(first page loading: load database value of previous scan)
@@ -132,11 +132,11 @@ function clientJS(){
             else if($dataContainer.length > 0){
                 //update html (.hostname/.lanIP/.lanMAC/...)
                 $dataContainer.text(pc[key]);
-                var htmlObj = $dataContainer.get(0);
+                let htmlObj = $dataContainer.get(0);
             }
             //plugins availables
             else if(key.startsWith("plugin")){
-                var pluginName = pc[key];
+                let pluginName = pc[key];
                 if(pluginName !== null){
                     $pluginList.append('<li class="dropdown-item">'+ pluginName +'</li>');
                     if(pluginName==powerOffPlugin){
@@ -147,7 +147,7 @@ function clientJS(){
         }
 
         //selected plugin
-        var defaultPlugin = wolPlugin;
+        let defaultPlugin = wolPlugin;
         if(pc.online && powerOffAvailable){
            defaultPlugin = powerOffPlugin;
         }
@@ -157,8 +157,8 @@ function clientJS(){
     });
 
     //Events notifications
-    var pageLoadedAt = new Date().toISOString();
-    var lastNotification = '';
+    let pageLoadedAt = new Date().toISOString();
+    let lastNotification = '';
 
     sharedObject.dbMessages = sharedObject.gun.get(Config.val('TABLE_MESSAGES'));
 
@@ -172,7 +172,7 @@ function clientJS(){
 
                 response = JSON.parse(lastNotification);
 
-                var informations = '';
+                let informations = '';
                 informations += 'Event '+ eventData.eventName +', target :';
                 if(eventData.pcTargetLanMAC){
                     informations += '<br>[lanMAC] '+ eventData.pcTargetLanMAC;
@@ -197,7 +197,7 @@ function clearGunDatabase(){
     //https://github.com/amark/gun/wiki/Delete
     //sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).put(null); //NOK
 
-    var emptyCompList = {};
+    let emptyCompList = {};
     sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).put(emptyCompList);
     sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).val(function(result){
         console.log(result);
@@ -226,8 +226,8 @@ function sendGunMessage(message){
 
 
 function sendRequest(btn){
-    var $pc =  $(btn).closest(".pcElem");
-    var reqData = {
+    let $pc =  $(btn).closest(".pcElem");
+    let reqData = {
         eventName: $pc.find('.btn-plugin-value').text(),
         eventResult: '',
         eventSendedAt: new Date().toISOString(),

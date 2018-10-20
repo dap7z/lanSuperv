@@ -3,8 +3,6 @@
 //=================================//
 
 //used libraries
-const Fs = require('fs');
-const Path = require('path');
 const {fork} = require('child_process');
 
 
@@ -16,63 +14,27 @@ class F {
     }
 
 
-    static getDirectories(p){
-        let dirs =  Fs.readdirSync(p).filter(function (file) {
-            return Fs.statSync(p+'/'+file).isDirectory();
-        });
-        let dirsPaths = [];
-        dirs.map(function (dir) {
-            dirsPaths.push(Path.join(p, dir));
-        });
-        return dirsPaths;
+    static simplePluginsList(type='all', PLUGINS_INFOS){
+        //return names of enabled plugins in a simple object for gun.js compatibility
+        let pluginsList = {};
+        let counter = 1;
+        if(typeof PLUGINS_INFOS === 'undefined'){
+            const ServerPluginsInfos = require('./serverPluginsInfos');
+            PLUGINS_INFOS = ServerPluginsInfos.build();
+        }
+        for (const [ eventName, pluginObjet ] of Object.entries(PLUGINS_INFOS)) {
+            if(pluginObjet.isEnabled){
+                if((type==='all') || (type==='remote' && pluginObjet.isRemote)){
+                    pluginsList['plugin'+counter] = eventName;
+                    counter ++;
+                }
+            }
+        }
+        return pluginsList;
     }
 
 
-    static getPlugins(type='all',result='dirPath', format='object'){
-        let results;
-        let pluginsDirPath;
-        let pluginsDirName;
-        switch(type){
-            case 'all':
-                let remoteRequestsPlugins = this.getDirectories(__dirname+'/plugins/remote-requests/');
-                let localResponsesPlugins = this.getDirectories(__dirname+'/plugins/local-responses/');
-                pluginsDirPath = remoteRequestsPlugins.concat(localResponsesPlugins);
-                break;
-            case 'remote':
-                pluginsDirPath = this.getDirectories(__dirname+'/plugins/remote-requests/');
-                break;
-            case 'local':
-                pluginsDirPath = this.getDirectories(__dirname+'/plugins/local-responses/');
-                break;
-            default:
-                pluginsDirPath = '';
-        }
-
-        //get results :
-        if(result==='dirName'){
-            pluginsDirName = [];
-            pluginsDirPath.forEach(function(dirPath) {
-                pluginsDirName.push(Path.basename(dirPath));
-            });
-            results = pluginsDirName;
-        }else{
-            results = pluginsDirPath;
-        }
-        //format results :
-        if(format==='object'){
-            //array to object for gun.js compatibility
-            let obj = {};
-            let pluginsId = 0;
-            results.forEach(function(key) {
-                pluginsId += 1;
-                obj['plugin'+pluginsId] = key;
-            });
-            results = obj;
-        }
-        return results;
-    }
-
-
+    //=========== USED IN serverEventHandler AND plgins/local-reponses/check/execute.js ==========
     static pcObject(params, THIS_PC, diagCallFrom=''){
         let lanInterface = THIS_PC.lanInterface;
         let wanInterface = THIS_PC.wanInterface;
@@ -114,7 +76,7 @@ class F {
         };
         let pc = this.pcObject(params, THIS_PC);
         //each plugins as a key of pc object:
-        let plugins = this.getPlugins('all','dirName');
+        let plugins = F.simplePluginsList('all');
         for (let key in plugins) {
             pc[key] = plugins[key];
         }
@@ -126,6 +88,7 @@ class F {
         }
         return pc;
     }
+    //=====================
 
 
     static getPcIdentifier(pc){
@@ -135,139 +98,6 @@ class F {
             idPC = idPC.replace(new RegExp(':', 'g'), '');
         }
         return idPC;
-    }
-
-
-    static eventTargetIsThisPC(eventData, THIS_PC){
-        let pcTargetLanMAC = null;
-        let pcTargetMachineID = null;
-
-        if (typeof eventData.pcTarget === 'undefined') {
-            if(typeof eventData.pcTargetLanMAC === 'undefined' && typeof eventData.pcTargetMachineID === 'undefined'){
-                return true;  //not specified -> self event
-            }
-
-            //gun js event :
-            pcTargetLanMAC = eventData.pcTargetLanMAC;
-            pcTargetMachineID = eventData.pcTargetMachineID;
-        }else{
-
-            //http event :
-            pcTargetLanMAC = eventData.pcTarget.lanMAC;
-            pcTargetMachineID = eventData.pcTarget.machineID;
-        }
-
-        if(pcTargetLanMAC === THIS_PC.lanInterface.mac_address) return true;
-        if(pcTargetMachineID === THIS_PC.machineID) return true;
-
-        return false;
-    }
-
-
-    static eventRedirection(eventData, dbComputers, method='http'){
-        let pcTarget = eventData.pcTarget;
-        let eventName = eventData.eventName;
-
-        console.log('[PLUGIN '+ eventName +']: local execution only => resend event through socket');
-        //console.log('pcTarget');
-        //console.log(pcTarget);
-
-
-
-        //Search computer that have the same machineID in (gun.js bdd|local array!) and get his actual IP:
-        //console.log('Search for machineID:'+ pcTarget.machineID);
-        //TODO
-
-
-        //Retrieve pc info from database :
-        let idTargetPC = this.getPcIdentifier(pcTarget);
-        dbComputers.get(idTargetPC).once(function(pcTarget, id){
-            //necessite dbComputers en parametre fonction eventRedirection...
-
-            if(method==='socket')
-            {
-                //====[SOCKET]====
-                console.log("[ERROR] GUN.JS SOCKETS EVENTS NO NEED REDIRECTION !");
-            }
-            else if(method==='http')
-            {
-                //HALF WORKING (form post data is not sended => selfTarget => OK FOR ONE REDIRECTION, NOT MORE)
-                //TODO: TESTS AND DEV
-
-                //====[HTTP]====
-                let Request = require('request');
-                // Set the headers
-                let headers = {
-                    'User-Agent':       'LanSuperv Agent/1.0.0',
-                    'Content-Type':     'application/x-www-form-urlencoded'
-                };
-
-                let jsonString = JSON.stringify({
-                    'eventName': eventName,
-                    'pcTarget': pcTarget,
-                    'password' : '*not*Implemented*',
-                });
-
-                let reqUrl = 'http://'+ pcTarget.lanIP +':'+ Config.val('SERVER_PORT') + Config.val('PATH_HTTP_EVENTS') +'/'+ eventName;
-                console.log('[eventRedirection with http] reqUrl: '+reqUrl);
-
-                // Configure the request
-                let options = {
-                    url: reqUrl,
-                    method: 'POST',
-                    headers: headers,
-                    form: {'jsonString': jsonString}
-                };
-
-                Request(options, function(err, res, body) {
-                    if(err)
-                    {
-                        console.log('Error '+ err.code +' '+ reqUrl);
-                         //ECONNREFUSED if no response
-                    }
-                    else
-                    {
-                        console.log("JSON response:");
-                        console.log(body);
-                    }
-                });
-
-                //===============
-            }
-            else
-            {
-                console.log('[error] function eventRedirection: unknow method parameter');
-            }
-
-        });
-
-    }
-
-
-    static async eventExecution(eventParams){
-        return new Promise(function (resolve) {
-            let eventName = eventParams.eventName;
-            let execPath = eventParams.execPath;
-
-            let lastObjectMsg = {};
-            let compute = fork(execPath);
-            compute.send(eventParams);
-            compute.on('message', (msg) => {
-                let text = '[PLUGIN ' + eventName + '] message: ';
-                if (typeof msg === 'object') {
-                    //console.log(text);
-                    //console.log(msg);
-                    lastObjectMsg = msg;
-                } else {
-                    console.log(text + msg);
-                }
-
-                if (msg === 'end') {
-                    //promise return lastObjectMsg
-                    resolve(lastObjectMsg);
-                }
-            });
-        });
     }
 
 
@@ -305,6 +135,8 @@ class F {
 
         console.log(log);
     }
+
+
     static logCheckWarning(checkType, dbComputers, finalResult) {
         if (typeof dbComputers === 'undefined') {
             console.log("WARNING! [" + checkType + "] gun.js dbComputers required !");

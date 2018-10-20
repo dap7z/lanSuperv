@@ -5,7 +5,7 @@ process.on('message', (eventParams) => {
 	process.send('start');
 	try {
 
-		var macAddress = eventParams.pcTarget.lanMAC;
+		let macAddress = eventParams.pcTarget.lanMAC;
         process.send('try wake up '+ macAddress);
 		if(macAddress)
 		{

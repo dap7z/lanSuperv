@@ -2,7 +2,12 @@
 // ENTRY POINT //
 //=============//
 
-var argv = require('yargs').argv;
+//GET COMMAND PARAMETERS
+let argv = require('yargs').argv;
 
-//START APPLICATION WORKERS
-require('./server').start(argv.config);
+//INIT APPLICATION
+const Server = require('./server');
+let lanSupervServer = new Server(argv.config);
+
+//START APPLICATION
+lanSupervServer.start();

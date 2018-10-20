@@ -1,5 +1,5 @@
 // Common configuration between client and server (file location: web/config.js)
-var PARAMS = new Array();
+let PARAMS = new Array();
 
 PARAMS['APP_AUTO_UPDATE'] = true;       //NEXTS RELEASES
 PARAMS['APP_AUTO_START'] = true;        //NEXTS RELEASES
@@ -48,14 +48,14 @@ else
         //(gun.js web client have address the MAIN_SERVER_ADDRESS)
 
         //get server address from browser and update SERVER_ADDRESS :
-        var hostname = window.location.hostname;
+        let hostname = window.location.hostname;
         if(hostname=='') host = 'localhost';
-        var protocol = window.location.protocol;
+        let protocol = window.location.protocol;
         if(protocol=='') protocol = 'http:';
         PARAMS['SERVER_ADDRESS'] = protocol + '//'+ hostname;
     }
 
-    var externalPort = window.location.port;
+    let externalPort = window.location.port;
     //842 by default, 80 or 443 if behind a reverse proxy
     if(externalPort==80 || externalPort==443){
         externalPort = '';	//not need to specify port for default http/https
@@ -66,11 +66,11 @@ else
 
 
 // Config.val() function available on client.js and server.js
-var config_object = {
+let config_object = {
     val : function(varName){
-        var error = '';
-        var verbose = false;
-        var result = '';
+        let error = '';
+        let verbose = false;
+        let result = '';
         if(PARAMS.hasOwnProperty(varName))
         {
            result = PARAMS[varName];

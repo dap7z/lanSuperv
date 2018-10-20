@@ -11,21 +11,21 @@ function chatJS(){
 	//------------------------------------
 	// Gun db via heroku
 	//------------------------------------//
-	//var gun = Gun('https://gunjs.herokuapp.com/gun').get('XeDedsEdfdEdfd');  //OK
+	//let gun = Gun('https://gunjs.herokuapp.com/gun').get('XeDedsEdfdEdfd');  //OK
 
     //------------------------------------
     // Gun db via node js
     //------------------------------------//
-    // var gun = sharedObject.gun.get('XeDedsEdfdEdfd');
+    // let gun = sharedObject.gun.get('XeDedsEdfdEdfd');
     // => use function sendGunMessage()
 
 
-	var _c = $('div.chat-container');
-	var _in = $('input.name');
-	var _l = $('div.loginbox');
-	var _cb = $('div.chatbox');
-	var _fc = $('form#chat');
-	var _cm = $('.chatmessage');
+	let _c = $('div.chat-container');
+	let _in = $('input.name');
+	let _l = $('div.loginbox');
+	let _cb = $('div.chatbox');
+	let _fc = $('form#chat');
+	let _cm = $('.chatmessage');
 
 	function scrollToButton() {
 		_cb.stop().animate({
@@ -37,9 +37,9 @@ function chatJS(){
 	//------------------------------------
 	// LoginChat
 	//------------------------------------//
-    var uname = 'notLoaded';
+    let uname = 'notLoaded';
     $.getJSON('/cmd/check', {}, function(data) {
-		var userName = 'userFrom';
+		let userName = 'userFrom';
 		if(data.hostname){
             userName += data.hostname;
 		}
@@ -58,9 +58,9 @@ function chatJS(){
 	//------------------------------------//
 	_fc.on('submit', function(event) {
 		event.preventDefault();
-		var u_msg = _fc.find('input.msg').val();
+		let u_msg = _fc.find('input.msg').val();
 		if (uname && u_msg) {
-			var message = {};
+			let message = {};
 			message.status = "online";
 			message.what = u_msg;
             message.when = new Date().toISOString(),
@@ -77,13 +77,13 @@ function chatJS(){
 	//------------------------------------
 	// Get messages from gunMessenger db
 	//------------------------------------//
-	var gunMessenger = sharedObject.dbMessages;
+	let gunMessenger = sharedObject.dbMessages;
     gunMessenger.map().val(function(message, id) {
 		if (message) {
 			if (!message.who && message.who !== '') {
 				return;
 			} else {
-				var $li = $(
+				let $li = $(
 					$('#' + id).get(0) ||
 					$('.model').find('li').clone(true).attr({
 						id: id,
@@ -94,11 +94,11 @@ function chatJS(){
 				);
 
 
-				var content = '';
+				let content = '';
 				if(message.type === 'text'){
                     content = message.what;
-                    var firstChar = content.slice(0,1);
-                    var lastChar = content.slice(-1);
+                    let firstChar = content.slice(0,1);
+                    let lastChar = content.slice(-1);
                     if(firstChar==='{' && lastChar==='}'){
                         content = JsonDisplay(JSON.parse(content));
                     }
@@ -124,7 +124,7 @@ function chatJS(){
 	$("input.msg").keypress(function(event) {
 		if (event.which == 13) {
 			event.preventDefault();
-			var userMsg = _fc.find('input.msg').val();
+			let userMsg = _fc.find('input.msg').val();
 			if (userMsg) {
 				_fc.submit();
 			} else {
@@ -137,7 +137,7 @@ function chatJS(){
 	// Delete chat messages by double clicks
 	//------------------------------------//
 	$('body').on('click', 'i.deletemsg', function(event) {
-		var $li = $(this).closest('li.chatmsg');
+		let $li = $(this).closest('li.chatmsg');
         $li.fadeOut('fast');
         gunMessenger.get($li.attr('id')).put(null);
 	});
@@ -146,7 +146,7 @@ function chatJS(){
 	// On click logout button
 	//------------------------------------//
 	$('button.logout').on('click', function() {
-		var allIds = [uname];
+		let allIds = [uname];
 		_cm.find("li").each(function() {
 			if (allIds.indexOf($(this).attr('name')) > -1) {
                 gunMessenger.get(this.id).put({
@@ -166,27 +166,28 @@ function chatJS(){
 	//------------------------------------//
 	setInterval(function() {
 		function removeDuplicates(arr) {
-			var uniqueArr = []
-			for (var i = 0; i < arr.length; i++) {
+			let uniqueArr = []
+			for (let i = 0; i < arr.length; i++) {
 				if (uniqueArr.indexOf(arr[i]) == -1) {
 					uniqueArr.push(arr[i])
 				}
 			}
 			return uniqueArr
 		}
-		var found = [];
+		let found = [];
 		_cm.find("li[status='online']").each(function() {
 			found.push($(this).attr('name'));
 		})
-		var onlineUsers = removeDuplicates(found);
+		let onlineUsers = removeDuplicates(found);
+		let oUsers = '';
 		if (onlineUsers.length) {
-			var oUsers = '<ul class="collection">';
+			oUsers = '<ul class="collection">';
 			for (i = 0; i < onlineUsers.length; i++) {
 				oUsers += '<li class="collection-item">' + onlineUsers[i] + '<i class="status online"></i></li>';
 			}
 			oUsers += '</ul>';
 		} else {
-			var oUsers = '<ul class="collection"><li class="collection-item">No user is online.</li></ul>';
+			let oUsers = '<ul class="collection"><li class="collection-item">No user is online.</li></ul>';
 		}
 		$('div.onlinebox').html(oUsers);
 	}, 4000)

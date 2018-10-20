@@ -49,6 +49,7 @@ let G = {
     SCAN_NETWORK: null,
     PLUGINS_INFOS: [],
     WEB_SERVER: null,
+    WEB_SERVER_INSTANCE: null,
     GUN: null,
     GUN_DB_MESSAGES: null,
     GUN_DB_COMPUTERS: null
@@ -71,7 +72,6 @@ class Server {
 
         //----- LAUNCH HTTP SERVER -----
         G.WEB_SERVER = Express();
-        let server = null;
         G.WEB_SERVER.set('port', G.CONFIG.val('SERVER_PORT') );
         G.WEB_SERVER.use(Express.static(Path.join(__dirname, 'web')));
         //__dirname is native Node variable which contains the file path of the current folder
@@ -173,9 +173,9 @@ class Server {
                     console.log('Reason : ' + IsPortAvailable.lastError);
                 }
                 else {
-                    server = G.WEB_SERVER.listen(G.WEB_SERVER.get('port'), () => {
+                    G.WEB_SERVER_INSTANCE = G.WEB_SERVER.listen(G.WEB_SERVER.get('port'), () => {
                         //get listening port
-                        let port = server.address().port;
+                        let port = G.WEB_SERVER_INSTANCE.address().port;
                         let url = 'http://localhost:'+port;
                         let serverUpNotification = 'Web server available on '+ url +' (lanIP: '+ G.THIS_PC.lanInterface.ip_address +', ';
                         //get public ip
@@ -244,7 +244,7 @@ class Server {
             gunOptions = {
                 file: G.CONFIG.val('FILE_SHARED_DB'),
                 peers: G.CONFIG.val('GUN_PEERS'),
-                web: server,
+                web: G.WEB_SERVER_INSTANCE,
             };
             //NOK WINDOWS, RESULTATS TEST 20180915:
             //{ file: 'D:\\SRV_APACHE\\lanSuperv\\db1-shared.json',

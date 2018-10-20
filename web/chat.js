@@ -78,8 +78,8 @@ function chatJS(){
 	// Get messages from gunMessenger db
 	//------------------------------------//
 	let gunMessenger = sharedObject.dbMessages;
-    gunMessenger.map().val(function(message, id) {
-		if (message) {
+    gunMessenger.map().once(function(message, id) {
+        if (message) {
 			if (!message.who && message.who !== '') {
 				return;
 			} else {

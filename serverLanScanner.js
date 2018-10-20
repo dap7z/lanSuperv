@@ -1,9 +1,7 @@
 let F = require(__dirname + '/functions'); //FONCTIONS
 let G = null; //GLOBALS
 
-const ServerPluginsInfos = require('./serverPluginsInfos');
-//TODO: remove require ServerPluginsInfos and use G.PLUGINS_INFOS instead
-
+//LIBRARIES:
 const Nmap = require('node-nmap');
 const Fs = require('fs');
 
@@ -139,7 +137,7 @@ class ServerLanScanner {
     }
 
 
-    async launchQuickScan() {
+    async startQuickScan() {
         //use global variable G.VISIBLE_COMPUTERS
         let arrayReturn = [];
 
@@ -216,7 +214,7 @@ class ServerLanScanner {
     }
 
 
-    startScan() {
+    startFullScan() {
         if (G.NMAP_IS_WORKING) {
             console.log('FIXED! launchLanScan canceled (G.NMAP_IS_WORKING)');
         }
@@ -232,7 +230,7 @@ class ServerLanScanner {
                 //console.log(data);
                 G.SCANNED_COMPUTERS = new Map();
                 let scanTimeStamp = new Date().toISOString();
-                let remotePlugins = ServerPluginsInfos.getPlugins('remote', 'dirName');
+                let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
                 for (let i = 0; i < data.length; i++) {
                     let d = data[i];
                     let params = {
@@ -255,7 +253,7 @@ class ServerLanScanner {
                         console.log("FIXED! correct lanMAC field for server (was: '" + wasEmpty + "')");
                         pc.machineID = G.THIS_PC.machineID;
                         console.log("FIXED! add machineID field for server");
-                        plugins = ServerPluginsInfos.getPlugins('all', 'dirName');
+                        plugins = F.simplePluginsList('all', G.PLUGINS_INFOS);
                         console.log("FIXED! add local-responses plugins for server");
                     }
 

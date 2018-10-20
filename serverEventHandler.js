@@ -1,6 +1,7 @@
 let F = require(__dirname + '/functions'); //FONCTIONS
 let G = null; //GLOBALS
 
+//LIBRARIES:
 const {fork} = require('child_process');
 
 class ServerEventHandler {
@@ -170,7 +171,7 @@ class ServerEventHandler {
             }
             else if (p.pcTarget !== 'self') {
                 if (f !== 'socket') {
-                    eventRedirection(p, G.GUN_DB_COMPUTERS);
+                    this.eventRedirection(p, G.GUN_DB_COMPUTERS);
                 }
                 //event transmited, nothing more to do.
                 //(and not even need eventRedirection if it comes from gun.js db)

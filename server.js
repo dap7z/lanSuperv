@@ -141,7 +141,6 @@ class Server {
             //we start here with network informations
             //console.log(defaultInterface);
 
-
             //nmap accept 192.168.1.1-254 and 192.168.1.1/24 but not 192.168.1.1/255.255.255.0
             //so we translate :
             G.THIS_PC.lanInterface = (function () {
@@ -306,18 +305,33 @@ class Server {
 
         //----- GET PLUGINS INFORMATIONS -----
         const ServerPluginsInfos = require('./serverPluginsInfos');
-        let pluginsInfos = new ServerPluginsInfos(G);
-        G.PLUGINS_INFOS = pluginsInfos.build();
+        G.PLUGINS_INFOS = ServerPluginsInfos.build();
 
         //TMP DIAG
-        console.log('G.PLUGINS_INFOS array:');
-        console.log(G.PLUGINS_INFOS);
+        //console.log('G.PLUGINS_INFOS array:');
+        //console.log(G.PLUGINS_INFOS);
+        //TMP TEST
+        /*
+        oldAllPluginsDirName:
+        { plugin1: 'web',
+          plugin2: 'wol',
+          plugin3: 'check',
+          plugin4: 'power-off',
+          plugin5: 'sleep-mode' }
+        let allPluginsList = F.simplePluginsList('all', G.PLUGINS_INFOS); //NOK...TOFIX
+        //let allPluginsList = F.simplePluginsList('all');  //NOK
+        console.log("REFACTORED pluginsList:");
+        console.log(allPluginsList);
+        */
+
+
+
 
 
         //----- LAUNCH FIRST SCAN -----
         const ServerLanScanner = require('./serverLanScanner');
         let lanScanner = new ServerLanScanner(G);
-        lanScanner.startScan();
+        lanScanner.startFullScan();
 
 
         //----- HANDLE HOMEPAGE REQUEST (HTTP/HTTPS) -----
@@ -334,11 +348,11 @@ class Server {
                 // Par contre lance LanScan avant fin QuickScan
                 // ... aussi bien sinon obliger d'attendre fin timeout ???
                 // ... seulement si QuickScan est limite a quelque address IP
-                lanScanner.launchQuickScan()
+                lanScanner.startQuickScan()
                     .then(function (v) {
                         console.log('°°°°°°°°°°°°° PROMISES (PENDINGS)  °°°°°°°°°°°°°°');
                         console.log(v);
-                        launchLanScan();
+                        lanScanner.startFullScan();
                     })
                     .catch(function (err) {
                         console.error(err);
@@ -346,7 +360,7 @@ class Server {
 
                 /* //NOK erreur undefined pingPromises au bout dun moment
                 //https://stackoverflow.com/questions/31424561/wait-until-all-es6-promises-complete-even-rejected-promises
-                let pingPromises = launchQuickScan();
+                let pingPromises = lanScanner.startQuickScan();
                 Promise.all(pingPromises.map(p => p.catch(e => e)))
                     .then(results => console.log(results)) // 1,Error: 2,3
                     .catch(e => console.log(e));

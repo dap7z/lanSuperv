@@ -5,15 +5,32 @@
 //used libraries
 const {fork} = require('child_process');
 
-const ServerPluginsInfos = require('./serverPluginsInfos');
-//TODO: remove require ServerPluginsInfos and use G.PLUGINS_INFOS instead
-
 
 class F {
 
 
     constructor() {
         console.log("class F constructor just called :)");
+    }
+
+
+    static simplePluginsList(type='all', PLUGINS_INFOS){
+        //return names of enabled plugins in a simple object for gun.js compatibility
+        let pluginsList = {};
+        let counter = 1;
+        if(typeof PLUGINS_INFOS === 'undefined'){
+            const ServerPluginsInfos = require('./serverPluginsInfos');
+            PLUGINS_INFOS = ServerPluginsInfos.build();
+        }
+        for (const [ eventName, pluginObjet ] of Object.entries(PLUGINS_INFOS)) {
+            if(pluginObjet.isEnabled){
+                if((type==='all') || (type==='remote' && pluginObjet.isRemote)){
+                    pluginsList['plugin'+counter] = eventName;
+                    counter ++;
+                }
+            }
+        }
+        return pluginsList;
     }
 
 
@@ -59,7 +76,7 @@ class F {
         };
         let pc = this.pcObject(params, THIS_PC);
         //each plugins as a key of pc object:
-        let plugins = ServerPluginsInfos.getPlugins('all','dirName');
+        let plugins = F.simplePluginsList('all');
         for (let key in plugins) {
             pc[key] = plugins[key];
         }

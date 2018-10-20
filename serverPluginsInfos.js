@@ -1,15 +1,16 @@
-let F = require(__dirname + '/functions'); //FONCTIONS
-let G = null; //GLOBALS
+//let F = require(__dirname + '/functions'); //FONCTIONS //CURRENTLY UNUSED
 
+//LIBRARIES:
 const Fs = require('fs');
 const Path = require('path');
 
 
 class ServerPluginsInfos {
 
-    constructor(G_ref) {
-        G = G_ref;
+    constructor() {
+        //no need G/G_ref here (and used into functions.js so cant be)
     }
+
 
     //QuickScan: only previously visibles computers
     //LanScan: map ping on whole lan primary interface
@@ -27,10 +28,8 @@ class ServerPluginsInfos {
     }
 
 
-    static getPlugins(type='all',result='dirPath', format='object'){
-        let results;
+    static getPluginsDirPath(type='all'){
         let pluginsDirPath;
-        let pluginsDirName;
         switch(type){
             case 'all':
                 let remoteRequestsPlugins = this.getDirectories(__dirname+'/plugins/remote-requests/');
@@ -46,50 +45,31 @@ class ServerPluginsInfos {
             default:
                 pluginsDirPath = '';
         }
-
-        //get results :
-        if(result==='dirName'){
-            pluginsDirName = [];
-            pluginsDirPath.forEach(function(dirPath) {
-                pluginsDirName.push(Path.basename(dirPath));
-            });
-            results = pluginsDirName;
-        }else{
-            results = pluginsDirPath;
-        }
-        //format results :
-        if(format==='object'){
-            //array to object for gun.js compatibility
-            let obj = {};
-            let pluginsId = 0;
-            results.forEach(function(key) {
-                pluginsId += 1;
-                obj['plugin'+pluginsId] = key;
-            });
-            results = obj;
-        }
-        return results;
+        return pluginsDirPath;
     }
 
 
-    build(){
+    static build(){
         let tabResult = [];
-        let plugins = ServerPluginsInfos.getPlugins('all', 'dirPath', 'array');
+        let plugins = ServerPluginsInfos.getPluginsDirPath('all');
         plugins.map(function (dirPath) {
+            let execPath = '';  //used diagPluginDetection too
             let eventName = Path.basename(dirPath);	//pluginDirName
             let isRemote = (dirPath.indexOf('remote') > -1);
-            let execPath = '';
+            tabResult[eventName] = {
+                dirPath: dirPath,
+                execPath: execPath,
+                isRemote: isRemote,
+                isEnabled: false,
+            };
+
             let exec = Fs.readdirSync(dirPath).filter(function (elm) {
                 return elm.match(/execute\.*/g);
             });
-
             if (exec.length === 1) {
                 execPath = dirPath + Path.sep + exec;
-                tabResult[eventName] = {
-                    dirPath: dirPath,
-                    execPath: execPath,
-                    isRemote: isRemote,
-                };
+                tabResult[eventName].execPath = execPath;
+                tabResult[eventName].isEnabled = true;
             }
 
             let diagPluginDetection = true;

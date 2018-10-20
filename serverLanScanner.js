@@ -293,7 +293,7 @@ class ServerLanScanner {
                 G.NMAP_IS_WORKING = false;
                 let nbSecsBeforeNextScan = 60 * 60;
                 setTimeout(() => {
-                    this.startScan();
+                    this.startFullScan ();
                 }, 1000 * nbSecsBeforeNextScan);
 
             });

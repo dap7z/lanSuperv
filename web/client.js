@@ -199,7 +199,7 @@ function clearGunDatabase(){
 
     let emptyCompList = {};
     sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).put(emptyCompList);
-    sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).val(function(result){
+    sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).once(function(result){
         console.log(result);
     });
 

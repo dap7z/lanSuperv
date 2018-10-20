@@ -79,7 +79,7 @@ function chatJS(){
 	//------------------------------------//
 	let gunMessenger = sharedObject.dbMessages;
     gunMessenger.map().once(function(message, id) {
-        if (message) {
+		if (message) {
 			if (!message.who && message.who !== '') {
 				return;
 			} else {

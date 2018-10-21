@@ -105,11 +105,6 @@ function clientJS(){
             //clone the model if $('#'+id) not found
             $elem = $('#pcModel').find('.pcElem').clone(true).attr('id', id).appendTo('#pcList');
         }
-        //reset online status
-        $elem.find(".card-header").removeClass("onlinePc");
-
-        //diag
-        console.log(pc);
 
         //hide some badges if app is not installed :
         let $badges = $elem.find(".badge.requireApp");
@@ -122,10 +117,11 @@ function clientJS(){
         let $pluginList = $elem.find('.btn-plugin-choice').find('.dropdown-menu');
         $pluginList.html(''); //empty plugin list of this pc
 
+        let pcIsOnline = false;
         for (let key in pc){
-            //update online status
+            //determine online status
             if(key.startsWith("respondsTo-") && pc[key] !== null){
-                $elem.find(".card-header").addClass("onlinePc");
+                pcIsOnline = true;
             }
 
             let $dataContainer = $elem.find('.'+key);
@@ -165,9 +161,15 @@ function clientJS(){
             }
         }
 
+        //update web ui with online status :
+        $elem.find(".card-header").removeClass("onlinePc");
+        if(pcIsOnline){
+            $elem.find(".card-header").addClass("onlinePc");
+        }
+
         //selected plugin
         let defaultPlugin = wolPlugin;
-        if(pc.online && powerOffAvailable){
+        if(pcIsOnline && powerOffAvailable){
            defaultPlugin = powerOffPlugin;
         }
         $elem.find('.btn-plugin-value').text(defaultPlugin);

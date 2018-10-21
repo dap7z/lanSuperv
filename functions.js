@@ -48,7 +48,6 @@ class F {
             }
         });
         let pc = params;
-        pc.online = true;
         pc.nickname = '';
         pc.lanNetwork = lanInterface.network;
         pc.lanBitmask = lanInterface.bitmask;
@@ -84,7 +83,6 @@ class F {
         if(respondTo){
             pc['respondsTo-'+respondTo] = true;
             pc['lastResponse'] = new Date().toISOString();
-            pc['online'] = true;
         }
         return pc;
     }

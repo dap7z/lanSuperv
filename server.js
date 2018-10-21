@@ -27,9 +27,6 @@ const Netmask = require('netmask').Netmask;
 const IsPortAvailable = require('./node_modules_custom/is-port-available/index.js');
 const ExtIP = require('ext-ip')();
 
-const Request = require('request-promise');  //'request' deprecated
-const Ping = require('ping-bluebird');  //ping with better promise
-
 
 
 //--GLOBALS--

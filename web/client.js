@@ -61,6 +61,23 @@ function clientJS(){
     sharedObject.gun = new Gun(gunPeers);
     let tableName = Config.val('TABLE_COMPUTERS');
     let dbComputers = sharedObject.gun.get(tableName);
+
+
+    let $clearAllMessages = $("#clearAllMessages");
+    $clearAllMessages.click(function(){
+        //let emptyObject = {};
+        //sharedObject.gun.get(Config.val('TABLE_MESSAGES')).put(emptyObject);
+        //NOK. ..even at reloading...
+
+        //prevent multiple click :
+        $clearAllMessages.hide();
+        window.setTimeout(function(){
+            $clearAllMessages.show();
+        }, 1000);
+
+        //simulate click on all deletemsg btn :
+        $('body').find('i.deletemsg').trigger('click');
+    });
 	
 	
     dbComputers.map().on(function(pc, id) {
@@ -88,13 +105,11 @@ function clientJS(){
             //clone the model if $('#'+id) not found
             $elem = $('#pcModel').find('.pcElem').clone(true).attr('id', id).appendTo('#pcList');
         }
+        //reset online status
+        $elem.find(".card-header").removeClass("onlinePc");
 
-        //online status
-        if(pc.online){
-            $elem.find(".card-header").addClass("onlinePc");
-        }else{
-            $elem.find(".card-header").removeClass("onlinePc");
-        }
+        //diag
+        console.log(pc);
 
         //hide some badges if app is not installed :
         let $badges = $elem.find(".badge.requireApp");
@@ -104,11 +119,15 @@ function clientJS(){
             $badges.hide();
         }
 
-
         let $pluginList = $elem.find('.btn-plugin-choice').find('.dropdown-menu');
         $pluginList.html(''); //empty plugin list of this pc
 
         for (let key in pc){
+            //update online status
+            if(key.startsWith("respondsTo-") && pc[key] !== null){
+                $elem.find(".card-header").addClass("onlinePc");
+            }
+
             let $dataContainer = $elem.find('.'+key);
             //badges respondsTo
             if($dataContainer.hasClass("badge")){
@@ -195,15 +214,16 @@ function clientJS(){
 //==================== function ======================
 function clearGunDatabase(){
     //https://github.com/amark/gun/wiki/Delete
-    //sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).put(null); //NOK
+    //sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).put(null);
+    //NOK: Data saved to the root level of the graph must be a node (an object), not a object of "null"!
 
-    let emptyCompList = {};
-    sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).put(emptyCompList);
+    let emptyObject = {};
+    sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).put(emptyObject);
     sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).once(function(result){
         console.log(result);
     });
 
-    sharedObject.gun.get(Config.val('TABLE_MESSAGES')).put(null);
+    sharedObject.gun.get(Config.val('TABLE_MESSAGES')).put(emptyObject);
 
     //Other way, more complicated :
     // - localStorage.clear() in every browser

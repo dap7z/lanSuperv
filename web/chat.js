@@ -134,7 +134,7 @@ function chatJS(){
 	});
 
 	//------------------------------------
-	// Delete chat messages by double clicks
+	// Delete chat messages
 	//------------------------------------//
 	$('body').on('click', 'i.deletemsg', function(event) {
 		let $li = $(this).closest('li.chatmsg');

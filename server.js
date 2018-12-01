@@ -22,10 +22,14 @@ const BodyParser = require('body-parser'); //to get POST data
 const Crypto = require('crypto');  //hash machineID
 
 const Netmask = require('netmask').Netmask;
-
-//const IsPortAvailable = require('is-port-available'); //COMPATIBILITY ISSUE WITH COMMAND LINE ARGUMENT
-const IsPortAvailable = require('./node_modules_custom/is-port-available/index.js');
 const ExtIP = require('ext-ip')();
+
+//-- start node_modules_custom --
+//const IsPortAvailable = require('is-port-available'); //COMPATIBILITY ISSUE WITH COMMAND LINE ARGUMENT
+const IsPortAvailable = require('./node_modules_custom/is-port-available/index.js');																					
+//const DefaultInterface = require('internal-ip');  //RETURN ONLY IP :(
+const DefaultInterface = require('./node_modules_custom/default-interface/index.js');
+//-- end node_modules_custom --
 
 
 
@@ -98,36 +102,23 @@ class Server {
         })
 
 
-        //Promise to get network information
-        //(we no more use 'network' npm package because dectected active network interface can be virtualbox one...)
+        //Promise to get active network informations
         async function getDefaultInterface() {
             return new Promise(function(resolve,reject) {
-                //let Os = require('os');
-                let Routes = require('default-network');
-
-                Routes.collect(function (error, data) {
-                    let names = Object.keys(data);
-                    let defaultInterfaceName = names[0];
-                    let defaultInterfaceData = Os.networkInterfaces()[defaultInterfaceName];
-                    let lanIPv4 = defaultInterfaceData[0];
-                    //let lanIPv6 = defaultInterfaceData[1];
-
-                    let defaultGatewayData = data[defaultInterfaceName];
-                    let gatewayIPv4 = defaultGatewayData[0];
-                    //let gatewayIPv6 = defaultGatewayData[1];
-
-                    let result = {
-                        gateway_ip: gatewayIPv4.address,
-                        ip_address: lanIPv4.address,
-                        mac_address: lanIPv4.mac,
-                        netmask: lanIPv4.netmask,
-                        family: lanIPv4.family,
-                        internal: lanIPv4.internal,
-                        cidr: lanIPv4.cidr
+				DefaultInterface.v4().then(data => {
+					//build full result
+                    let defaultInterfaceIPv4 = {
+						gateway_ip: data.gateway,
+                        ip_address: data.address,
+                        mac_address: data.mac,
+                        netmask: data.netmask,
+                        family: data.family,
+                        internal: data.internal,
+                        cidr: data.cidr,
+						name: data.name
                     };
-
-                    resolve(result);
-                });
+                    resolve(defaultInterfaceIPv4);
+				});
             });
         }
 
@@ -136,7 +127,8 @@ class Server {
         getDefaultInterface().then( (defaultInterface) => {
 
             //we start here with network informations
-            //console.log(defaultInterface);
+			console.log("getDefaultInterface() result:");
+			console.log(defaultInterface);
 
             //nmap accept 192.168.1.1-254 and 192.168.1.1/24 but not 192.168.1.1/255.255.255.0
             //so we translate :

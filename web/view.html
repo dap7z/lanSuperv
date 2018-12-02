@@ -21,6 +21,7 @@
         <script src="assets/toastr.min.js"></script>
         <script src="assets/gun.min.js"></script>
 		<script src="assets/moment.min.js"></script>
+        <!--<script src="assets/vue.js"></script>-->
     </head>
     
     <body>
@@ -162,34 +163,7 @@
             };
         </script>
         <script src="config.js"></script>
-        <script src="client.js"></script>
-        <script src="chat.js"></script>
-
-        <!-- JsonDisplay() FUNCTION -->
-        <script src="assets/json-formatter.js"></script>
-        <script>
-            //let JsonFormatter = require('../dist/json-formatter.js').default;
-            let JsonFormatter = module.exports.default;
-            function JsonDisplay(jsonOrObject){
-                let renderConfig = {
-                    theme: 'dark',		//dark theme (font colors)
-                    sortPropertiesBy: function(a,b){ return a>b; }
-                };
-                let formatter = new JsonFormatter(jsonOrObject, 1, renderConfig);
-                let element = formatter.render();
-                element.style['backgroundColor'] = '#1E1E1E';	//dark theme (background color)
-                element.style['border'] = '1px solid lightgray';
-                element.style['border-radius'] = '5px';
-                element.style['padding'] = '10px';
-                return element;
-            }
-        </script>
-
-        <!-- LAUNCH APP -->
-        <script>
-            clientJS();
-            chatJS();
-        </script>
+        <script src="dist/bundle.js"></script>
         
     </body>
     

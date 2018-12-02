@@ -1,10 +1,10 @@
-export default function clientJS() {
+export default function clientJS(sendRequest) {
 
     //use bootstrap popover on dynamically generated element :
     $(document).on('mouseenter', '.cutword', function(){
-        if($(this).hasClass('popover-initialized') == false)
+        if($(this).hasClass('popover-initialized') === false)
         {
-            if($(this).text().trim() != '')
+            if($(this).text().trim() !== '')
             {
                 $(this).addClass('clickable');
                 $(this).popover({
@@ -25,14 +25,14 @@ export default function clientJS() {
     $(document).on("click", function(event){
         let $elem = $(event.target);
         //click anywhere on document :
-        if($elem.hasClass('popover-initialized') == false)
+        if($elem.hasClass('popover-initialized') === false)
         {
             let hasAnyPopoverClass = false;
             let attrClass = $elem.attr('class');
             if(attrClass) {
                 let tabClass = attrClass.split(' ');
                 for(let i = 0; i < tabClass.length; i++) {
-                    if(tabClass[i].indexOf('popover') == 0){
+                    if(tabClass[i].indexOf('popover') === 0){
                         hasAnyPopoverClass = true;
                     }
                 }
@@ -43,7 +43,7 @@ export default function clientJS() {
             }
         }
         //click on li inside .dropdown-menu :
-        if(event.target.nodeName.toLowerCase() == 'li')
+        if(event.target.nodeName.toLowerCase() === 'li')
         {
             if($elem.closest(".dropdown-menu").length > 0)
             {
@@ -78,6 +78,11 @@ export default function clientJS() {
         //simulate click on all deletemsg btn :
         $('body').find('i.deletemsg').trigger('click');
     });
+
+
+    $(".btn-plugin-submit").click(function(){
+        sendRequest(this);
+    });
 	
 	
     dbComputers.map().on(function(pc, id) {
@@ -89,12 +94,12 @@ export default function clientJS() {
         let powerOffPlugin = 'power-off';
         let powerOffAvailable = false;
 
-        if(id=='' || id==tableName){
+        if(id==='' || id===tableName){
             return true; //ignore root element
         }
 
         //LASTDEV
-        if(typeof(pc.hostname) == 'undefined'){
+        if(typeof(pc.hostname) === 'undefined'){
              //console.log("WARNING clearGunDatabase not totaly remove pc :");
              //console.log(pc);
              return true; //ignore "removed" gun.js entry //see clearGunDatabase()
@@ -136,7 +141,7 @@ export default function clientJS() {
                 }
             }
             //lastResponse
-            else if(key == "lastResponse"){
+            else if(key === "lastResponse"){
                 let $time = $dataContainer.find("time").first();
                 $time.attr("datetime", pc[key]);
                 $time.timeago(); //has to be called after datetime change
@@ -147,14 +152,13 @@ export default function clientJS() {
             else if($dataContainer.length > 0){
                 //update html (.hostname/.lanIP/.lanMAC/...)
                 $dataContainer.text(pc[key]);
-                let htmlObj = $dataContainer.get(0);
             }
             //plugins availables
             else if(key.startsWith("plugin")){
                 let pluginName = pc[key];
                 if(pluginName !== null){
                     $pluginList.append('<li class="dropdown-item">'+ pluginName +'</li>');
-                    if(pluginName==powerOffPlugin){
+                    if(pluginName===powerOffPlugin){
                         powerOffAvailable = true;
                     }
                 }
@@ -185,13 +189,13 @@ export default function clientJS() {
 
     sharedObject.dbMessages.map().on(function(eventData, id) {
         if(eventData && eventData.eventSendedAt){
-            if(pageLoadedAt < eventData.eventSendedAt && lastNotification != eventData.eventResult)
+            if(pageLoadedAt < eventData.eventSendedAt && lastNotification !== eventData.eventResult)
             {
                 lastNotification = eventData.eventResult; //fix double notification
                 //caused by two gun.js 0.8 database update separated by few ms (.eventReceivedAt and then .eventResult)
                 //... make .on() function called twice with filled .eventResult
 
-                response = JSON.parse(lastNotification);
+                let response = JSON.parse(lastNotification);
 
                 let informations = '';
                 informations += 'Event '+ eventData.eventName +', target :';
@@ -212,49 +216,6 @@ export default function clientJS() {
 
 }
 
-
-//==================== internals functions ======================
-function clearGunDatabase(){
-    //https://github.com/amark/gun/wiki/Delete
-    //sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).put(null);
-    //NOK: Data saved to the root level of the graph must be a node (an object), not a object of "null"!
-
-    let emptyObject = {};
-    sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).put(emptyObject);
-    sharedObject.gun.get(Config.val('TABLE_COMPUTERS')).once(function(result){
-        console.log(result);
-    });
-
-    sharedObject.gun.get(Config.val('TABLE_MESSAGES')).put(emptyObject);
-
-    //Other way, more complicated :
-    // - localStorage.clear() in every browser
-    // - stop the server
-    // - rm data.json on server
-
-    //The only way that actually works :
-    // - stop server, close browsers
-    // - change DATABASE_NAME in config.js
-    // - remove visibleComputers.json
-    // - restart server and browser
-}
-
-
-function sendRequest(btn){
-    let $pc =  $(btn).closest(".pcElem");
-    let reqData = {
-        eventName: $pc.find('.btn-plugin-value').text(),
-        eventResult: '',
-        eventSendedAt: new Date().toISOString(),
-        eventReceivedAt: null,
-        pcTargetLanMAC: $pc.find(".lanMAC").html(),
-        pcTargetMachineID: $pc.find(".machineID").html(),
-    };
-    //gun.js cant handle JS multiple dimensions objects, only key:value.
-
-    reqData.who = localStorage.getItem('userName'); //uname
-    sendGunMessage(reqData);
-}
 
 
 

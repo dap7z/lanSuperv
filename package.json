@@ -1,6 +1,6 @@
 {
   "name": "lan-superv",
-  "version": "0.3.600",
+  "version": "0.3.601",
   "description": "Node.js app for lan supervision",
   "author": "Damien Pointier",
   "license": "MIT",
@@ -21,6 +21,7 @@
     "auto-updater": "^1.0.2",
     "body-parser": "^1.18.1",
     "child_process": "^1.0.2",
+    "cross-spawn": "^6.0.5",
     "default-gateway": "^3.0.1",
     "electron-log": "^2.2.17",
     "express": "^4.16.4",

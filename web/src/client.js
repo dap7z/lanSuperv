@@ -53,18 +53,9 @@ export default function clientJS(sendRequest) {
         }
     });
 
-	
-    localStorage.clear();
-    let gunPeers = Config.val('GUN_PEERS');
-    console.log("gunPeers: ", gunPeers);
-    sharedObject.gun = new Gun(gunPeers);
-    let tableName = Config.val('TABLE_COMPUTERS');
-    let dbComputers = sharedObject.gun.get(tableName);
-    //(same in /src/index.js for vue)
-
 
     let $clearAllMessages = $("#clearAllMessages");
-    $clearAllMessages.click(function(){
+    $clearAllMessages.on('click', function(){
         //let emptyObject = {};
         //sharedObject.gun.get(Config.val('TABLE_MESSAGES')).put(emptyObject);
         //NOK. ..even at reloading...
@@ -80,13 +71,37 @@ export default function clientJS(sendRequest) {
     });
 
 
-    $(".btn-plugin-submit").click(function(){
+    $(".btn-plugin-submit").on('click', function(){
         sendRequest(this);
     });
-	
-	
-    dbComputers.map().on(function(pc, id) {
 
+
+
+    //======================== GUN JS =========================
+    localStorage.clear();
+    let gunPeers = Config.val('GUN_PEERS');
+    console.log("gunPeers: ", gunPeers);
+    sharedObject.gun = new Gun(gunPeers);
+    let tableName = Config.val('TABLE_COMPUTERS');
+    let dbComputers = sharedObject.gun.get(tableName);
+    //(same in /src/index.js for vue)
+
+    dbComputers.map().on((pc, id) => {
+        gunOnChangeDbComputers(pc, id);
+    });
+
+    //Events notifications
+    let pageLoadedAt = new Date().toISOString();
+    let lastNotification = '';
+
+    sharedObject.dbMessages = sharedObject.gun.get(Config.val('TABLE_MESSAGES'));
+    sharedObject.dbMessages.map().on(function(eventData, id) {
+        gunOnChangeDbMessages(eventData);
+    });
+	
+
+
+    function gunOnChangeDbComputers(pc, id){
         //.val exec one time | .on exec at every change
         //console.log("dbComputers has been updated, we have to update the view");
 
@@ -94,20 +109,17 @@ export default function clientJS(sendRequest) {
         let powerOffPlugin = 'power-off';
         let powerOffAvailable = false;
 
+        //clear data :
         if(id==='' || id===tableName){
             return true; //ignore root element
         }
-
-        //LASTDEV
         if(typeof(pc.hostname) === 'undefined'){
-             //console.log("WARNING clearGunDatabase not totaly remove pc :");
-             //console.log(pc);
-             return true; //ignore "removed" gun.js entry //see clearGunDatabase()
+            return true; //ignore "removed" gun.js entry, clearGunDatabase() not totaly remove pc
         }
 
+        //retrieve element or clone the model if not found
         let $elem = $('#' + id);
         if(!$elem.get(0)){
-            //clone the model if $('#'+id) not found
             $elem = $('#pcModel').find('.pcElem').clone(true).attr('id', id).appendTo('#pcList');
         }
 
@@ -123,16 +135,18 @@ export default function clientJS(sendRequest) {
         $pluginList.html(''); //empty plugin list of this pc
 
         let pcIsOnline = false;
-        for (let key in pc){
+        Object.entries(pc).forEach(([key, value]) => {
+            //console.log(key +' => '+ value);
+
             //determine online status
-            if(key.startsWith("respondsTo-") && pc[key] !== null){
+            if(key.startsWith("respondsTo-") && value !== null){
                 pcIsOnline = true;
             }
 
             let $dataContainer = $elem.find('.'+key);
             //badges respondsTo
             if($dataContainer.hasClass("badge")){
-                if(pc[key]){
+                if(value){
                     $dataContainer.removeClass("badge-default");
                     $dataContainer.addClass("badge-success");
                 }else{
@@ -143,7 +157,7 @@ export default function clientJS(sendRequest) {
             //lastResponse
             else if(key === "lastResponse"){
                 let $time = $dataContainer.find("time").first();
-                $time.attr("datetime", pc[key]);
+                $time.attr("datetime", value);
                 $time.timeago(); //has to be called after datetime change
                 //(first page loading: load database value of previous scan)
                 //TODO: fix refresh on gun.js computer.lastResponse update
@@ -151,11 +165,11 @@ export default function clientJS(sendRequest) {
             //pc description
             else if($dataContainer.length > 0){
                 //update html (.hostname/.lanIP/.lanMAC/...)
-                $dataContainer.text(pc[key]);
+                $dataContainer.text(value);
             }
             //plugins availables
             else if(key.startsWith("plugin")){
-                let pluginName = pc[key];
+                let pluginName = value;
                 if(pluginName !== null){
                     $pluginList.append('<li class="dropdown-item">'+ pluginName +'</li>');
                     if(pluginName===powerOffPlugin){
@@ -163,7 +177,8 @@ export default function clientJS(sendRequest) {
                     }
                 }
             }
-        }
+        });
+
 
         //update web ui with online status :
         $elem.find(".card-header").removeClass("onlinePc");
@@ -174,20 +189,15 @@ export default function clientJS(sendRequest) {
         //selected plugin
         let defaultPlugin = wolPlugin;
         if(pcIsOnline && powerOffAvailable){
-           defaultPlugin = powerOffPlugin;
+            defaultPlugin = powerOffPlugin;
         }
         $elem.find('.btn-plugin-value').text(defaultPlugin);
 
         $('#loader').hide();
-    });
+    }
 
-    //Events notifications
-    let pageLoadedAt = new Date().toISOString();
-    let lastNotification = '';
 
-    sharedObject.dbMessages = sharedObject.gun.get(Config.val('TABLE_MESSAGES'));
-
-    sharedObject.dbMessages.map().on(function(eventData, id) {
+    function gunOnChangeDbMessages(eventData) {
         if(eventData && eventData.eventSendedAt){
             if(pageLoadedAt < eventData.eventSendedAt && lastNotification !== eventData.eventResult)
             {
@@ -212,7 +222,7 @@ export default function clientJS(sendRequest) {
                 toastr.success(informations);
             }
         }
-    });
+    }
 
 }
 

@@ -111,8 +111,8 @@ class ServerLanScanner {
         //we cant wait for a response as with http event
         //respondTo-socket update is done in gun.js database directly
 
-        console.log("[INFO] socketCheckNoNeedPromise dbMsg.set:");
-        console.log(reqData);
+        //console.log("[INFO] socketCheckNoNeedPromise dbMsg.set:");
+        //console.log(reqData);
     }
 
 

@@ -17,23 +17,13 @@ function JsonDisplay(jsonOrObject){
 export default function chatJS(sendGunMessage) {
 	
 	/*
+	 * [ORIGINALS SOURCES]
 	 * Name : Gun Js chat 
 	 * Author : Ronald Aug
 	 * License : MIT
 	 * Link : https://www.github.com/ronaldaug/gunjschat
 	 * Require : JQuery/Moment/Gun
 	 */
-
-	//------------------------------------
-	// Gun db via heroku
-	//------------------------------------//
-	//let gun = Gun('https://gunjs.herokuapp.com/gun').get('XeDedsEdfdEdfd');  //OK
-
-    //------------------------------------
-    // Gun db via node js
-    //------------------------------------//
-    // let gun = sharedObject.gun.get('XeDedsEdfdEdfd');
-    // => use function sendGunMessage()
 
 
 	let _c = $('div.chat-container');
@@ -75,14 +65,16 @@ export default function chatJS(sendGunMessage) {
 		event.preventDefault();
 		let u_msg = _fc.find('input.msg').val();
 		if (uname && u_msg) {
-			let message = {};
-			message.status = "online";
-			message.what = u_msg;
-            message.when = new Date().toISOString();
-			message.who = uname;
+			let message = {
+                status: "online",
+                what: u_msg,
+                when: new Date().toISOString(),
+            	who: uname,
+            	type: 'text'
+			};
 			_fc.find('input.msg').val("");
 
-            message.type = 'text';
+
             sendGunMessage(message);
 		} else {
 
@@ -94,42 +86,35 @@ export default function chatJS(sendGunMessage) {
 	//------------------------------------//
 	let gunMessenger = sharedObject.dbMessages;
     gunMessenger.map().once(function(message, id) {
-		if (message) {
-			if (!message.who && message.who !== '') {
+		if (message && message.who) {
+			let $li = $(
+				$('#' + id).get(0) ||
+				$('.model').find('li').clone(true).attr({
+					id: id,
+					class: 'collection-item chatmsg',
+					name: message.who,
+					status: message.status
+				}).appendTo('.chatmessage')
+			);
 
-			} else {
-				let $li = $(
-					$('#' + id).get(0) ||
-					$('.model').find('li').clone(true).attr({
-						id: id,
-						class: 'collection-item chatmsg',
-						name: message.who,
-						status: message.status
-					}).appendTo('.chatmessage')
-				);
-
-
-				let content = '';
-				if(message.type === 'text'){
-                    content = message.what;
-                    let firstChar = content.slice(0,1);
-                    let lastChar = content.slice(-1);
-                    if(firstChar==='{' && lastChar==='}'){
-                        content = JsonDisplay(JSON.parse(content));
-                    }
-				}else{
-                    content = JsonDisplay(message);
+			let content = '';
+			if(message.type === 'text'){
+				content = message.what;
+				//detect if content is json :
+				let firstChar = content.slice(0,1);
+				let lastChar = content.slice(-1);
+				if(firstChar==='{' && lastChar==='}'){
+					content = JsonDisplay(JSON.parse(content));
 				}
-
-
-                $li.find('.what').html(content);
-                $li.find('.who').text(message.who);
-				$li.find('.when').text(moment(message.when).fromNow());
-				$li.find('.status').addClass(message.status);
-				scrollToButton();
+			}else{
+				content = JsonDisplay(message);
 			}
-		} else {
 
+			$li.find('.what').html(content);
+			$li.find('.who').text(message.who);
+			$li.find('.when').text(moment(message.when).fromNow());
+			$li.find('.status').addClass(message.status);
+			scrollToButton();
 		}
 	});
 

@@ -30,6 +30,7 @@ Vue.use(VueGun, {
 });
 */
 
+
 let vm = new Vue({
     el: '#app',
     data: {
@@ -74,10 +75,14 @@ function sendRequest(btn){
         eventReceivedAt: null,
         pcTargetLanMAC: $pc.find(".lanMAC").html(),
         pcTargetMachineID: $pc.find(".machineID").html(),
+        //-- chat.js --
+        type: 'event', //(not text)
+        who: localStorage.getItem('userName'), //uname
+        when: new Date().toISOString(), //only for display time from now
+        //-------------
     };
     //gun.js cant handle JS multiple dimensions objects, only key:value.
 
-    reqData.who = localStorage.getItem('userName'); //uname
     sendGunMessage(reqData);
 }
 function clearGunDatabase(){

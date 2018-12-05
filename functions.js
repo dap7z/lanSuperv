@@ -9,11 +9,6 @@ const {fork} = require('child_process');
 class F {
 
 
-    constructor() {
-        console.log("class F constructor just called :)");
-    }
-
-
     static simplePluginsList(type='all', PLUGINS_INFOS){
         //return names of enabled plugins in a simple object for gun.js compatibility
         let pluginsList = {};
@@ -48,7 +43,6 @@ class F {
             }
         });
         let pc = params;
-        pc.online = true;
         pc.nickname = '';
         pc.lanNetwork = lanInterface.network;
         pc.lanBitmask = lanInterface.bitmask;
@@ -84,7 +78,6 @@ class F {
         if(respondTo){
             pc['respondsTo-'+respondTo] = true;
             pc['lastResponse'] = new Date().toISOString();
-            pc['online'] = true;
         }
         return pc;
     }
@@ -146,7 +139,6 @@ class F {
         }
     }
 
-};
-
+}
 
 module.exports = F;

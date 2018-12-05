@@ -3,6 +3,7 @@
 git_ignore/
 
 #database:
+*.tmp
 *-shared.json
 *-local.json
 visibleComputers.json

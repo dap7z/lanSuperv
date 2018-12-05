@@ -19,7 +19,6 @@
         <script src="assets/tether.min.js"></script>
         <script src="assets/bootstrap.min.js"></script>
         <script src="assets/toastr.min.js"></script>
-        <script src="assets/gun.min.js"></script>
 		<script src="assets/moment.min.js"></script>
     </head>
     
@@ -57,7 +56,7 @@
                                                 <li class="dropdown-item"></li>
                                             </ul>
                                         </div>
-                                        <button type="button" onclick="sendRequest(this);" class="btn btn-primary btn-plugin-submit">Send</button>
+                                        <button type="button" class="btn btn-primary btn-plugin-submit">Send</button>
                                     </div>
 
 
@@ -111,7 +110,6 @@
             <div class="chat-container">
                 <div class="model" style="display: none;">
                     <li>
-                        <i class="status"></i>
                         <b class="who"></b>
                         <span class="when-style">(</span><span class="when"></span><span class="when-style">)</span>
                         : <span class="what"></span>
@@ -122,14 +120,11 @@
                     <div class="col-12">
                         <hr>
                     </div>
-                    <div class="col-4">
-                        <p>Online Users</p>
-                        <hr>
-                        <div class="onlinebox">
+                    <div class="col-12">
+                        <div>
+                            <img id="clearAllMessages" class="clickable float-right" src="img/clear-messages.png"/>
+                            <h4>Console</h4>
                         </div>
-                    </div>
-                    <div class="col-8">
-                        <p>Message Systems</p>
                         <hr>
                         <div class="clearfix"></div>
                         <div class="chatbox">
@@ -148,43 +143,15 @@
 
 
         <!-- INIT APP -->
+        <script src="config.js"></script>
         <script>
-            let module = {};
             let sharedObject = {
-                socket:null,
                 gun:null,
-                dbMessages:null
+                dbMessages:null,
+                dbComputers:null,
             };
         </script>
-        <script src="config.js"></script>
-        <script src="client.js"></script>
-        <script src="chat.js"></script>
-
-        <!-- JsonDisplay() FUNCTION -->
-        <script src="assets/json-formatter.js"></script>
-        <script>
-            //let JsonFormatter = require('../dist/json-formatter.js').default;
-            let JsonFormatter = module.exports.default;
-            function JsonDisplay(jsonOrObject){
-                let renderConfig = {
-                    theme: 'dark',		//dark theme (font colors)
-                    sortPropertiesBy: function(a,b){ return a>b; }
-                };
-                let formatter = new JsonFormatter(jsonOrObject, 1, renderConfig);
-                let element = formatter.render();
-                element.style['backgroundColor'] = '#1E1E1E';	//dark theme (background color)
-                element.style['border'] = '1px solid lightgray';
-                element.style['border-radius'] = '5px';
-                element.style['padding'] = '10px';
-                return element;
-            }
-        </script>
-
-        <!-- LAUNCH APP -->
-        <script>
-            clientJS();
-            chatJS();
-        </script>
+        <script src="dist/bundle.js"></script>
         
     </body>
     

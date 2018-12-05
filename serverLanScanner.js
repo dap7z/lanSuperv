@@ -4,6 +4,8 @@ let G = null; //GLOBALS
 //LIBRARIES:
 const Nmap = require('node-nmap');
 const Fs = require('fs');
+const Request = require('request-promise');  //'request' deprecated
+const Ping = require('ping-bluebird');  //ping with better promise
 
 
 class ServerLanScanner {
@@ -16,7 +18,6 @@ class ServerLanScanner {
 
     //QuickScan: only previously visibles computers
     //LanScan: map ping on whole lan primary interface
-
 
 
     pingCheck(pc, idPC) {
@@ -37,14 +38,15 @@ class ServerLanScanner {
                     'respondsTo-ping': res.alive
                 };
                 //res.time non supporte par npm package ping-bluebird
-                finalResult.online = finalResult["respondsTo-ping"];	//TO_REMOVE
                 if (finalResult["respondsTo-ping"]) {
+                    //add lastResponse (already in F.checkData() for httpCheck and socketCheck)
                     finalResult.lastResponse = new Date().toISOString();
                 }
                 resolve(finalResult);
             });
         });
     }
+
 
     httpCheck(pc, idPC) {
         let ip = pc.lanIP;
@@ -84,29 +86,6 @@ class ServerLanScanner {
     }
 
 
-    /*
-    function socketCheck(pc, idPC) {
-        let lanMAC = pc.lanMAC;
-        let machineID = pc.machineID;
-
-        return new Promise(function (resolve) {
-
-            if(lanMAC && machineID){
-
-                //[...]
-            }
-
-            let finalResult = {
-                idPC: idPC,
-                'respondsTo-socket': false
-            };
-            //stay false until gun-js db update
-
-            resolve(finalResult);
-        });
-    }*/
-
-
     socketCheckNoNeedPromise(pc, idPC) {
         //like sendRequest function in client.js :
         let reqData = {
@@ -132,8 +111,8 @@ class ServerLanScanner {
         //we cant wait for a response as with http event
         //respondTo-socket update is done in gun.js database directly
 
-        console.log("[INFO] socketCheckNoNeedPromise dbMsg.set:");
-        console.log(reqData);
+        //console.log("[INFO] socketCheckNoNeedPromise dbMsg.set:");
+        //console.log(reqData);
     }
 
 
@@ -143,30 +122,14 @@ class ServerLanScanner {
 
         for (let [idPC, pcObject] of G.VISIBLE_COMPUTERS) {
 
-
-            //TO FIX
-            //problem pcObject of G.VISIBLE_COMPUTERS haven't machineID !
-
-
             //RESET (PLUGINS AND RESPONDSTO)
-            //G.GUN_DB_COMPUTERS.get(idPC).put(null);  //NOK :(
-            G.GUN_DB_COMPUTERS.get(idPC).once(function (pcToUpdate, id) {
-                for (let key in pcToUpdate) {
-                    let value = pcToUpdate[key];
-                    if (key.startsWith("plugin") || key.startsWith("respondsTo-")) {
-                        value = null;
-                    }
-                    pcToUpdate[key] = value;
-                }
-                G.GUN_DB_COMPUTERS.get(idPC).put(pcToUpdate);
-            });
-
+            G.GUN_DB_COMPUTERS.get(idPC).put({});
 
             //PING CHECK PROMISES
             let pingPromise = this.pingCheck(pcObject, idPC).then(function (finalResult) {
                 //Update pc infos :
                 F.logCheckWarning("ping", G.GUN_DB_COMPUTERS, finalResult);
-                G.GUN_DB_COMPUTERS.get(finalResult.idPC).once(function (pcToUpdate, id) {
+                G.GUN_DB_COMPUTERS.get(finalResult.idPC).val(function (pcToUpdate, id) {
                     for (let key in finalResult) {
                         pcToUpdate[key] = finalResult[key];
                     }
@@ -175,7 +138,7 @@ class ServerLanScanner {
                 });
 
             }, function (reason) {
-                console.log("##Promise## [pingCheck] Promise rejected");
+                console.log("##Promise## [pingCheck] Promise rejected "+ reason);
             });
             arrayReturn.push(pingPromise);
 
@@ -183,7 +146,7 @@ class ServerLanScanner {
             let httpPromise = this.httpCheck(pcObject, idPC).then(function (finalResult) {
                 //Update pc infos :
                 F.logCheckWarning("http", G.GUN_DB_COMPUTERS, finalResult);
-                G.GUN_DB_COMPUTERS.get(finalResult.idPC).once(function (pcToUpdate, id) {
+                G.GUN_DB_COMPUTERS.get(finalResult.idPC).val(function (pcToUpdate, id) {
                     for (let key in finalResult) {
                         pcToUpdate[key] = finalResult[key];
                     }
@@ -191,22 +154,11 @@ class ServerLanScanner {
                     F.logCheckResult("http", pcToUpdate);
                 });
             }, function (reason) {
-                console.log("##Promise## [httpCheck] Promise rejected");
+                console.log("##Promise## [httpCheck] Promise rejected "+ reason);
             });
             arrayReturn.push(httpPromise);
 
-            /*
-            //SOCKET (GUN.JS) PROMISES
-            let socketPromise = socketCheck(pcObject, idPC).then(function (finalResult) {
-                F.logCheckWarning("socket", G.GUN_DB_COMPUTERS, finalResult);
-            }, function (reason) {
-                console.log("##Promise## [socketCheck] Promise rejected");
-            });
-            arrayReturn.push(socketPromise);
-            */
             this.socketCheckNoNeedPromise(pcObject, idPC);
-
-
         }
 
         console.log("OK! QuickScan launched (work in promises, not finished yet)");
@@ -270,30 +222,19 @@ class ServerLanScanner {
                 }
 
 
-                console.log("[INFO] Save G.VISIBLE_COMPUTERS: " + G.VISIBLE_COMPUTERS_FILE);
-                //console.log(G.VISIBLE_COMPUTERS);
-
                 //save G.VISIBLE_COMPUTERS map in json file for reloading after restart
                 Fs.writeFile(G.VISIBLE_COMPUTERS_FILE, F.strMapToJson(G.VISIBLE_COMPUTERS), 'binary', function (err) {
                     if (err) console.log(err);
                 });
-
-
-                G.VISIBLE_COMPUTERS.forEach(function (value, key) {
-                    let idPC = key;
-                    if (G.SCANNED_COMPUTERS.has(idPC) === false) {
-                        console.log('idPC:' + idPC + ' => online false');
-                        G.GUN_DB_COMPUTERS.get(idPC).get('online').put(false);
-                        G.GUN_DB_COMPUTERS.get(idPC).get('respondsTo-ping').put(false);
-                    }
-                });
+                //console.log("[INFO] Save G.VISIBLE_COMPUTERS: " + G.VISIBLE_COMPUTERS_FILE);
+                //console.log(G.VISIBLE_COMPUTERS);
 
 
                 //[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
                 G.NMAP_IS_WORKING = false;
                 let nbSecsBeforeNextScan = 60 * 60;
                 setTimeout(() => {
-                    this.startScan();
+                    this.startFullScan ();
                 }, 1000 * nbSecsBeforeNextScan);
 
             });

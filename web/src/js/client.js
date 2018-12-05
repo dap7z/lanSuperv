@@ -8,7 +8,7 @@ if (!String.prototype.startsWith) {
 }
 //=====================================================
 
-
+import toastr from 'toastr';
 export default class Client {
 
     constructor(functionSendMessage) {

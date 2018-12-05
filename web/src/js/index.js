@@ -5,10 +5,33 @@ To compile in /dist folder, open cmd and run :
 (or: "npm run dev", both commands writed in package.json)
 ***********************************************************/
 
+import 'jquery';
+import 'popper.js';
+import 'timeago.js';
+
+//-- BOOTSTRAP
+import 'bootstrap';
+//import 'bootstrap/js/dist/tooltip';
+//import 'bootstrap/js/dist/popover';
+import '../scss/app.scss';
+//--
+
 import Client from './client';
 import Chat from './chat';
+//IF OK, TODO: all libs here, no more in static assets:
+/*
+jquery-3.2.1.min.js
+jquery.timeago.js
+tether.min.js
+bootstrap.min.js
+toastr.min.js
+moment.min.js
+... + css ?
+*/
 
 
+
+//------------------------------------ ES6 ------------------------------------
 import Vue from 'vue';
 import VueGun from 'vue-gun';
 localStorage.clear(); //remove old database saved into browser

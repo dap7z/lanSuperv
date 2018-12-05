@@ -9,11 +9,6 @@ const {fork} = require('child_process');
 class F {
 
 
-    constructor() {
-        console.log("class F constructor just called :)");
-    }
-
-
     static simplePluginsList(type='all', PLUGINS_INFOS){
         //return names of enabled plugins in a simple object for gun.js compatibility
         let pluginsList = {};
@@ -144,7 +139,6 @@ class F {
         }
     }
 
-};
-
+}
 
 module.exports = F;

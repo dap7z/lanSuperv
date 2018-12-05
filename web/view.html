@@ -19,7 +19,6 @@
         <script src="assets/tether.min.js"></script>
         <script src="assets/bootstrap.min.js"></script>
         <script src="assets/toastr.min.js"></script>
-        <script src="assets/gun.min.js"></script>
 		<script src="assets/moment.min.js"></script>
     </head>
     
@@ -111,7 +110,6 @@
             <div class="chat-container">
                 <div class="model" style="display: none;">
                     <li>
-                        <i class="status"></i>
                         <b class="who"></b>
                         <span class="when-style">(</span><span class="when"></span><span class="when-style">)</span>
                         : <span class="what"></span>
@@ -122,18 +120,10 @@
                     <div class="col-12">
                         <hr>
                     </div>
-                    <div class="col-4">
-                        <div>
-                            <h3>Online Users</h3>
-                        </div>
-                        <hr>
-                        <div class="onlinebox">
-                        </div>
-                    </div>
-                    <div class="col-8">
+                    <div class="col-12">
                         <div>
                             <img id="clearAllMessages" class="clickable float-right" src="img/clear-messages.png"/>
-                            <h3>Message Systems</h3>
+                            <h4>Console</h4>
                         </div>
                         <hr>
                         <div class="clearfix"></div>
@@ -153,15 +143,14 @@
 
 
         <!-- INIT APP -->
+        <script src="config.js"></script>
         <script>
-            let module = {};
             let sharedObject = {
-                socket:null,
                 gun:null,
-                dbMessages:null
+                dbMessages:null,
+                dbComputers:null,
             };
         </script>
-        <script src="config.js"></script>
         <script src="dist/bundle.js"></script>
         
     </body>

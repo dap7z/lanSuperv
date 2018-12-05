@@ -17,17 +17,8 @@ hr {
 	border-top: 1px solid #eee;
 }
 
-.onlinebox,
-.loginbox {
-	margin-top: 15%;
-}
-
-.onlinebox{
-	max-height: 300px;
-	overflow-y: scroll;
-}
-
 .chat-container {
+	margin-bottom: 10px;
 	visibility: hidden;
 	opacity: 0;
 }
@@ -64,19 +55,6 @@ ul.chatmessage li.collection-item:nth-child(even) {
 .clearfix {
 	width: 100%;
 	clear: both;
-}
-
-i.status {
-	background: #666;
-	width: 10px;
-	height: 10px;
-	border-radius: 100%;
-	display: inline-block;
-	margin-left: 10px;
-}
-
-i.online {
-	background: green;
 }
 
 i.deletemsg {

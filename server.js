@@ -14,7 +14,6 @@ const NodeMachineId = require('node-machine-id');
 
 const Fs = require('fs');
 const Path = require('path');
-const Gun = require('gun');
 
 const Express = require('express'); //nodejs framework
 const BodyParser = require('body-parser'); //to get POST data
@@ -25,7 +24,8 @@ const Netmask = require('netmask').Netmask;
 
 //const IsPortAvailable = require('is-port-available'); //COMPATIBILITY ISSUE WITH COMMAND LINE ARGUMENT
 const IsPortAvailable = require('./node_modules_custom/is-port-available/index.js');
-const ExtIP = require('ext-ip')();
+
+const Network = require('network');
 
 
 
@@ -99,6 +99,7 @@ class Server {
 		
 		function findFirstAddressByFamily(tabAddress, family){
 			let result = {};
+			console.log(tabAddress);
 			for (let address of tabAddress){
 				if(address.family === family){
 					result = address;
@@ -113,36 +114,42 @@ class Server {
         //(we no more use 'network' npm package because dectected active network interface can be virtualbox one...)
         async function getDefaultInterface() {
             return new Promise(function(resolve,reject) {
-                let Routes = require('default-network');
-
-                Routes.collect(function (error, data) {
-                    let names = Object.keys(data);
-                    let defaultInterfaceName = names[0];
-                    
-					let defaultInterfaceData = Os.networkInterfaces()[defaultInterfaceName];
-                    let lanIPv4 = findFirstAddressByFamily(defaultInterfaceData, 'IPv4');
-					
-                    let defaultGatewayData = data[defaultInterfaceName];
-                    let gatewayIPv4 = findFirstAddressByFamily(defaultGatewayData, 'IPv4');
-
+                Network.get_active_interface(function(err, activeInterface) {
+                    /* exemple of activeInterface:
+                        { name: 'é',
+                          mac_address: '7C:B0:C2:67:73:02',
+                          ip_address: '192.168.1.12',
+                          vendor: 'Intel Corporation',
+                          model: 'Intel(R) Dual Band Wireless-AC 7265',
+                          type: 'Wireless',
+                          netmask: '255.255.255.0',
+                          gateway_ip: '192.168.1.1' }
+                    */
                     let result = {
-                        gateway_ip: gatewayIPv4.address,
-                        ip_address: lanIPv4.address,
-                        mac_address: lanIPv4.mac,
-                        netmask: lanIPv4.netmask,
-                        family: lanIPv4.family,
-                        internal: lanIPv4.internal,
-                        cidr: lanIPv4.cidr
+                        name : activeInterface.name,
+                        gateway_ip: activeInterface.gateway_ip,
+                        ip_address: activeInterface.ip_address,
+                        mac_address: activeInterface.mac_address,
+                        netmask: activeInterface.netmask,
+                        //family: lanIPv4.family,
+                        //internal: lanIPv4.internal,
+                        //cidr: lanIPv4.cidr
                     };
+                    //--
+                    //sinon besoin family/internal/cidr :
+                    //let defaultInterfaceData = Os.networkInterfaces()[activeInterface.name];
+                    //let lanIPv4 = findFirstAddressByFamily(defaultInterfaceData, 'IPv4');
+                    //let defaultGatewayData = data[defaultInterfaceName];
+                    //let gatewayIPv4 = findFirstAddressByFamily(defaultGatewayData, 'IPv4');
+                    //--
                     resolve(result);
                 });
+
             });
         }
 
 
-
         getDefaultInterface().then( (defaultInterface) => {
-
             //we start here with network informations
             //console.log(defaultInterface);
 
@@ -161,7 +168,6 @@ class Server {
             })();
             G.SCAN_NETWORK = G.THIS_PC.lanInterface.network + '/' + G.THIS_PC.lanInterface.bitmask;
 
-
             //define machineID with node-machine-id + lan mac address
             NodeMachineId.machineId({original: true}).then(function (id) {
                 function hash(guid) {
@@ -170,7 +176,6 @@ class Server {
                 }
                 G.THIS_PC.machineID = hash(id + G.THIS_PC.lanInterface.mac_address); //global scope
             });
-
 
             IsPortAvailable(G.WEB_SERVER.get('port')).then( (status) => {
                 if (!status) {
@@ -184,12 +189,14 @@ class Server {
                         let url = 'http://localhost:'+port;
                         let serverUpNotification = 'Web server available on '+ url +' (lanIP: '+ G.THIS_PC.lanInterface.ip_address +', ';
                         //get public ip
-                        ExtIP((err, ip) => {
-                            if (err) {
+                        Network.get_public_ip((err, ip) => {
+                            if(err){
                                 serverUpNotification += 'unknow wanIP)';
-                            } else {
+                                console.error(err);
+                            }else{
                                 serverUpNotification += 'wanIP: ' + ip + ')';
                             }
+
                             G.THIS_PC.wanInterface = {ip: ip};
                             console.log('OK! '+ serverUpNotification);
 
@@ -199,34 +206,8 @@ class Server {
                 }
             });
 
-
-            //TODO? localhost config web interface
-            /*
-            G.WEB_SERVER.get('/config', function(req, res) {
-                let hostmachine = req.headers.host.split(':')[0];
-                if(hostmachine!=='localhost' && hostmachine!=='127.0.0.1')
-                {
-                    res.send(401);
-                    //on utilise un token pour etre sur que l'ordre de config vient du PC où est installé l'app
-                    //sinon: laucnh another server listening localhost only:
-                    //let localhostSrv = http.createServer().listen(80, '127.0.0.1');
-                }
-                else
-                {
-                    //localhost only
-                    res.send('/config');
-
-                    //app might be installed on headless machines so config have to remain easy in cmd line :
-                    //- settings file
-                    //- plugins available/enabled directories
-                }
-            });
-            */
-
-
             // apply the routes to our application
             G.WEB_SERVER.use('/', appRouter);
-
 
         }).catch(function(err){
             //ERROR CATCHED IN MAIN
@@ -240,56 +221,11 @@ class Server {
 
 
     onWebServerReady() {
-        
-        //----- DECENTRALIZED DB (GUN.JS) -----
-        
-        let gunOptions = {};
-        if (G.CONFIG.val('LOCAL_DATABASE')) {
-            //local gun url (json file storage) + remote gun url :
-            gunOptions = {
-                file: G.CONFIG.val('FILE_SHARED_DB'),
-                peers: G.CONFIG.val('GUN_PEERS'),
-                web: G.WEB_SERVER_INSTANCE,
-            };
-            //NOK WINDOWS, RESULTATS TEST 20180915:
-            //{ file: 'D:\\SRV_APACHE\\lanSuperv\\db1-shared.json',
-            //	peers: [ 'http://main-server.fr.cr:842/gun' ],
-            //	web: '[exclude from dump]' }
-            //(node:14688) UnhandledPromiseRejectionWarning: TypeError: this.ee.on is not a function
-            //at Ultron.on (D:\SRV_APACHE\lanSuperv\node_modules\ultron\index.js:42:11)
-            //at new WebSocketServer (D:\SRV_APACHE\lanSuperv\node_modules\gun\node_modules\ws\lib\websocket-server.js:85:20)
 
-            //VOIR:
-            //https://github.com/amark/gun/issues/422
-            //https://github.com/mochiapp/gun/commit/fd0866ed872f6acb8537541e1c3b06f18648420a
-            //... pourtant merged ...
-
-        } else {
-            //only remote gun url :
-            gunOptions = G.CONFIG.val('SOCKET_URL_DATABASE');
-            //PASSE ICI DANS LE CAS LANSUPERV LANCER SUR PC-XX-LAN AVEC :
-            //	PARAMS['SERVER_ADDRESS'] = 'http://main-server.fr.cr';
-            //	PARAMS['GUN_ADDITIONAL_PEERS'] = [];
-            //=> http://main-server.fr.cr:842/gun
-            //
-            //OK RESULTATS TEST 20180915:
-            // - l'arret PC-XX-LAN peut bien être declenché depuis l'exterieur en https derriere reverse proxy
-            // - l'arret PC-XX-LAN peut bien être declenché depuis localhost en http port 842
-        }
-
-
-        //----- DUMP GUN.JS OPTIONS -----
-        let gunOptionsDump = Object.assign({}, gunOptions); //clone to not modify gunOptions
-        if (gunOptionsDump.web) {
-            gunOptionsDump.web = '[exclude from dump]';
-        }
-        console.log("[GUN.JS] LOCAL_DATABASE='" + G.CONFIG.val('LOCAL_DATABASE') + "', OPTIONS:");
-        console.log(gunOptionsDump);
-
-
-        G.GUN = Gun(gunOptions);
-        G.GUN_DB_COMPUTERS = G.GUN.get(G.CONFIG.val('TABLE_COMPUTERS'));
-        G.GUN_DB_MESSAGES = G.GUN.get(G.CONFIG.val('TABLE_MESSAGES'));
+        //----- CONNECT DATABASE -----
+        const ServerDatabase = require('./serverDatabase');
+        let database = new ServerDatabase(G);
+        database.initConnection();
         
         //G.GUN_DB_COMPUTERS is decentralized db and can be updated by multiples servers and so represents multiples lans
         //we need a way to determine if one computer is in the lan of the server (to declare him offline).
@@ -360,7 +296,7 @@ class Server {
     }
 
 
-};
+}
 
 
 module.exports = Server;

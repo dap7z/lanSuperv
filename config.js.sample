@@ -16,6 +16,7 @@ PARAMS['SOCKET_PORT'] = 842;
 PARAMS['PATH_HTTP_EVENTS'] = '/cmd';              //example: http://localhost:842/cmd/power-off
 PARAMS['PATH_DATABASE'] = '/gun';                 //default: '/gun'   //20170901 gun.js does not allow custom path
 
+PARAMS['ENABLE_SCAN'] = false;
 PARAMS['NMAP_LOCATION'] = 'nmap';   //linux
 //PARAMS['NMAP_LOCATION'] = 'C:/Program Files (x86)/Nmap/nmap.exe';       //windows
 

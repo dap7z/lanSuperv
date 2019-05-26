@@ -22,14 +22,10 @@ const BodyParser = require('body-parser'); //to get POST data
 const Crypto = require('crypto');  //hash machineID
 
 const Netmask = require('netmask').Netmask;
-const ExtIP = require('ext-ip')();
 
-//-- start node_modules_custom --
 //const IsPortAvailable = require('is-port-available'); //COMPATIBILITY ISSUE WITH COMMAND LINE ARGUMENT
-const IsPortAvailable = require('./node_modules_custom/is-port-available/index.js');																					
-//const DefaultInterface = require('internal-ip');  //RETURN ONLY IP :(
-const DefaultInterface = require('./node_modules_custom/default-interface/index.js');
-//-- end node_modules_custom --
+const IsPortAvailable = require('./node_modules_custom/is-port-available/index.js');
+const ExtIP = require('ext-ip')();
 
 
 
@@ -100,25 +96,46 @@ class Server {
         G.WEB_SERVER.get('/config.js', function (req, res) {
             res.sendFile(G.CONFIG_FILE);
         })
+		
+		function findFirstAddressByFamily(tabAddress, family){
+			let result = {};
+			for (let address of tabAddress){
+				if(address.family === family){
+					result = address;
+					break;
+				}
+			}
+			return result;
+		}
 
 
-        //Promise to get active network informations
+        //Promise to get network information
+        //(we no more use 'network' npm package because dectected active network interface can be virtualbox one...)
         async function getDefaultInterface() {
             return new Promise(function(resolve,reject) {
-				DefaultInterface.v4().then(data => {
-					//build full result
-                    let defaultInterfaceIPv4 = {
-						gateway_ip: data.gateway,
-                        ip_address: data.address,
-                        mac_address: data.mac,
-                        netmask: data.netmask,
-                        family: data.family,
-                        internal: data.internal,
-                        cidr: data.cidr,
-						name: data.name
+                let Routes = require('default-network');
+
+                Routes.collect(function (error, data) {
+                    let names = Object.keys(data);
+                    let defaultInterfaceName = names[0];
+                    
+					let defaultInterfaceData = Os.networkInterfaces()[defaultInterfaceName];
+                    let lanIPv4 = findFirstAddressByFamily(defaultInterfaceData, 'IPv4');
+					
+                    let defaultGatewayData = data[defaultInterfaceName];
+                    let gatewayIPv4 = findFirstAddressByFamily(defaultGatewayData, 'IPv4');
+
+                    let result = {
+                        gateway_ip: gatewayIPv4.address,
+                        ip_address: lanIPv4.address,
+                        mac_address: lanIPv4.mac,
+                        netmask: lanIPv4.netmask,
+                        family: lanIPv4.family,
+                        internal: lanIPv4.internal,
+                        cidr: lanIPv4.cidr
                     };
-                    resolve(defaultInterfaceIPv4);
-				});
+                    resolve(result);
+                });
             });
         }
 
@@ -127,21 +144,20 @@ class Server {
         getDefaultInterface().then( (defaultInterface) => {
 
             //we start here with network informations
-			console.log("getDefaultInterface() result:");
-			console.log(defaultInterface);
+            //console.log(defaultInterface);
 
             //nmap accept 192.168.1.1-254 and 192.168.1.1/24 but not 192.168.1.1/255.255.255.0
             //so we translate :
             G.THIS_PC.lanInterface = (function () {
                 //anonymous function to avoid keeping vars in memory
-                let obj = defaultInterface;
+                let obj = defaultInterface;  //(IPv4)
                 let block = new Netmask(obj.gateway_ip + '/' + obj.netmask);
                 obj.fullmask = obj.netmask;
                 delete obj.netmask; //unset
                 obj.bitmask = block.bitmask;
                 obj.network = block.base;
                 obj.mac_address = obj.mac_address.toUpperCase();
-                return obj;
+				return obj;
             })();
             G.SCAN_NETWORK = G.THIS_PC.lanInterface.network + '/' + G.THIS_PC.lanInterface.bitmask;
 
@@ -291,37 +307,14 @@ class Server {
         ///!\ here G.VISIBLE_COMPUTERS is not yet loaded /!\
         //but no need await function (only used at the end of lan scan to mark pc as offline)
 
-
         //----- GET PLUGINS INFORMATIONS -----
         const ServerPluginsInfos = require('./serverPluginsInfos');
         G.PLUGINS_INFOS = ServerPluginsInfos.build();
-
-        //TMP DIAG
-        //console.log('G.PLUGINS_INFOS array:');
-        //console.log(G.PLUGINS_INFOS);
-        //TMP TEST
-        /*
-        oldAllPluginsDirName:
-        { plugin1: 'web',
-          plugin2: 'wol',
-          plugin3: 'check',
-          plugin4: 'power-off',
-          plugin5: 'sleep-mode' }
-        let allPluginsList = F.simplePluginsList('all', G.PLUGINS_INFOS); //NOK...TOFIX
-        //let allPluginsList = F.simplePluginsList('all');  //NOK
-        console.log("REFACTORED pluginsList:");
-        console.log(allPluginsList);
-        */
-
-
-
-
 
         //----- LAUNCH FIRST SCAN -----
         const ServerLanScanner = require('./serverLanScanner');
         let lanScanner = new ServerLanScanner(G);
         lanScanner.startFullScan();
-
 
         //----- HANDLE HOMEPAGE REQUEST (HTTP/HTTPS) -----
         G.WEB_SERVER.get('/', function (homePageRequest, homePageResponse) {

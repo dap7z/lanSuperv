@@ -1,7 +1,11 @@
+/* Execution :
+*  -> npm run build
+*  -> npm run dev //for non-minified
+*/
+
 const path = require('path');
 
 module.exports = {
-	mode: 'development', //for non-minified output
     entry: './web/src/js/index.js',
     output: {
         path: path.resolve(__dirname + '/web/dist'),

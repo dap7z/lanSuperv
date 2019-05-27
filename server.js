@@ -21,11 +21,13 @@ const BodyParser = require('body-parser'); //to get POST data
 const Crypto = require('crypto');  //hash machineID
 
 const Netmask = require('netmask').Netmask;
+const ExtIP = require('ext-ip')();
 
 //const IsPortAvailable = require('is-port-available'); //COMPATIBILITY ISSUE WITH COMMAND LINE ARGUMENT
 const IsPortAvailable = require('./node_modules_custom/is-port-available/index.js');
+const DefaultInterface = require('./node_modules_custom/default-interface/index.js');
 
-const Network = require('network');
+
 
 
 
@@ -110,21 +112,61 @@ class Server {
 		}
 
 
+		/* ORG DEV
+        //Promise to get network information
+        //(we no more use 'network' npm package because dectected active network interface can be virtualbox one...)
+        async function getDefaultInterface() {
+            return new Promise(function(resolve,reject) {
+                let Routes = require('default-network');
+
+                Routes.collect(function (error, data) {
+                    let names = Object.keys(data);
+                    let defaultInterfaceName = names[0];
+
+                    let defaultInterfaceData = Os.networkInterfaces()[defaultInterfaceName];
+                    let lanIPv4 = findFirstAddressByFamily(defaultInterfaceData, 'IPv4');
+
+                    let defaultGatewayData = data[defaultInterfaceName];
+                    let gatewayIPv4 = findFirstAddressByFamily(defaultGatewayData, 'IPv4');
+
+                    let result = {
+                        gateway_ip: gatewayIPv4.address,
+                        ip_address: lanIPv4.address,
+                        mac_address: lanIPv4.mac,
+                        netmask: lanIPv4.netmask,
+                        family: lanIPv4.family,
+                        internal: lanIPv4.internal,
+                        cidr: lanIPv4.cidr
+                    };
+                    resolve(result);
+                });
+            });
+        }*/
+
+
+        /* FAIL DEV
         //Promise to get network information
         //(we no more use 'network' npm package because dectected active network interface can be virtualbox one...)
         async function getDefaultInterface() {
             return new Promise(function(resolve,reject) {
                 Network.get_active_interface(function(err, activeInterface) {
-                    /* exemple of activeInterface:
-                        { name: 'é',
-                          mac_address: '7C:B0:C2:67:73:02',
-                          ip_address: '192.168.1.12',
-                          vendor: 'Intel Corporation',
-                          model: 'Intel(R) Dual Band Wireless-AC 7265',
-                          type: 'Wireless',
-                          netmask: '255.255.255.0',
-                          gateway_ip: '192.168.1.1' }
-                    */
+                     // exemple of activeInterface:
+                     //    { name: 'é',
+                     //      mac_address: '7C:B0:C2:67:73:02',
+                     //      ip_address: '192.168.1.12',
+                     //      vendor: 'Intel Corporation',
+                     //      model: 'Intel(R) Dual Band Wireless-AC 7265',
+                     //      type: 'Wireless',
+                     //      netmask: '255.255.255.0',
+                     //      gateway_ip: '192.168.1.1' }
+                     //      //... NOK :
+                     //      { name: 'VirtualBox Host-Only Network',
+                     //      gateway_ip: null,
+                     //      ip_address: '192.168.56.1',
+                     //      mac_address: '0A:00:27:00:00:16',
+                     //      netmask: '255.255.255.0' }
+                     //      //-> donc c'est bien l'autre truc qu'il faut utiliser...
+                     //      //just fix encodage en prenant example sur celui ci
                     let result = {
                         name : activeInterface.name,
                         gateway_ip: activeInterface.gateway_ip,
@@ -147,11 +189,34 @@ class Server {
 
             });
         }
+        */
+
+        //LAST DEV OK ? -> TODO: test on TABLETTE-DAMIEN
+
+        //Promise to get active network informations
+        async function getDefaultInterface() {
+            return new Promise(function(resolve,reject) {
+                DefaultInterface.v4().then(data => {
+                    //build full result
+                    let defaultInterfaceIPv4 = {
+                        gateway_ip: data.gateway,
+                        ip_address: data.address,
+                        mac_address: data.mac,
+                        netmask: data.netmask,
+                        family: data.family,
+                        internal: data.internal,
+                        cidr: data.cidr,
+                        name: data.name
+                    };
+                    resolve(defaultInterfaceIPv4);
+                });
+            });
+        }
 
 
         getDefaultInterface().then( (defaultInterface) => {
             //we start here with network informations
-            //console.log(defaultInterface);
+            console.log(defaultInterface);
 
             //nmap accept 192.168.1.1-254 and 192.168.1.1/24 but not 192.168.1.1/255.255.255.0
             //so we translate :
@@ -189,14 +254,12 @@ class Server {
                         let url = 'http://localhost:'+port;
                         let serverUpNotification = 'Web server available on '+ url +' (lanIP: '+ G.THIS_PC.lanInterface.ip_address +', ';
                         //get public ip
-                        Network.get_public_ip((err, ip) => {
-                            if(err){
+                        ExtIP((err, ip) => {
+                            if (err) {
                                 serverUpNotification += 'unknow wanIP)';
-                                console.error(err);
-                            }else{
+                            } else {
                                 serverUpNotification += 'wanIP: ' + ip + ')';
                             }
-
                             G.THIS_PC.wanInterface = {ip: ip};
                             console.log('OK! '+ serverUpNotification);
 

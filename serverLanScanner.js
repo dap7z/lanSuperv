@@ -3,7 +3,6 @@ let G = null; //GLOBALS
 
 //LIBRARIES:
 const Nmap = require('node-nmap');
-const Fs = require('fs');
 const Request = require('request-promise');  //'request' deprecated
 const Ping = require('ping-bluebird');  //ping with better promise
 
@@ -94,7 +93,6 @@ class ServerLanScanner {
             eventSendedAt: new Date().toISOString(),
             eventReceivedAt: null,
             pcTargetLanMAC: pc.lanMAC,
-
             who: "socketCheck"
         };
         if (pc.machineID) {
@@ -123,20 +121,13 @@ class ServerLanScanner {
         for (let [idPC, pcObject] of G.VISIBLE_COMPUTERS) {
 
             //RESET (PLUGINS AND RESPONDSTO)
-            G.GUN_DB_COMPUTERS.get(idPC).put({});
+            G.database.dbComputersSaveData(idPC, {});
 
             //PING CHECK PROMISES
             let pingPromise = this.pingCheck(pcObject, idPC).then(function (finalResult) {
                 //Update pc infos :
-                F.logCheckWarning("ping", G.GUN_DB_COMPUTERS, finalResult);
-                G.GUN_DB_COMPUTERS.get(finalResult.idPC).val(function (pcToUpdate, id) {
-                    for (let key in finalResult) {
-                        pcToUpdate[key] = finalResult[key];
-                    }
-                    G.GUN_DB_COMPUTERS.get(finalResult.idPC).put(pcToUpdate);
-                    F.logCheckResult("ping", pcToUpdate);
-                });
-
+                F.logCheckWarning("ping", finalResult);
+                G.database.dbComputersSaveData(idPC, finalResult, "ping");
             }, function (reason) {
                 console.log("##Promise## [pingCheck] Promise rejected "+ reason);
             });
@@ -145,14 +136,8 @@ class ServerLanScanner {
             //HTTP CHECK PROMISES
             let httpPromise = this.httpCheck(pcObject, idPC).then(function (finalResult) {
                 //Update pc infos :
-                F.logCheckWarning("http", G.GUN_DB_COMPUTERS, finalResult);
-                G.GUN_DB_COMPUTERS.get(finalResult.idPC).val(function (pcToUpdate, id) {
-                    for (let key in finalResult) {
-                        pcToUpdate[key] = finalResult[key];
-                    }
-                    G.GUN_DB_COMPUTERS.get(finalResult.idPC).put(pcToUpdate);
-                    F.logCheckResult("http", pcToUpdate);
-                });
+                F.logCheckWarning("http", finalResult);
+                G.database.dbComputersSaveData(idPC, finalResult, "http"); //NEW
             }, function (reason) {
                 console.log("##Promise## [httpCheck] Promise rejected "+ reason);
             });
@@ -196,7 +181,6 @@ class ServerLanScanner {
                         //machineID: nmap scan cant return that :(
                     };
 
-
                     let pc = F.pcObject(params, G.THIS_PC, "SCAN");
                     //Gun.js do not support array, pc must be an object
                     //pc simple key value object for simpler gun.js database
@@ -212,7 +196,6 @@ class ServerLanScanner {
                         console.log("FIXED! add local-responses plugins for server");
                     }
 
-
                     let idPC = F.getPcIdentifier(pc);
                     //for compare that scan to the others:
                     G.VISIBLE_COMPUTERS.set(idPC, pc);
@@ -221,17 +204,11 @@ class ServerLanScanner {
                     for (let key in plugins) {
                         pc[key] = plugins[key];
                     }
-                    G.GUN_DB_COMPUTERS.get(idPC).put(pc);
+                    G.database.dbComputersSaveData(idPC, pc);
+
                 }
 
-
-                //save G.VISIBLE_COMPUTERS map in json file for reloading after restart
-                Fs.writeFile(G.VISIBLE_COMPUTERS_FILE, F.strMapToJson(G.VISIBLE_COMPUTERS), 'binary', function (err) {
-                    if (err) console.log(err);
-                });
-                //console.log("[INFO] Save G.VISIBLE_COMPUTERS: " + G.VISIBLE_COMPUTERS_FILE);
-                //console.log(G.VISIBLE_COMPUTERS);
-
+                G.database.dbVisibleComputersSave();
 
                 //[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
                 G.NMAP_IS_WORKING = false;

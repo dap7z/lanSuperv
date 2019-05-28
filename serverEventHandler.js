@@ -148,7 +148,7 @@ class ServerEventHandler {
     async eventDispatcher(p, f) {
         let eventResult = null;
 
-        //used globals: G.PLUGINS_INFOS G.THIS_PC.lanInterface G.GUN_DB_COMPUTERS
+        //used globals: G.PLUGINS_INFOS G.THIS_PC.lanInterface
         //fonctions args: p(eventParameters), f(eventFrom)
         console.log("LOG! eventDispatcher receive " + p.eventName + " event from " + f + ", pcTarget:" + p.pcTarget.lanMAC);
         //console.log(p.pcTarget);
@@ -261,16 +261,7 @@ class ServerEventHandler {
                                 //check events (specific, socketCheck update database directly) :
                                 let finalResult = F.checkData(G.THIS_PC, 'socket');
                                 finalResult['idPC'] = pcTarget.idPC;
-
-                                G.GUN_DB_COMPUTERS.get(finalResult.idPC).once(function (pcToUpdate, id) {
-                                    for (let key in finalResult) {
-                                        pcToUpdate[key] = finalResult[key];
-                                    }
-                                    G.GUN_DB_COMPUTERS.get(finalResult.idPC).put(pcToUpdate);
-                                    F.logCheckResult("socket", pcToUpdate);
-                                    //console.log("[INFO] event check (socket) : sended that PC response over gun.js database");
-                                    //console.log(pcToUpdate);
-                                });
+                                G.database.dbComputersSaveData(finalResult.idPC, finalResult, "socket"); //NEW
                             }
                         }
                         else

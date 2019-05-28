@@ -13,6 +13,8 @@ class ServerDatabase {
 
     constructor(G_ref) {
         G = G_ref;
+        G.VISIBLE_COMPUTERS_FILE = __dirname+'/visibleComputers.json';
+        G.VISIBLE_COMPUTERS = new Map();
     }
 
     initConnection(){
@@ -65,8 +67,12 @@ class ServerDatabase {
     }
 
     //---------------------------------------- TODO ------------------------------------------
-    /*
-    loadData(tableName) {
+
+    dbComputersLoadData(key) {
+        if (typeof G.GUN_DB_COMPUTERS === 'undefined') {
+            console.log("WARNING! dbComputersLoadData("+ key +") gun.js dbComputers required !");
+        }
+
         return new Promise(function (resolve) {
 
             // Ping(hostAddress, {timeout: 4})
@@ -89,12 +95,54 @@ class ServerDatabase {
         });
     }
 
-    saveData(tableName, data) {
-        return new Promise(function (resolve) {
-            //...
+    dbComputersSaveData(key, value, logId){
+        if (typeof G.GUN_DB_COMPUTERS === 'undefined') {
+            console.log("WARNING! dbComputersSaveData("+ key +") gun.js dbComputers required !");
+        }
+        if(value === {}){
+            G.GUN_DB_COMPUTERS.get(key).put(value);
+        }
+        else if(value.idPC)
+        {
+            G.GUN_DB_COMPUTERS.get(value.idPC).once(function (pcToUpdate, id) {
+                if(typeof pcToUpdate === 'undefined'){
+                    pcToUpdate = {};
+                }
+                for (let key in value) {
+                    pcToUpdate[key] = value[key];
+                }
+                G.GUN_DB_COMPUTERS.get(value.idPC).put(pcToUpdate);
+                if(logId){
+                    F.logCheckResult(logId, pcToUpdate);
+                }
+            });
+        }else{
+            console.log('ERROR! dbComputersSaveData() undefined value.idPC');
+        }
+    }
+
+    //--------------------------- START LOCAL DATABASE ----------------------------
+    dbVisibleComputersLoad(){
+        Fs.readFile(G.VISIBLE_COMPUTERS_FILE, 'utf8', function (err, data) {
+            if (err) {
+                console.log("WARNING! cant read file: " + G.VISIBLE_COMPUTERS_FILE);
+                //console.log(err) //example: file doesnt exist after a fresh install
+            } else {
+                G.VISIBLE_COMPUTERS = F.jsonToStrMap(data);
+                //console.log(G.VISIBLE_COMPUTERS);
+            }
         });
     }
-    */
+
+    dbVisibleComputersSave(){
+        //save G.VISIBLE_COMPUTERS map in json file for reloading after restart
+        Fs.writeFile(G.VISIBLE_COMPUTERS_FILE, F.strMapToJson(G.VISIBLE_COMPUTERS), 'binary', function (err) {
+            if (err) console.log(err);
+        });
+        //console.log("[INFO] Save G.VISIBLE_COMPUTERS: " + G.VISIBLE_COMPUTERS_FILE);
+        //console.log(G.VISIBLE_COMPUTERS);
+    }
+    //---------------------------- END LOCAL DATABASE -----------------------------
 
 
 }

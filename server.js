@@ -12,7 +12,6 @@
 const Os = require('os');
 const NodeMachineId = require('node-machine-id');
 
-const Fs = require('fs');
 const Path = require('path');
 
 const Express = require('express'); //nodejs framework
@@ -29,8 +28,6 @@ const DefaultInterface = require('./node_modules_custom/default-interface/index.
 
 
 
-
-
 //--GLOBALS--
 let G = {
     CONFIG_FILE: null,
@@ -42,8 +39,8 @@ let G = {
         lanInterface: null,
         wanInterface: null
     },
-    VISIBLE_COMPUTERS_FILE: __dirname+'/visibleComputers.json',
-    VISIBLE_COMPUTERS: new Map(),
+    VISIBLE_COMPUTERS_FILE: null,
+    VISIBLE_COMPUTERS: null,
     SCANNED_COMPUTERS: null, //(reset before each scan)
     SCAN_NETWORK: null,
     PLUGINS_INFOS: [],
@@ -53,9 +50,7 @@ let G = {
     GUN_DB_MESSAGES: null,
     GUN_DB_COMPUTERS: null
 };
-//--FONCTIONS--
-let F = require(__dirname + '/functions');
-//-------------
+
 
 
 class Server {
@@ -97,7 +92,7 @@ class Server {
         //Serve config.js as if it was in web directory
         G.WEB_SERVER.get('/config.js', function (req, res) {
             res.sendFile(G.CONFIG_FILE);
-        })
+        });
 		
 		function findFirstAddressByFamily(tabAddress, family){
 			let result = {};
@@ -110,88 +105,6 @@ class Server {
 			}
 			return result;
 		}
-
-
-		/* ORG DEV
-        //Promise to get network information
-        //(we no more use 'network' npm package because dectected active network interface can be virtualbox one...)
-        async function getDefaultInterface() {
-            return new Promise(function(resolve,reject) {
-                let Routes = require('default-network');
-
-                Routes.collect(function (error, data) {
-                    let names = Object.keys(data);
-                    let defaultInterfaceName = names[0];
-
-                    let defaultInterfaceData = Os.networkInterfaces()[defaultInterfaceName];
-                    let lanIPv4 = findFirstAddressByFamily(defaultInterfaceData, 'IPv4');
-
-                    let defaultGatewayData = data[defaultInterfaceName];
-                    let gatewayIPv4 = findFirstAddressByFamily(defaultGatewayData, 'IPv4');
-
-                    let result = {
-                        gateway_ip: gatewayIPv4.address,
-                        ip_address: lanIPv4.address,
-                        mac_address: lanIPv4.mac,
-                        netmask: lanIPv4.netmask,
-                        family: lanIPv4.family,
-                        internal: lanIPv4.internal,
-                        cidr: lanIPv4.cidr
-                    };
-                    resolve(result);
-                });
-            });
-        }*/
-
-
-        /* FAIL DEV
-        //Promise to get network information
-        //(we no more use 'network' npm package because dectected active network interface can be virtualbox one...)
-        async function getDefaultInterface() {
-            return new Promise(function(resolve,reject) {
-                Network.get_active_interface(function(err, activeInterface) {
-                     // exemple of activeInterface:
-                     //    { name: 'é',
-                     //      mac_address: '7C:B0:C2:67:73:02',
-                     //      ip_address: '192.168.1.12',
-                     //      vendor: 'Intel Corporation',
-                     //      model: 'Intel(R) Dual Band Wireless-AC 7265',
-                     //      type: 'Wireless',
-                     //      netmask: '255.255.255.0',
-                     //      gateway_ip: '192.168.1.1' }
-                     //      //... NOK :
-                     //      { name: 'VirtualBox Host-Only Network',
-                     //      gateway_ip: null,
-                     //      ip_address: '192.168.56.1',
-                     //      mac_address: '0A:00:27:00:00:16',
-                     //      netmask: '255.255.255.0' }
-                     //      //-> donc c'est bien l'autre truc qu'il faut utiliser...
-                     //      //just fix encodage en prenant example sur celui ci
-                    let result = {
-                        name : activeInterface.name,
-                        gateway_ip: activeInterface.gateway_ip,
-                        ip_address: activeInterface.ip_address,
-                        mac_address: activeInterface.mac_address,
-                        netmask: activeInterface.netmask,
-                        //family: lanIPv4.family,
-                        //internal: lanIPv4.internal,
-                        //cidr: lanIPv4.cidr
-                    };
-                    //--
-                    //sinon besoin family/internal/cidr :
-                    //let defaultInterfaceData = Os.networkInterfaces()[activeInterface.name];
-                    //let lanIPv4 = findFirstAddressByFamily(defaultInterfaceData, 'IPv4');
-                    //let defaultGatewayData = data[defaultInterfaceName];
-                    //let gatewayIPv4 = findFirstAddressByFamily(defaultGatewayData, 'IPv4');
-                    //--
-                    resolve(result);
-                });
-
-            });
-        }
-        */
-
-        //LAST DEV OK ? -> TODO: test on TABLETTE-DAMIEN
 
         //Promise to get active network informations
         async function getDefaultInterface() {
@@ -287,22 +200,12 @@ class Server {
 
         //----- CONNECT DATABASE -----
         const ServerDatabase = require('./serverDatabase');
-        let database = new ServerDatabase(G);
-        database.initConnection();
-        
+        G.database = new ServerDatabase(G);
+        G.database.initConnection();
         //G.GUN_DB_COMPUTERS is decentralized db and can be updated by multiples servers and so represents multiples lans
         //we need a way to determine if one computer is in the lan of the server (to declare him offline).
-
-        //Reload G.VISIBLE_COMPUTERS map on server restart
-        Fs.readFile(G.VISIBLE_COMPUTERS_FILE, 'utf8', function (err, data) {
-            if (err) {
-                console.log("WARNING! cant read file: " + G.VISIBLE_COMPUTERS_FILE);
-                //console.log(err) //example: file doesnt exist after a fresh install
-            } else {
-                G.VISIBLE_COMPUTERS = F.jsonToStrMap(data);
-                //console.log(G.VISIBLE_COMPUTERS);
-            }
-        });
+        //-> Reload G.VISIBLE_COMPUTERS map on server restart
+        G.database.dbVisibleComputersLoad();
         ///!\ here G.VISIBLE_COMPUTERS is not yet loaded /!\
         //but no need await function (only used at the end of lan scan to mark pc as offline)
 

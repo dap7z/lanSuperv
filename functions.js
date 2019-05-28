@@ -130,10 +130,7 @@ class F {
     }
 
 
-    static logCheckWarning(checkType, dbComputers, finalResult) {
-        if (typeof dbComputers === 'undefined') {
-            console.log("WARNING! [" + checkType + "] gun.js dbComputers required !");
-        }
+    static logCheckWarning(checkType, finalResult) {
         if (typeof finalResult.idPC === 'undefined') {
             console.log("WARNING! [" + checkType + "] finalResult.idPC required !");
         }

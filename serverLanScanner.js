@@ -168,7 +168,10 @@ class ServerLanScanner {
 
     startFullScan() {
         if (G.NMAP_IS_WORKING) {
-            console.log('FIXED! launchLanScan canceled (G.NMAP_IS_WORKING)');
+            console.log("FIXED! launchLanScan canceled (G.NMAP_IS_WORKING)");
+        }
+        else if (G.CONFIG.val('ENABLE_SCAN') === false) {
+            console.log("FIXED! launchLanScan canceled (G.CONFIG.val('ENABLE_SCAN') === false)");
         }
         else {
             G.NMAP_IS_WORKING = true;
@@ -241,8 +244,7 @@ class ServerLanScanner {
         }
     }
 
-
-};
+}
 
 
 module.exports = ServerLanScanner;

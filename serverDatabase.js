@@ -1,4 +1,4 @@
-let F = require(__dirname + '/functions'); //FONCTIONS
+let F = require('./functions.js'); //FONCTIONS
 let G = null; //GLOBALS
 
 //LIBRARIES:
@@ -66,59 +66,36 @@ class ServerDatabase {
         G.GUN_DB_MESSAGES = G.GUN.get(G.CONFIG.val('TABLE_MESSAGES'));
     }
 
-    //---------------------------------------- TODO ------------------------------------------
-
-    dbComputersLoadData(key) {
-        if (typeof G.GUN_DB_COMPUTERS === 'undefined') {
-            console.log("WARNING! dbComputersLoadData("+ key +") gun.js dbComputers required !");
-        }
-
-        return new Promise(function (resolve) {
-
-            // Ping(hostAddress, {timeout: 4})
-            //     .catch(function (res) {
-            //         //required to resolve(finalResult) after ping fail
-            //     }).then(function (res) {
-            //     let finalResult = {
-            //         idPC: idPC,
-            //         lanIP: ip,
-            //         'respondsTo-ping': res.alive
-            //     };
-            //     //res.time non supporte par npm package ping-bluebird
-            //     if (finalResult["respondsTo-ping"]) {
-            //         //add lastResponse (already in F.checkData() for httpCheck and socketCheck)
-            //         finalResult.lastResponse = new Date().toISOString();
-            //     }
-            //     resolve(finalResult);
-            // });
-
-        });
-    }
-
-    dbComputersSaveData(key, value, logId){
+    dbComputersSaveData(idPC, value, logId){
         if (typeof G.GUN_DB_COMPUTERS === 'undefined') {
             console.log("WARNING! dbComputersSaveData("+ key +") gun.js dbComputers required !");
         }
         if(value === {}){
             G.GUN_DB_COMPUTERS.get(key).put(value);
         }
-        else if(value.idPC)
+        else if(idPC)
         {
-            G.GUN_DB_COMPUTERS.get(value.idPC).once(function (pcToUpdate, id) {
-                if(typeof pcToUpdate === 'undefined'){
+            G.GUN_DB_COMPUTERS.get(idPC).once(function (pcToUpdate, id) {
+                if(typeof pcToUpdate === 'undefined' || pcToUpdate === null){
                     pcToUpdate = {};
                 }
                 for (let key in value) {
                     pcToUpdate[key] = value[key];
                 }
-                G.GUN_DB_COMPUTERS.get(value.idPC).put(pcToUpdate);
+                G.GUN_DB_COMPUTERS.get(idPC).put(pcToUpdate);
                 if(logId){
                     F.logCheckResult(logId, pcToUpdate);
                 }
             });
         }else{
-            console.log('ERROR! dbComputersSaveData() undefined value.idPC');
+            console.log('ERROR! dbComputersSaveData() undefined idPC');
         }
+    }
+
+    dbComputersClearData(){
+        G.GUN_DB_COMPUTERS.map().once((pc, id) => {
+            G.GUN_DB_COMPUTERS.get(id).put(null);
+        });
     }
 
     //--------------------------- START LOCAL DATABASE ----------------------------

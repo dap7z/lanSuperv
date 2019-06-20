@@ -1,9 +1,21 @@
 {
   "name": "lan-superv",
-  "version": "0.3.704",
+  "version": "0.3.800",
   "description": "Node.js app for lan supervision",
   "author": "Damien Pointier",
   "license": "MIT",
+  "bin": "application.js",
+  "pkg": {
+    "assets": [
+      "web/**/*",
+      "plugins/local-responses/**/*",
+      "plugins/remote-requests/**/*"
+    ],
+    "scripts": [],
+    "targets": [
+      "node10-win-x64"
+    ]
+  },
   "engines": {
     "node": "8.5.0"
   },
@@ -11,33 +23,28 @@
     "babel-core": "^6.26.3",
     "babel-loader": "^8.0.6",
     "babel-preset-env": "^1.7.0",
-    "electron": "^5.0.2",
-    "electron-builder": "^20.42.0",
     "webpack": "^4.32.2",
     "webpack-cli": "^3.3.2"
   },
   "dependencies": {
+    "@babel/core": "^7.0.0",
     "auto-launch": "^5.0.5",
     "auto-updater": "^1.0.2",
     "body-parser": "^1.19.0",
+    "child-process-promise": "^2.2.1",
     "child_process": "^1.0.2",
+    "cidr-range": "^2.0.0",
     "cross-spawn": "^6.0.5",
-    "default-gateway": "^4.2.0",
-    "electron-log": "^3.0.5",
     "express": "^4.17.1",
     "ext-ip": "^0.3.8",
     "fs": "0.0.2",
     "gun": "^0.2019.515",
     "http": "0.0.0",
-    "ip-regex": "^4.1.0",
-    "ipaddr.js": "^1.9.0",
     "is-port-available": "^0.1.5",
     "json-formatter-js": "^2.2.1",
     "lan-discovery": "^1.0.0",
-    "my-local-netmask": "^1.0.0",
     "netmask": "^1.0.6",
-    "node-machine-id": "^1.1.10",
-    "node-nmap": "^4.0.0",
+    "node-machine-id": "^1.1.12",
     "ping-bluebird": "0.0.3",
     "power-off": "^1.1.2",
     "promise": "^8.0.3",
@@ -82,7 +89,6 @@
   "scripts": {
     "start": "node start.js",
     "dev": "webpack --mode development",
-    "build": "webpack --mode production",
-    "publish": "build --win -p always"
+    "build": "webpack --mode production && pkg ."
   }
 }

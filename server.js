@@ -56,10 +56,14 @@ let G = {
 
 class Server {
 
-    constructor(configFile) {
-        //this.configFile = configFile;
-        G.CONFIG_FILE = configFile;
-        G.CONFIG = require(configFile);
+    constructor(configFileAbsolutePath) {
+        if(! configFileAbsolutePath){
+            const path = require('path');
+            configFileAbsolutePath = path.join(process.cwd(), 'config.js');
+            console.log('no config file path specified, assume :', configFileAbsolutePath);
+        }
+        G.CONFIG_FILE = configFileAbsolutePath;
+        G.CONFIG = require(configFileAbsolutePath);
     }
 
     start(){

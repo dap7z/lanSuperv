@@ -1,6 +1,6 @@
 {
   "name": "lan-superv",
-  "version": "0.3.800",
+  "version": "0.4.000",
   "description": "Node.js app for lan supervision",
   "author": "Damien Pointier",
   "license": "MIT",
@@ -9,7 +9,8 @@
     "assets": [
       "web/**/*",
       "plugins/local-responses/**/*",
-      "plugins/remote-requests/**/*"
+      "plugins/remote-requests/**/*",
+      "node_modules/raw-socket/**/*"
     ],
     "scripts": [],
     "targets": [

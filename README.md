@@ -3,7 +3,8 @@
 
 How to install ?
 <br />
-1) Run executable, by example in windows console : "lan-superv.exe --config=config.js"
+1) Run executable, by example in windows console : "lan-superv.exe --config=D:\SRV_WEB\lanSuperv\config.js"
+note : if no --config is specified, it's looks for a "config.js" file in the executable directory
 2) Go to http://localhost:842
 
 How to dev ?
@@ -16,8 +17,8 @@ install Visual Studio 2015 Community Edition https://go.microsoft.com/fwlink/?Li
 open it and create a new C++ project to install commons tools + SDK
 npm config set msvs_version 2015 --global
 npm install -g node-gyp-install
-npm install -g node-gyp
-(ok with node version 10.8.0 + .npmrc)
+npm install -g node-gyp #(node-gyp have to be installed globaly)
+#(works with node version 10.8.0 + .npmrc)
 4) Install dependencies with the command: "npm install" 
 5) Build assets with the command: "npm run dev" (no minified javascript for debug purposes)
 6) Copy "config.js.sample" to "config.js" and edit the file
@@ -26,6 +27,7 @@ npm install -g node-gyp
 How to build ?
 <br />
 1) Do all "How to dev ?" steps
-2) Build application with the command: "npm run build"
-3) Run in windows console "lan-superv.exe --config=config.js"
+2) Execute "npm install -g pkg"
+3) Build application with the command: "npm run build"
+4) Run in windows console "lan-superv.exe --config=config.js"
 

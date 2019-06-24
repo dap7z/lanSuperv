@@ -1,18 +1,16 @@
-let F = require(__dirname + '/functions'); //FONCTIONS
+let F = require('./functions.js'); //FONCTIONS
 let G = null; //GLOBALS
 
 //LIBRARIES:
-const Nmap = require('node-nmap');
 const Request = require('request-promise');  //'request' deprecated
 const Ping = require('ping-bluebird');  //ping with better promise
-
+const CidrRange = require('cidr-range');
+const LanDiscovery = require('lan-discovery');
 
 class ServerLanScanner {
 
     constructor(G_ref) {
         G = G_ref;
-        //----- APPLY G.CONFIGURATION -----
-        Nmap.nmapLocation = G.CONFIG.val('NMAP_LOCATION');
     }
 
     //QuickScan: only previously visibles computers
@@ -151,73 +149,91 @@ class ServerLanScanner {
     }
 
 
-    startFullScan() {
-        if (G.NMAP_IS_WORKING) {
-            console.log("FIXED! launchLanScan canceled (G.NMAP_IS_WORKING)");
+    processScanResult(params, remotePlugins){
+        let pc = F.pcObject(params, G.THIS_PC, "SCAN");
+        //Gun.js do not support array, pc must be an object
+        //pc simple key value object for simpler gun.js database
+        let plugins = remotePlugins;
+
+        if (pc.lanIP === G.THIS_PC.lanInterface.ip_address) {
+            //self scan specific
+            let wasEmpty = pc.lanMAC;
+            pc.lanMAC = G.THIS_PC.lanInterface.mac_address;
+            console.log("FIXED! correct lanMAC field for server (was: '" + wasEmpty + "')");
+            pc.machineID = G.THIS_PC.machineID;
+            console.log("FIXED! add machineID field for server");
+            plugins = F.simplePluginsList('all', G.PLUGINS_INFOS);
+            console.log("FIXED! add local-responses plugins for server");
         }
-        else if (G.CONFIG.val('ENABLE_SCAN') === false) {
+
+        let idPC = F.getPcIdentifier(pc);
+        //for compare that scan to the others:
+        G.VISIBLE_COMPUTERS.set(idPC, pc);
+        G.SCANNED_COMPUTERS.set(idPC, pc.lastCheck);
+        //each plugins as a key of pc object:
+        for (let key in plugins) {
+            pc[key] = plugins[key];
+        }
+        G.database.dbComputersSaveData(idPC, pc);
+    }
+
+
+    startFullScan() {
+        if (G.SCAN_IN_PROGRESS) {
+            console.log("FIXED! launchLanScan canceled (G.SCAN_IN_PROGRESS)");
+            return false;
+        }
+
+        let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
+        G.SCANNED_COMPUTERS = new Map();
+
+        if (G.CONFIG.val('ENABLE_SCAN') === false) {
             console.log("FIXED! launchLanScan canceled (G.CONFIG.val('ENABLE_SCAN') === false)");
+            //empty database from previous scan
+            G.database.dbComputersClearData();
+            //generate fake self scan result
+            let params = {
+                lastCheck: new Date().toISOString(),
+                lanIP: G.THIS_PC.lanInterface.ip_address,
+                lanMAC: G.THIS_PC.lanInterface.mac_address,
+                hostname: "SELF (ENABLE_SCAN=false)",
+            };
+            this.processScanResult(params, remotePlugins);
         }
         else {
-            G.NMAP_IS_WORKING = true;
+            G.SCAN_IN_PROGRESS = true;
+            console.log("OK! launchLanScan at", new Date().toISOString());
 
-            let scan = new Nmap.NmapScan(G.SCAN_NETWORK, '-sP -T4');
-            scan.on('error', (error) => {
-                console.log(error);
-            });
-            scan.on('complete', (data) => {
-                console.log('OK! nmap scan completed in ' + scan.scanTime / 1000 + ' sec');
-                //console.log(data);
-                G.SCANNED_COMPUTERS = new Map();
-                let scanTimeStamp = new Date().toISOString();
-                let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
-                for (let i = 0; i < data.length; i++) {
-                    let d = data[i];
+            let networkToScan = G.THIS_PC.lanInterface.network + '/' + G.THIS_PC.lanInterface.bitmask; //cdir notation
+            let tabIP = CidrRange(networkToScan);
+            G.LAN_DISCOVERY
+                .on(LanDiscovery.EVENT_DEVICE_INFOS, (device) => {
+                    //console.log('--> event '+ LanDiscovery.EVENT_DEVICE_INFOS +' :\n', device);
                     let params = {
-                        lastCheck: scanTimeStamp,
-                        hostname: d.hostname,
-                        lanIP: d.ip,
-                        lanMAC: d.mac
-                        //machineID: nmap scan cant return that :(
+                        lastCheck: new Date().toISOString(),
+                        hostname: device.name,
+                        lanIP: device.ip,
+                        lanMAC: device.mac
+                        //machineID: scan cant return that :(
                     };
+                    this.processScanResult(params, remotePlugins);
+                })
+                .on(LanDiscovery.EVENT_DEVICES_INFOS, (data) => {
+                    //console.log('--> event '+ LanDiscovery.EVENT_DEVICES_INFOS +' :\n', data);
+                    G.database.dbVisibleComputersSave();
 
-                    let pc = F.pcObject(params, G.THIS_PC, "SCAN");
-                    //Gun.js do not support array, pc must be an object
-                    //pc simple key value object for simpler gun.js database
-                    let plugins = remotePlugins;
-                    if (pc.lanIP === G.THIS_PC.lanInterface.ip_address) {
-                        //self scan specific
-                        let wasEmpty = pc.lanMAC;
-                        pc.lanMAC = G.THIS_PC.lanInterface.mac_address;
-                        console.log("FIXED! correct lanMAC field for server (was: '" + wasEmpty + "')");
-                        pc.machineID = G.THIS_PC.machineID;
-                        console.log("FIXED! add machineID field for server");
-                        plugins = F.simplePluginsList('all', G.PLUGINS_INFOS);
-                        console.log("FIXED! add local-responses plugins for server");
-                    }
-
-                    let idPC = F.getPcIdentifier(pc);
-                    //for compare that scan to the others:
-                    G.VISIBLE_COMPUTERS.set(idPC, pc);
-                    G.SCANNED_COMPUTERS.set(idPC, scanTimeStamp);
-                    //each plugins as a key of pc object:
-                    for (let key in plugins) {
-                        pc[key] = plugins[key];
-                    }
-                    G.database.dbComputersSaveData(idPC, pc);
-
-                }
-
-                G.database.dbVisibleComputersSave();
-
-                //[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
-                G.NMAP_IS_WORKING = false;
-                let nbSecsBeforeNextScan = 60 * 60;
-                setTimeout(() => {
-                    this.startFullScan ();
-                }, 1000 * nbSecsBeforeNextScan);
-
-            });
+                    //[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
+                    G.SCAN_IN_PROGRESS = false;
+                    let nbSecsBeforeNextScan = 60 * 60;
+                    setTimeout(() => {
+                        this.startFullScan ();
+                    }, 1000 * nbSecsBeforeNextScan);
+                })
+                .on(LanDiscovery.EVENT_SCAN_COMPLETE, (data) => {
+                    //console.log('--> event '+ LanDiscovery.EVENT_SCAN_COMPLETE +' :\n', data);
+                    console.log('OK! scan completed in ' + data.scanTimeMS / 1000 + ' sec');
+                })
+                .startScan({ ipArrayToScan: tabIP }); // last call reserved to launch it
         }
     }
 

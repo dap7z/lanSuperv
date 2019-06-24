@@ -1,6 +1,5 @@
 'use strict';
 
-const log = require('electron-log');
 const {fork} = require('child_process');
 
 /******************************************************
@@ -98,7 +97,14 @@ class LanSuperv {
     startApplication(ConfigFile){
         console.log("== START APPLICAITON == (ConfigFile:"+ ConfigFile +")");
 
-        this.childProcess = require('child_process').fork(__dirname+'/application.js', ['--config='+ConfigFile]);
+        //OLD NOK WITH PKG
+        //this.childProcess = fork(__dirname+'/application.js', ['--config='+ConfigFile]);
+
+        //NEW (https://github.com/zeit/pkg/issues/251)
+        const path = require('path');
+        let modulePath = path.join(__dirname,'application.js');
+        this.childProcess = fork(modulePath, ['--config='+ConfigFile]);
+
         if(this.childProcess)
         {
             this.childProcess.on('message', (data) => {

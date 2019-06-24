@@ -1,5 +1,3 @@
-//let F = require(__dirname + '/functions'); //FONCTIONS //CURRENTLY UNUSED
-
 //LIBRARIES:
 const Fs = require('fs');
 const Path = require('path');

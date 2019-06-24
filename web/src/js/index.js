@@ -40,8 +40,10 @@ new Vue({
 
         //add results straight to the Vue component state and get updates when nodes are updated by GUN :
         sharedObject.dbComputers.map().on((pc, id) => {
-            clientJS.gunOnChangeDbComputers(pc, id);
-            this.dbComputersModel[id] = pc;  //OK?
+            if(pc !== null){ //null si exec dbComputersClearData()
+                clientJS.gunOnChangeDbComputers(pc, id);
+                this.dbComputersModel[id] = pc;
+            }
         });
         sharedObject.dbMessages.map().on((message, id) => {
             clientJS.gunOnChangeDbMessages(message, id);
@@ -54,30 +56,6 @@ new Vue({
             //console.log("execute function gunSendMessage() with msg:");
             //console.log(message);
             sharedObject.dbMessages.set(message);
-        },
-        gunClearDatabase: function(){
-            //https://github.com/amark/gun/wiki/Delete
-            //sharedObject.dbComputers.put(null);
-            //NOK: Data saved to the root level of the graph must be a node (an object), not a object of "null"!
-
-            let emptyObject = {};
-            sharedObject.dbComputers.put(emptyObject);
-            sharedObject.dbComputers.once(function(result){
-                console.log(result);
-            });
-
-            sharedObject.dbMessages.put(emptyObject);
-
-            //Other way, more complicated :
-            // - localStorage.clear() in every browser
-            // - stop the server
-            // - rm data.json on server
-
-            //The only way that actually works :
-            // - stop server, close browsers
-            // - change DATABASE_NAME in config.js
-            // - remove visibleComputers.json
-            // - restart server and browser
         },
     },
 });

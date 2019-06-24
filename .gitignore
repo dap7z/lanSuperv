@@ -1,6 +1,8 @@
 #=====================================================
 #git ignore:
 git_ignore/
+dev-install/
+#build/config.gypi
 
 #database:
 *.tmp

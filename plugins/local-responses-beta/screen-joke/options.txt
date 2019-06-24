@@ -1,0 +1,16 @@
+[] full screen
+[] hide mouse
+[] on top of inactives window
+[] tranparent active window
+[] changing color filter
+[] video webcam
+[] video local file (video.mp4)
+[] video uploaded file +[file]   //NOT IMPLEMENTED
+
+
+FOR REFERENCE:
+C:\_DEV_\lanSuperv\dev\mirror-movie
+C:\_DEV_\lanSuperv\dev\scary-movie
+
+https://socketcluster.io/#!/
+https://github.com/0rpc/zerorpc-node

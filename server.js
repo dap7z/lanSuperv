@@ -19,12 +19,12 @@ const BodyParser = require('body-parser'); //to get POST data
 
 const Crypto = require('crypto');  //hash machineID
 
-const Netmask = require('netmask').Netmask;
 const ExtIP = require('ext-ip')();
+
+const LanDiscovery = require('lan-discovery');
 
 //const IsPortAvailable = require('is-port-available'); //COMPATIBILITY ISSUE WITH COMMAND LINE ARGUMENT
 const IsPortAvailable = require('./node_modules_custom/is-port-available/index.js');
-const DefaultInterface = require('./node_modules_custom/default-interface/index.js');
 
 
 
@@ -32,7 +32,7 @@ const DefaultInterface = require('./node_modules_custom/default-interface/index.
 let G = {
     CONFIG_FILE: null,
     CONFIG: null,
-    NMAP_IS_WORKING: false,
+    SCAN_IN_PROGRESS: false,
     THIS_PC: {
         hostnameLocal: Os.hostname(),
         machineID: null,
@@ -48,17 +48,22 @@ let G = {
     WEB_SERVER_INSTANCE: null,
     GUN: null,
     GUN_DB_MESSAGES: null,
-    GUN_DB_COMPUTERS: null
+    GUN_DB_COMPUTERS: null,
+    LAN_DISCOVERY: null,
 };
 
 
 
 class Server {
 
-    constructor(configFile) {
-        //this.configFile = configFile;
-        G.CONFIG_FILE = configFile;
-        G.CONFIG = require(configFile);
+    constructor(configFileAbsolutePath) {
+        if(! configFileAbsolutePath){
+            const path = require('path');
+            configFileAbsolutePath = path.join(process.cwd(), 'config.js');
+            console.log('no config file path specified, assume :', configFileAbsolutePath);
+        }
+        G.CONFIG_FILE = configFileAbsolutePath;
+        G.CONFIG = require(configFileAbsolutePath);
     }
 
     start(){
@@ -93,58 +98,12 @@ class Server {
         G.WEB_SERVER.get('/config.js', function (req, res) {
             res.sendFile(G.CONFIG_FILE);
         });
-		
-		function findFirstAddressByFamily(tabAddress, family){
-			let result = {};
-			console.log(tabAddress);
-			for (let address of tabAddress){
-				if(address.family === family){
-					result = address;
-					break;
-				}
-			}
-			return result;
-		}
 
-        //Promise to get active network informations
-        async function getDefaultInterface() {
-            return new Promise(function(resolve,reject) {
-                DefaultInterface.v4().then(data => {
-                    //build full result
-                    let defaultInterfaceIPv4 = {
-                        gateway_ip: data.gateway,
-                        ip_address: data.address,
-                        mac_address: data.mac,
-                        netmask: data.netmask,
-                        family: data.family,
-                        internal: data.internal,
-                        cidr: data.cidr,
-                        name: data.name
-                    };
-                    resolve(defaultInterfaceIPv4);
-                });
-            });
-        }
-
-
-        getDefaultInterface().then( (defaultInterface) => {
+        G.LAN_DISCOVERY = new LanDiscovery({ verbose: false, timeout: 60 });
+        G.LAN_DISCOVERY.getDefaultInterface().then( (defaultInterface) => {
             //we start here with network informations
             console.log(defaultInterface);
-
-            //nmap accept 192.168.1.1-254 and 192.168.1.1/24 but not 192.168.1.1/255.255.255.0
-            //so we translate :
-            G.THIS_PC.lanInterface = (function () {
-                //anonymous function to avoid keeping vars in memory
-                let obj = defaultInterface;  //(IPv4)
-                let block = new Netmask(obj.gateway_ip + '/' + obj.netmask);
-                obj.fullmask = obj.netmask;
-                delete obj.netmask; //unset
-                obj.bitmask = block.bitmask;
-                obj.network = block.base;
-                obj.mac_address = obj.mac_address.toUpperCase();
-				return obj;
-            })();
-            G.SCAN_NETWORK = G.THIS_PC.lanInterface.network + '/' + G.THIS_PC.lanInterface.bitmask;
+            G.THIS_PC.lanInterface = defaultInterface;
 
             //define machineID with node-machine-id + lan mac address
             NodeMachineId.machineId({original: true}).then(function (id) {

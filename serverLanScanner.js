@@ -196,7 +196,7 @@ class ServerLanScanner {
                 lastCheck: new Date().toISOString(),
                 lanIP: G.THIS_PC.lanInterface.ip_address,
                 lanMAC: G.THIS_PC.lanInterface.mac_address,
-                hostname: "SELF (ENABLE_SCAN=false)",
+                hostname: "SELF (ENABLE_SCAN=false)", //(quickly override by computer name)
             };
             this.processScanResult(params, remotePlugins);
         }

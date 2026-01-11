@@ -68,41 +68,40 @@ class ServerEventHandler {
                 //TODO: TESTS AND DEV
 
                 //====[HTTP]====
-                let Request = require('request');
-                // Set the headers
-                let headers = {
-                    'User-Agent':       'LanSuperv Agent/1.0.0',
-                    'Content-Type':     'application/x-www-form-urlencoded'
-                };
-
                 let jsonString = JSON.stringify({
                     'eventName': eventName,
                     'pcTarget': pcTarget,
                     'password' : '*not*Implemented*',
                 });
 
-                let reqUrl = 'http://'+ pcTarget.lanIP +':'+ Config.val('SERVER_PORT') + Config.val('PATH_HTTP_EVENTS') +'/'+ eventName;
+                let reqUrl = 'http://'+ pcTarget.lanIP +':'+ G.CONFIG.val('SERVER_PORT') + G.CONFIG.val('PATH_HTTP_EVENTS') +'/'+ eventName;
                 console.log('[eventRedirection with http] reqUrl: '+reqUrl);
 
-                // Configure the request
-                let options = {
-                    url: reqUrl,
-                    method: 'POST',
-                    headers: headers,
-                    form: {'jsonString': jsonString}
-                };
+                const params = new URLSearchParams({ jsonString });
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-                Request(options, function(err, res, body) {
-                    if(err)
-                    {
-                        console.log('Error '+ err.code +' '+ reqUrl);
-                        //ECONNREFUSED if no response
-                    }
-                    else
-                    {
-                        console.log("JSON response:");
-                        console.log(body);
-                    }
+                fetch(reqUrl, {
+                    method: 'POST',
+                    headers: {
+                        'User-Agent': 'LanSuperv Agent/1.0.0',
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: params.toString(),
+                    signal: controller.signal
+                })
+                .then(response => {
+                    clearTimeout(timeoutId);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("JSON response:", data);
+                })
+                .catch(err => {
+                    clearTimeout(timeoutId);
+                    const errorMsg = err.name === 'AbortError' ? 'timeout' : (err.code || err.message);
+                    console.log(`Error: ${errorMsg} ${reqUrl}`);
                 });
 
                 //===============

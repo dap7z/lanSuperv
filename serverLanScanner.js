@@ -2,7 +2,6 @@ let F = require('./functions.js'); //FONCTIONS
 let G = null; //GLOBALS
 
 //LIBRARIES:
-const Request = require('request-promise');  //'request' deprecated
 const Ping = require('ping-bluebird');  //ping with better promise
 const CidrRange = require('cidr-range');
 const LanDiscovery = require('lan-discovery');
@@ -55,29 +54,30 @@ class ServerLanScanner {
             }
             let url = 'http://' + hostAddress + ':' + G.CONFIG.val('SERVER_PORT') + G.CONFIG.val('PATH_HTTP_EVENTS') + '/check';
 
-            let errorMsg = "";
-            Request(url).catch(function (err) {
-                errorMsg = err;
-                //example: "Error: connect ECONNREFUSED 127.0.0.1:842"
-            }).then(function (jsonString) {
-                let finalResult = {};
-                if (errorMsg === '') {
-                    try {
-                        finalResult = JSON.parse(jsonString);
-                    } catch (e) {
-                        console.log("WARNING! JSON.parse error catched");
-                        console.log(jsonString);
-                        console.log(e);
-                    }
-                }
-                else {
-                    finalResult['respondsTo-http'] = false;
-                }
-                finalResult.idPC = idPC;
-                finalResult.lanIP = ip;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-                resolve(finalResult);
-            });
+            fetch(url, { signal: controller.signal })
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    clearTimeout(timeoutId);
+                    resolve({
+                        ...data,
+                        idPC: idPC,
+                        lanIP: ip
+                    });
+                })
+                .catch(err => {
+                    clearTimeout(timeoutId);
+                    resolve({
+                        'respondsTo-http': false,
+                        idPC: idPC,
+                        lanIP: ip
+                    });
+                });
 
         });
     }

@@ -19,7 +19,6 @@ const BodyParser = require('body-parser'); //to get POST data
 
 const Crypto = require('crypto');  //hash machineID
 
-const ExtIP = require('ext-ip')();
 
 const LanDiscovery = require('lan-discovery');
 
@@ -125,18 +124,29 @@ class Server {
                         let port = G.WEB_SERVER_INSTANCE.address().port;
                         let url = 'http://localhost:'+port;
                         let serverUpNotification = 'Web server available on '+ url +' (lanIP: '+ G.THIS_PC.lanInterface.ip_address +', ';
-                        //get public ip
-                        ExtIP((err, ip) => {
-                            if (err) {
-                                serverUpNotification += 'unknow wanIP)';
-                            } else {
+                        //get public ip using fetch native (replaces ext-ip)
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 5000);
+                        
+                        fetch('https://api.ipify.org?format=json', { signal: controller.signal })
+                            .then(response => {
+                                clearTimeout(timeoutId);
+                                return response.json();
+                            })
+                            .then(data => {
+                                const ip = data.ip;
                                 serverUpNotification += 'wanIP: ' + ip + ')';
-                            }
-                            G.THIS_PC.wanInterface = {ip: ip};
-                            console.log('OK! '+ serverUpNotification);
-
-                            this.onWebServerReady();  //function of Server class
-                        });
+                                G.THIS_PC.wanInterface = {ip: ip};
+                                console.log('OK! '+ serverUpNotification);
+                                this.onWebServerReady();  //function of Server class
+                            })
+                            .catch(err => {
+                                clearTimeout(timeoutId);
+                                serverUpNotification += 'unknow wanIP)';
+                                G.THIS_PC.wanInterface = {ip: null};
+                                console.log('OK! '+ serverUpNotification);
+                                this.onWebServerReady();  //function of Server class
+                            });
                     });
                 }
             });

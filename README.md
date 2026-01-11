@@ -12,10 +12,9 @@ note : if no --config is specified, it's looks for a "config.js" file in the exe
 1) Download and install last stable version of node js for windows : 
 <br /> https://nodejs.org/en/download
 2) Download the application zip and extract it
-3) Setup node-gyp requirements : https://gist.github.com/jtrefry/fd0ea70a89e2c3b7779c
-> install Visual Studio 2015 Community Edition https://go.microsoft.com/fwlink/?LinkId=532606&clcid=0x409
-> open it and create a new C++ project to install commons tools + SDK
-> (works with node version 10.8.0 + .npmrc)
+3) Setup node-gyp requirements (if needed for native modules)
+> Node.js 24 LTS is required
+> For native modules compilation, install Visual Studio Build Tools or Visual Studio Community
 ```sh
 $ npm config set msvs_version 2015 --global
 $ npm install -g node-gyp-install

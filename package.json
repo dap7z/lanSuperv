@@ -40,7 +40,7 @@
     "lan-discovery": "^1.0.2",
     "node-machine-id": "^1.1.12",
     "ping-bluebird": "0.0.3",
-    "power-off": "^1.1.2",
+    "power-off": "^1.0.1",
     "sleep-mode": "^1.1.0",
     "vue": "^3.5.26",
     "vue-gun": "0.0.3",

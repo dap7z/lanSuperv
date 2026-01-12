@@ -16,7 +16,7 @@ PARAMS['SOCKET_PORT'] = 842;
 PARAMS['PATH_HTTP_EVENTS'] = '/cmd';              //example: http://localhost:842/cmd/power-off
 PARAMS['PATH_DATABASE'] = '/gun';                 //default: '/gun'   //20170901 gun.js does not allow custom path
 
-PARAMS['ENABLE_SCAN'] = false;
+PARAMS['ENABLE_SCAN'] = false;                    //set true on main server for allowing him to ping the lan, others clients on the same lan doesnt need to scan too 
 
 PARAMS['GUN_ADDITIONAL_PEERS'] = [];  //empty by default: no link between servers
 //PARAMS['GUN_ADDITIONAL_PEERS'] = ['https://main-server-domain.com/gun']; 

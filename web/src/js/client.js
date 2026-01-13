@@ -120,7 +120,7 @@ export default class Client {
     //==START=ON=CHANGE=DB=COMPUTERS=====================================================================================
     gunOnChangeDbComputers(pc, id){
         //.once exec one time | .on exec at every change
-        //console.log("dbComputers has been updated, we have to update the view");
+        console.log("[CLIENT.JS] dbComputers has been updated, we have to update the view. function called with - id:", id, "pc:", pc);
 
         let wolPlugin = 'wol';
         let powerOffPlugin = 'power-off';
@@ -210,6 +210,7 @@ export default class Client {
         }
         $elem.find('.btn-plugin-value').text(defaultPlugin);
 
+        console.log("[CLIENT.JS] Hiding loader for computer:", id);
         $('#loader').hide();
     }
     //==END=ON=CHANGE=DB=COMPUTERS=====================================================================================

@@ -31,3 +31,16 @@ $ npm install -g node-gyp #(node-gyp have to be installed globaly)
 3) Build application with the command: "npm run build"
 4) Run in windows console "lan-superv.exe --config=config.js"
 
+### On the target machine(s), how to enable WOL and PING ?
+#### WOL :
+You have to validate all theses things :
+In the bios, option nammed "WOL" or "WakeOnLan" or "PCI-E Wake" is enabled
+In the OS, properties of the ethernet card, power management : 
+   UNCHECK  allow the computer to turn off this device to save energy. 
+   CHECK    allow this device to wake the computer from sleep mode.
+   CHECK    only allow a magic packet to wake the computer from sleep mode
+(On french windows : Panneau de configuration\Réseau et Internet\Connexions réseau, clic droit sur connexion Ethernet, Proprietes, Configurer..., Gestion de l'alimentation)
+#### PING : 
+By default computer responds to PING but not on windows 11, even in a private network, you might have to allow it explicitly in the firewall with theses command for ipv4 and ipv6 :
+netsh advfirewall firewall add rule name="ICMP Allow incoming V4 echo request" protocol=icmpv4:8,any dir=in action=allow
+netsh advfirewall firewall add rule name="ICMPv6 Allow" protocol=icmpv6:8,any dir=in action=allow

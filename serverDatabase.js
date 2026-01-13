@@ -86,25 +86,37 @@ class ServerDatabase {
 
     dbComputersSaveData(idPC, value, logId){
         if (typeof G.GUN_DB_COMPUTERS === 'undefined') {
-            console.log("WARNING! dbComputersSaveData("+ key +") gun.js dbComputers required !");
+            console.log("WARNING! dbComputersSaveData() gun.js dbComputers required !");
+            return;
         }
-        if(value === {}){
-            G.GUN_DB_COMPUTERS.get(key).put(value);
+        
+        // Vérifier si value est un objet vide
+        if (value && typeof value === 'object' && Object.keys(value).length === 0) {
+            // Objet vide : réinitialiser les données
+            if (idPC) {
+                idPC = String(idPC);
+                G.GUN_DB_COMPUTERS.get(idPC).put({});
+            }
+            return;
         }
-        else if(idPC)
+        
+        if(idPC)
         {
-            G.GUN_DB_COMPUTERS.get(idPC).once(function (pcToUpdate, id) {
-                if(typeof pcToUpdate === 'undefined' || pcToUpdate === null){
-                    pcToUpdate = {};
-                }
-                for (let key in value) {
-                    pcToUpdate[key] = value[key];
-                }
-                G.GUN_DB_COMPUTERS.get(idPC).put(pcToUpdate);
-                if(logId){
-                    F.logCheckResult(logId, pcToUpdate);
-                }
-            });
+            // Gun.js nécessite des Strings pour les clés, donc on s'assure que idPC est toujours une String.
+            idPC = String(idPC);
+            
+            const gunNode = G.GUN_DB_COMPUTERS.get(idPC);
+            
+            // Sauvegarde dans la bdd Gun.js :
+            for (let key in value) {
+                gunNode.get(key).put(value[key]);
+            }
+            // Gun.js peut avoir des problèmes avec des objets complexes, donc on sauvegarde chaque propriété séparément pour éviter que Gun.js interprète mal la structure.
+
+            if(logId){
+                F.logCheckResult(logId, value);
+            }
+            
         }else{
             console.log('ERROR! dbComputersSaveData() undefined idPC');
         }

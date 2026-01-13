@@ -98,6 +98,13 @@ class Server {
             res.sendFile(G.CONFIG_FILE);
         });
 
+        // Middleware pour éviter les conflits WebSocket avec Gun.js
+        // Gun.js gère automatiquement les requêtes sur /gun
+        G.WEB_SERVER.use(function(req, res, next) {
+            // Laisser passer toutes les requêtes, Gun.js gérera /gun automatiquement
+            next();
+        });
+
         G.LAN_DISCOVERY = new LanDiscovery({ verbose: false, timeout: 60 });
         G.LAN_DISCOVERY.getDefaultInterface().then( (defaultInterface) => {
             //we start here with network informations

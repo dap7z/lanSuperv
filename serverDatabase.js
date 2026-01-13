@@ -4,6 +4,7 @@ let G = null; //GLOBALS
 //LIBRARIES:
 const Fs = require('fs');
 const Gun = require('gun');
+const Http = require('http');
 
 /**
  * This class handle the data persistance layer
@@ -18,6 +19,12 @@ class ServerDatabase {
     }
 
     initConnection(){
+        // Protection contre la double initialisation
+        if (G.GUN) {
+            console.log("[GUN.JS] WARNING! Gun.js already initialized, skipping initConnection()");
+            return;
+        }
+		
         //DECENTRALIZED DB (GUN.JS)
         let gunOptions = {};
         if (G.CONFIG.val('LOCAL_DATABASE')) {
@@ -27,18 +34,13 @@ class ServerDatabase {
                 peers: G.CONFIG.val('GUN_PEERS'),
                 web: G.WEB_SERVER_INSTANCE,
             };
-            //NOK WINDOWS, RESULTATS TEST 20180915:
-            //{ file: 'D:\\SRV_APACHE\\lanSuperv\\db1-shared.json',
-            //	peers: [ 'http://main-server.fr.cr:842/gun' ],
-            //	web: '[exclude from dump]' }
-            //(node:14688) UnhandledPromiseRejectionWarning: TypeError: this.ee.on is not a function
-            //at Ultron.on (D:\SRV_APACHE\lanSuperv\node_modules\ultron\index.js:42:11)
-            //at new WebSocketServer (D:\SRV_APACHE\lanSuperv\node_modules\gun\node_modules\ws\lib\websocket-server.js:85:20)
-
-            //VOIR:
-            //https://github.com/amark/gun/issues/422
-            //https://github.com/mochiapp/gun/commit/fd0866ed872f6acb8537541e1c3b06f18648420a
-            //... pourtant merged ...
+            
+            // On s'assure que le serveur est bien défini
+            if (!gunOptions.web) {
+                console.error("[GUN.JS] ERROR! WEB_SERVER_INSTANCE is not defined");
+                return;
+            }
+            
 
         } else {
             //only remote gun url :
@@ -61,9 +63,25 @@ class ServerDatabase {
         console.log("[GUN.JS] LOCAL_DATABASE='" + G.CONFIG.val('LOCAL_DATABASE') + "', OPTIONS:");
         console.log(gunOptionsDump);
 
-        G.GUN = Gun(gunOptions);
-        G.GUN_DB_COMPUTERS = G.GUN.get(G.CONFIG.val('TABLE_COMPUTERS'));
-        G.GUN_DB_MESSAGES = G.GUN.get(G.CONFIG.val('TABLE_MESSAGES'));
+        try {
+            // Initialiser Gun.js
+            // Note: Gun.js va automatiquement ajouter un listener 'upgrade' sur le serveur HTTP
+            // pour gérer les WebSockets sur le chemin /gun
+            G.GUN = Gun(gunOptions);
+            G.GUN_DB_COMPUTERS = G.GUN.get(G.CONFIG.val('TABLE_COMPUTERS'));
+            G.GUN_DB_MESSAGES = G.GUN.get(G.CONFIG.val('TABLE_MESSAGES'));
+            console.log("[GUN.JS] Gun.js initialized successfully");
+            
+            // Vérification post-initialisation
+            if (gunOptions.web && gunOptions.web.on) {
+                const upgradeListeners = gunOptions.web.listeners('upgrade');
+                console.log("[GUN.JS] Server now has " + upgradeListeners.length + " upgrade listener(s)");
+            }
+        } catch (err) {
+            console.error("[GUN.JS] ERROR! Failed to initialize Gun.js:", err);
+            console.error("[GUN.JS] Error stack:", err.stack);
+            throw err;
+        }
     }
 
     dbComputersSaveData(idPC, value, logId){

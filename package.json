@@ -27,6 +27,10 @@
     },
     "net-ping": {
       "raw-socket": "npm:@justjam2013/raw-socket@1.0.0"
+    },
+    "ws": "^8.18.0",
+    "gun": {
+      "ws": "^8.18.0"
     }
   },
   "devDependencies": {

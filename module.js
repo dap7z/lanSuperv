@@ -12,86 +12,7 @@ const {fork} = require('child_process');
 class LanSuperv {
 
     constructor() {
-        this.win = null;
         this.childProcess = null;
-        this.headLess = false;
-
-        //-------------------------------------------------------------------
-        // Check if graphic interface is available or not
-        //-------------------------------------------------------------------
-        let template = [];
-        switch(process.platform){
-            case 'darwin':
-
-                //OS X
-                const name = app.getName();
-                template.unshift({
-                    label: name,
-                    submenu: [
-                        {
-                            label: 'About ' + name,
-                            role: 'about'
-                        },
-                        {
-                            label: 'Quit',
-                            accelerator: 'Command+Q',
-                            click() { app.quit(); }
-                        },
-                    ]
-                })
-
-                break;
-            case 'linux':
-
-                //Linux (Ubuntu/Debian)
-                // detect if it's command line server or not :
-                const exec = require('child_process').exec;
-                const testscript = exec('sh isDesktop.sh /.');
-
-
-                testscript.stdout.on('data', function(data){
-                    console.log('data from isDeskyop.sh: ', data);
-                    // sendBackInfo();
-                });
-
-                break;
-            case 'win32':
-
-                //Windows
-                console.log('...win32...');
-                break;
-            default:
-                console.log('Unknow platform: '+ process.platform);
-
-        }
-
-        //END
-        this.statusMessage("This is the constructor End !");
-    }
-
-    //-------------------------------------------------------------------
-    // Window that displays the version and working update
-    //-------------------------------------------------------------------
-    statusMessage(text) {
-        if(this.win){
-            this.win.webContents.send('message', text);
-        }
-        text += ' (displayOnWindow)';
-        console.log(text);
-    }
-
-    createDefaultWindow(callback) {
-        this.win = new BrowserWindow({show: false});
-        this.win.on('closed', () => {
-            this.win = null;
-        });
-        this.win.loadURL(`file://${__dirname}/main.html#v${app.getVersion()}`);
-        this.win.once('ready-to-show', () => {
-            this.win.show();
-            if(typeof callback === 'function'){
-                callback();
-            }
-        });
     }
 
     startApplication(ConfigFile){
@@ -109,13 +30,6 @@ class LanSuperv {
         {
             this.childProcess.on('message', (data) => {
                 console.log('/!\\ Message received from childProcess: ', data);
-                if(this.win){
-                    if (typeof data.type !== 'undefined'){
-                        this.win.webContents.send(data.type, data);
-                    }else{
-                        this.win.webContents.send('message', data);
-                    }
-                }
             });
         }
         else

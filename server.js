@@ -23,8 +23,7 @@ const Crypto = require('crypto');  //hash machineID
 
 const LanDiscovery = require('lan-discovery');
 
-//const IsPortAvailable = require('is-port-available'); //COMPATIBILITY ISSUE WITH COMMAND LINE ARGUMENT
-const IsPortAvailable = require('./node_modules_custom/is-port-available/index.js');
+const IsPortAvailable = require('is-port-available');
 
 
 

@@ -11,6 +11,46 @@ class ServerLanScanner {
         G = G_ref;
     }
 
+    setupScanListeners() {
+        if (!G.LAN_DISCOVERY) {
+            console.log("ERROR! setupScanListeners() called but G.LAN_DISCOVERY is not initialized yet");
+            return;
+        }
+        
+        // Use arrow function to preserve 'this' context
+        G.LAN_DISCOVERY
+            // EVENT_DEVICE_INFOS : new info(s) si available for one device
+            .on(LanDiscovery.EVENT_DEVICE_INFOS, (device) => {
+                //console.log('--> event '+ LanDiscovery.EVENT_DEVICE_INFOS +' :\n', device);
+                let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
+                let params = {
+                    lastCheck: new Date().toISOString(),
+                    hostname: device.name || '',  // Utiliser device.name si disponible
+                    lanIP: device.ip,
+                    lanMAC: device.mac
+                    //machineID: scan cant return that :(
+                };
+                this.processScanResult(params, remotePlugins);
+            })
+            // EVENT_DEVICES_INFOS : we got all infos of all devices
+            .on(LanDiscovery.EVENT_DEVICES_INFOS, (data) => {
+                //console.log('--> event '+ LanDiscovery.EVENT_DEVICES_INFOS +' :\n', data);
+                G.database.dbVisibleComputersSave();
+
+                //[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
+                G.SCAN_IN_PROGRESS = false;
+                let nbSecsBeforeNextScan = 60 * 60;
+                setTimeout(() => {
+                    this.startFullScan();
+                }, 1000 * nbSecsBeforeNextScan);
+            })
+            // EVENT_SCAN_COMPLETE : scan statistics
+            .on(LanDiscovery.EVENT_SCAN_COMPLETE, (data) => {
+                //console.log('--> event '+ LanDiscovery.EVENT_SCAN_COMPLETE +' :\n', data);
+                console.log('OK! scan completed in ' + data.scanTimeMS / 1000 + ' sec');
+            });
+    }
+
     //QuickScan: only previously visibles computers
     //LanScan: map ping on whole lan primary interface
 
@@ -215,34 +255,9 @@ class ServerLanScanner {
 
             let networkToScan = G.THIS_PC.lanInterface.network + '/' + G.THIS_PC.lanInterface.bitmask; //cdir notation
             let tabIP = F.cidrRange(networkToScan);
-            G.LAN_DISCOVERY
-                .on(LanDiscovery.EVENT_DEVICE_INFOS, (device) => {
-                    //console.log('--> event '+ LanDiscovery.EVENT_DEVICE_INFOS +' :\n', device);
-                    let params = {
-                        lastCheck: new Date().toISOString(),
-                        hostname: device.name || '',  // Utiliser device.name si disponible
-                        lanIP: device.ip,
-                        lanMAC: device.mac
-                        //machineID: scan cant return that :(
-                    };
-                    this.processScanResult(params, remotePlugins);
-                })
-                .on(LanDiscovery.EVENT_DEVICES_INFOS, (data) => {
-                    //console.log('--> event '+ LanDiscovery.EVENT_DEVICES_INFOS +' :\n', data);
-                    G.database.dbVisibleComputersSave();
-
-                    //[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
-                    G.SCAN_IN_PROGRESS = false;
-                    let nbSecsBeforeNextScan = 60 * 60;
-                    setTimeout(() => {
-                        this.startFullScan ();
-                    }, 1000 * nbSecsBeforeNextScan);
-                })
-                .on(LanDiscovery.EVENT_SCAN_COMPLETE, (data) => {
-                    //console.log('--> event '+ LanDiscovery.EVENT_SCAN_COMPLETE +' :\n', data);
-                    console.log('OK! scan completed in ' + data.scanTimeMS / 1000 + ' sec');
-                })
-                .startScan({ ipArrayToScan: tabIP }); // last call reserved to launch it
+            
+            // Les listeners sont déjà configurés dans setupScanListeners(), on lance juste le scan
+            G.LAN_DISCOVERY.startScan({ ipArrayToScan: tabIP });
         }
     }
 

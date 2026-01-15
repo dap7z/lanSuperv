@@ -2,8 +2,8 @@
 // On l'execute avec la commande suivante : 		node debug-lan-discovery.js
 
 const os = require('os');
-const defaultGateway = require('default-gateway');
 const LanDiscovery = require('lan-discovery');
+const F = require('./functions.js'); //FONCTIONS
 
 console.log('=== DIAGNOSTIC RÉSEAU ===\n');
 
@@ -17,27 +17,61 @@ Object.keys(interfaces).forEach(name => {
     });
 });
 
-// 2. Tester default-gateway directement
-console.log('\n2. Test de default-gateway:');
-defaultGateway.v4().then(result => {
-    console.log('  ✓ Passerelle IPv4 trouvée:', result);
-}).catch(err => {
-    console.log('  ✗ Erreur default-gateway IPv4:', err.message);
-    console.log('  Détails:', err);
-});
-
-defaultGateway.v6().then(result => {
-    console.log('  ✓ Passerelle IPv6 trouvée:', result);
-}).catch(err => {
-    console.log('  ✗ Erreur default-gateway IPv6:', err.message);
-});
-
-// 3. Tester LanDiscovery
-console.log('\n3. Test de LanDiscovery.getDefaultInterface():');
+// 2. Tester LanDiscovery (comme dans l'application principale)
+console.log('\n2. Test de LanDiscovery.getDefaultInterface():');
 const discovery = new LanDiscovery({ verbose: false, timeout: 60 });
+let defaultInterface = null;
+
 discovery.getDefaultInterface().then(interface => {
     console.log('  ✓ Interface par défaut trouvée:');
     console.log(JSON.stringify(interface, null, 2));
+    
+    // Afficher les détails de l'interface
+    console.log('\n  Détails de l\'interface:');
+    console.log(`    - IP: ${interface.ip_address}`);
+    console.log(`    - MAC: ${interface.mac_address}`);
+    console.log(`    - Network: ${interface.network}`);
+    console.log(`    - Bitmask: ${interface.bitmask}`);
+    console.log(`    - Fullmask: ${interface.fullmask}`);
+    console.log(`    - Gateway: ${interface.gateway_ip}`);
+    
+    defaultInterface = interface;
+    
+    // 3. Lancer le scan du LAN
+    console.log('\n3. Lancement du scan du LAN:');
+    const networkToScan = interface.network + '/' + interface.bitmask;
+    console.log(`  Réseau à scanner: ${networkToScan}`);
+    
+    const tabIP = F.cidrRange(networkToScan);
+    console.log(`  Nombre d'adresses IP à scanner: ${tabIP.length}`);
+    console.log(`  Première IP: ${tabIP[0]}, Dernière IP: ${tabIP[tabIP.length - 1]}`);
+    
+    let deviceCount = 0;
+    const startTime = Date.now();
+    
+    discovery
+        .on(LanDiscovery.EVENT_DEVICE_INFOS, (device) => {
+            deviceCount++;
+            console.log(`\n  [${deviceCount}] Appareil trouvé:`);
+            console.log(`    - Nom: ${device.name || 'N/A'}`);
+            console.log(`    - IP: ${device.ip || 'N/A'}`);
+            console.log(`    - MAC: ${device.mac || 'N/A'}`);
+            console.log(`    - Données complètes:`, JSON.stringify(device, null, 2));
+        })
+        .on(LanDiscovery.EVENT_DEVICES_INFOS, (data) => {
+            console.log('\n  ✓ Scan terminé - Tous les appareils:');
+            console.log(`    Nombre total d'appareils trouvés: ${deviceCount}`);
+            console.log(`    Temps de scan: ${((Date.now() - startTime) / 1000).toFixed(2)} secondes`);
+        })
+        .on(LanDiscovery.EVENT_SCAN_COMPLETE, (data) => {
+            console.log('\n  ✓ Scan complété:');
+            console.log(`    Temps total: ${(data.scanTimeMS / 1000).toFixed(2)} secondes`);
+            console.log(`    Appareils trouvés: ${deviceCount}`);
+        })
+        .startScan({ ipArrayToScan: tabIP });
+        
+    console.log('  Scan en cours... (attendez la fin du scan)');
+    
 }).catch(err => {
     console.log('  ✗ Erreur LanDiscovery:');
     console.log('  Message:', err.message);

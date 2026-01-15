@@ -5,42 +5,6 @@ let G = null; //GLOBALS
 const Ping = require('ping-bluebird');  //ping with better promise
 const LanDiscovery = require('lan-discovery');
 
-// CIDR range function (replaces cidr-range package to avoid vulnerable ip dependency)
-function cidrRange(cidr) {
-    const [network, prefixLength] = cidr.split('/');
-    const prefix = parseInt(prefixLength, 10);
-    
-    // Convert IP to number
-    const ipToNumber = (ip) => {
-        return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
-    };
-    
-    // Convert number to IP
-    const numberToIp = (num) => {
-        return [
-            (num >>> 24) & 0xFF,
-            (num >>> 16) & 0xFF,
-            (num >>> 8) & 0xFF,
-            num & 0xFF
-        ].join('.');
-    };
-    
-    const networkNum = ipToNumber(network);
-    const mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
-    const networkStart = networkNum & mask;
-    const networkEnd = networkStart | (~mask >>> 0);
-    
-    const ips = [];
-    for (let i = networkStart; i <= networkEnd; i++) {
-        // Skip network and broadcast addresses
-        if (i !== networkStart && i !== networkEnd) {
-            ips.push(numberToIp(i));
-        }
-    }
-    
-    return ips;
-}
-
 class ServerLanScanner {
 
     constructor(G_ref) {
@@ -240,7 +204,7 @@ class ServerLanScanner {
             console.log("OK! launchLanScan at", new Date().toISOString());
 
             let networkToScan = G.THIS_PC.lanInterface.network + '/' + G.THIS_PC.lanInterface.bitmask; //cdir notation
-            let tabIP = cidrRange(networkToScan);
+            let tabIP = F.cidrRange(networkToScan);
             G.LAN_DISCOVERY
                 .on(LanDiscovery.EVENT_DEVICE_INFOS, (device) => {
                     //console.log('--> event '+ LanDiscovery.EVENT_DEVICE_INFOS +' :\n', device);

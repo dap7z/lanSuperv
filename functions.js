@@ -136,6 +136,44 @@ class F {
         }
     }
 
+
+    // CIDR range function (replaces cidr-range package to avoid vulnerable ip dependency)
+    // Used in serverLanScanner.js and debug-lan-discovery.js
+    static cidrRange(cidr) {
+        let [network, prefixLength] = cidr.split('/');
+        let prefix = parseInt(prefixLength, 10);
+        
+        // Convert IP to number
+        let ipToNumber = (ip) => {
+            return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+        };
+        
+        // Convert number to IP
+        let numberToIp = (num) => {
+            return [
+                (num >>> 24) & 0xFF,
+                (num >>> 16) & 0xFF,
+                (num >>> 8) & 0xFF,
+                num & 0xFF
+            ].join('.');
+        };
+        
+        let networkNum = ipToNumber(network);
+        let mask = (0xFFFFFFFF << (32 - prefix)) >>> 0;
+        let networkStart = networkNum & mask;
+        let networkEnd = networkStart | (~mask >>> 0);
+        
+        let ips = [];
+        for (let i = networkStart; i <= networkEnd; i++) {
+            // Skip network and broadcast addresses
+            if (i !== networkStart && i !== networkEnd) {
+                ips.push(numberToIp(i));
+            }
+        }
+    
+        return ips;
+    }
+
 }
 
 module.exports = F;

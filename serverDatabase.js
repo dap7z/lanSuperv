@@ -29,7 +29,7 @@ class ServerDatabase {
         let gunOptions = {};
         if (G.CONFIG.val('LOCAL_DATABASE')) {
             //local gun url (json file storage) + remote gun url :
-            // Utiliser le même serveur Express pour HTTP et WebSocket (comme gunjs-notes-app)
+            // Utiliser le même serveur Express pour HTTP et WebSocket
             gunOptions = {
                 file: G.CONFIG.val('FILE_SHARED_DB'),
                 peers: G.CONFIG.val('GUN_PEERS'),
@@ -108,6 +108,9 @@ class ServerDatabase {
             idPC = String(idPC);
             
             const gunNode = G.GUN_DB_COMPUTERS.get(idPC);
+            
+            // Log pour déboguer pourquoi hostname vide quand serveur sur Raspberry Pi, raison : la commande host n'est pas installée par défaut.
+            // console.log(`[DB-SAVE] idPC: ${idPC}, hostname: ${value.hostname || 'N/A'}, lanIP: ${value.lanIP || 'N/A'}`);
             
             // Sauvegarde dans la bdd Gun.js :
             for (let key in value) {

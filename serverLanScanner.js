@@ -15,70 +15,66 @@ class ServerLanScanner {
     //LanScan: map ping on whole lan primary interface
 
 
-    pingCheck(pc, idPC) {
+    async pingCheck(pc, idPC) {
         let ip = pc.lanIP;
         let hostAddress = ip;
         if (hostAddress === G.THIS_PC.lanInterface.ip_address) {
             hostAddress = '127.0.0.1';   //self scan specific
             //20171018 Ping('localhost') doesnt work with the ping-bluebird nodejs package on windows10
         }
-        return new Promise(function (resolve) {
-            Ping(hostAddress, {timeout: 4})
-                .catch(function (res) {
-                    //required to resolve(finalResult) after ping fail
-                }).then(function (res) {
-                let finalResult = {
-                    idPC: idPC,
-                    lanIP: ip,
-                    'respondsTo-ping': res.alive
-                };
-                //res.time non supporte par npm package ping-bluebird
-                if (finalResult["respondsTo-ping"]) {
-                    //add lastResponse (already in F.checkData() for httpCheck and socketCheck)
-                    finalResult.lastResponse = new Date().toISOString();
-                }
-                resolve(finalResult);
-            });
-        });
+        try {
+            const res = await Ping(hostAddress, {timeout: 4});
+            let finalResult = {
+                idPC: idPC,
+                lanIP: ip,
+                'respondsTo-ping': res.alive
+            };
+            //res.time non supporte par npm package ping-bluebird
+            if (finalResult["respondsTo-ping"]) {
+                //add lastResponse (already in F.checkData() for httpCheck and socketCheck)
+                finalResult.lastResponse = new Date().toISOString();
+            }
+            return finalResult;
+        } catch (res) {
+            //required to resolve(finalResult) after ping fail
+            return {
+                idPC: idPC,
+                lanIP: ip,
+                'respondsTo-ping': false
+            };
+        }
     }
 
 
-    httpCheck(pc, idPC) {
+    async httpCheck(pc, idPC) {
         let ip = pc.lanIP;
-        return new Promise(function (resolve) {
+        let hostAddress = ip;
+        if (hostAddress === G.THIS_PC.lanInterface.ip_address) {
+            hostAddress = '127.0.0.1';  //self scan specific
+        }
+        let url = 'http://' + hostAddress + ':' + G.CONFIG.val('SERVER_PORT') + G.CONFIG.val('PATH_HTTP_EVENTS') + '/check';
 
-            let hostAddress = ip;
-            if (hostAddress === G.THIS_PC.lanInterface.ip_address) {
-                hostAddress = '127.0.0.1';  //self scan specific
-            }
-            let url = 'http://' + hostAddress + ':' + G.CONFIG.val('SERVER_PORT') + G.CONFIG.val('PATH_HTTP_EVENTS') + '/check';
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-            fetch(url, { signal: controller.signal })
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    clearTimeout(timeoutId);
-                    resolve({
-                        ...data,
-                        idPC: idPC,
-                        lanIP: ip
-                    });
-                })
-                .catch(err => {
-                    clearTimeout(timeoutId);
-                    resolve({
-                        'respondsTo-http': false,
-                        idPC: idPC,
-                        lanIP: ip
-                    });
-                });
-
-        });
+        try {
+            const response = await fetch(url, { signal: controller.signal });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            clearTimeout(timeoutId);
+            return {
+                ...data,
+                idPC: idPC,
+                lanIP: ip
+            };
+        } catch (err) {
+            clearTimeout(timeoutId);
+            return {
+                'respondsTo-http': false,
+                idPC: idPC,
+                lanIP: ip
+            };
+        }
     }
 
 
@@ -113,38 +109,52 @@ class ServerLanScanner {
 
     async startQuickScan() {
         //use global variable G.VISIBLE_COMPUTERS
-        let arrayReturn = [];
+        const promises = [];
 
         for (let [idPC, pcObject] of G.VISIBLE_COMPUTERS) {
 
-            //RESET (PLUGINS AND RESPONDSTO)
+            ////RESET seulement les propriétés respondsTo-* en les mettant à false
+            //// Gun.js met à jour uniquement les propriétés fournies, les autres restent intactes
+            //G.database.dbComputersSaveData(idPC, {
+            //    'respondsTo-ping': false,
+            //    'respondsTo-http': false,
+            //    'respondsTo-socket': false
+            //});
             G.database.dbComputersSaveData(idPC, {});
 
-            //PING CHECK PROMISES
-            let pingPromise = this.pingCheck(pcObject, idPC).then(function (finalResult) {
-                //Update pc infos :
-                F.logCheckWarning("ping", finalResult);
-                G.database.dbComputersSaveData(idPC, finalResult, "ping");
-            }, function (reason) {
-                console.log("##Promise## [pingCheck] Promise rejected "+ reason);
-            });
-            arrayReturn.push(pingPromise);
+            //PING CHECK
+            promises.push(
+                (async () => {
+                    try {
+                        const finalResult = await this.pingCheck(pcObject, idPC);
+                        // Gun.js met à jour uniquement les propriétés dans finalResult, les autres restent intactes
+                        F.logCheckWarning("ping", finalResult);
+                        G.database.dbComputersSaveData(idPC, finalResult, "ping");
+                    } catch (reason) {
+                        console.log("##ERROR## [pingCheck] Error:", reason);
+                    }
+                })()
+            );
 
-            //HTTP CHECK PROMISES
-            let httpPromise = this.httpCheck(pcObject, idPC).then(function (finalResult) {
-                //Update pc infos :
-                F.logCheckWarning("http", finalResult);
-                G.database.dbComputersSaveData(idPC, finalResult, "http"); //NEW
-            }, function (reason) {
-                console.log("##Promise## [httpCheck] Promise rejected "+ reason);
-            });
-            arrayReturn.push(httpPromise);
+            //HTTP CHECK
+            promises.push(
+                (async () => {
+                    try {
+                        const finalResult = await this.httpCheck(pcObject, idPC);
+                        // Gun.js met à jour uniquement les propriétés dans finalResult, les autres restent intactes
+                        F.logCheckWarning("http", finalResult);
+                        G.database.dbComputersSaveData(idPC, finalResult, "http");
+                    } catch (reason) {
+                        console.log("##ERROR## [httpCheck] Error:", reason);
+                    }
+                })()
+            );
 
             this.socketCheckNoNeedPromise(pcObject, idPC);
         }
 
-        console.log("OK! QuickScan launched (work in promises, not finished yet)");
-        return arrayReturn;
+        console.log("OK! QuickScan launched (work in async, not finished yet)");
+        return promises;
     }
 
 

@@ -160,16 +160,21 @@ export default class Client {
         let pcIsOnline = false;
         Object.entries(pc).forEach(([key, value]) => {
             //console.log(key +' => '+ value);
+            
+            //cast "boolean" value from gun.js db
+            const valueIsTrue = value === true || value === "true" || value === 1 || value === "1";
 
             //determine online status
-            if(key.startsWith("respondsTo-") && value !== null){
+            // Un PC est en ligne s'il répond à au moins un check (ping, http ou socket)
+            if(key.startsWith("respondsTo-") && valueIsTrue){
                 pcIsOnline = true;
             }
 
             let $dataContainer = $elem.find('.'+key);
             //badges respondsTo
             if($dataContainer.hasClass("badge")){
-                if(value){
+                // Vérifier si la valeur est true (booléen ou chaîne "true")
+                if(valueIsTrue){
                     $dataContainer.removeClass("badge-default");
                     $dataContainer.addClass("badge-success");
                 }else{

@@ -37,6 +37,13 @@ class ServerLanScanner {
                 //console.log('--> event '+ LanDiscovery.EVENT_DEVICES_INFOS +' :\n', data);
                 G.database.dbVisibleComputersSave();
 
+                // IMPORTANT: Launch QuickScan just after full scan completed
+                // REQUIRED to show new discovered computers (and with their status ping/http/socket)
+                if (G.VISIBLE_COMPUTERS.size > 0) {
+                    console.log("OK! Launching QuickScan after full scan completion");
+                    this.startQuickScan();
+                }
+
                 //[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
                 G.SCAN_IN_PROGRESS = false;
                 let nbSecsBeforeNextScan = 60 * 60;
@@ -153,13 +160,6 @@ class ServerLanScanner {
 
         for (let [idPC, pcObject] of G.VISIBLE_COMPUTERS) {
 
-            ////RESET seulement les propriétés respondsTo-* en les mettant à false
-            //// Gun.js met à jour uniquement les propriétés fournies, les autres restent intactes
-            //G.database.dbComputersSaveData(idPC, {
-            //    'respondsTo-ping': false,
-            //    'respondsTo-http': false,
-            //    'respondsTo-socket': false
-            //});
             G.database.dbComputersSaveData(idPC, {});
 
             //PING CHECK
@@ -223,6 +223,18 @@ class ServerLanScanner {
         for (let key in plugins) {
             pc[key] = plugins[key];
         }
+        
+        //init properties respondsTo-* to false at the first scan
+        if (!pc.hasOwnProperty('respondsTo-ping')) {
+            pc['respondsTo-ping'] = false;
+        }
+        if (!pc.hasOwnProperty('respondsTo-http')) {
+            pc['respondsTo-http'] = false;
+        }
+        if (!pc.hasOwnProperty('respondsTo-socket')) {
+            pc['respondsTo-socket'] = false;
+        }
+        
         G.database.dbComputersSaveData(idPC, pc);
     }
 

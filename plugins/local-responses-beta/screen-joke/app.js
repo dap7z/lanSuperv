@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
                     LAUNCH THIS APP WITH: electron app.js
  (get error if you try: node app.js, cannot read property 'on' of undefined)
  

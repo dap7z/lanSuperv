@@ -1,4 +1,4 @@
-const PluginName = 'poweroff';
+﻿const PluginName = 'poweroff';
 const PowerOff = require('power-off');
 
 process.on('message', (eventParams) => {

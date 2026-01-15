@@ -1,4 +1,4 @@
-
+﻿
 v0.4
 [add] logger
 [add] auto updater

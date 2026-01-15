@@ -1,4 +1,4 @@
-# Mirror
+﻿# Mirror
 
 Simple [Electron](http://electron.atom.io) application that plays a video of
 the computer's camera at a maximized size like looking into a mirror.

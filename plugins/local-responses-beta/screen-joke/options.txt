@@ -1,4 +1,4 @@
-[] full screen
+﻿[] full screen
 [] hide mouse
 [] on top of inactives window
 [] tranparent active window

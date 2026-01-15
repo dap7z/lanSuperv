@@ -1,4 +1,4 @@
-Just another idea of remote-request plugin :
+﻿Just another idea of remote-request plugin :
 
 Call remoteIP:80 and remoteIP:443 and show buttons to an enventual website :
 [http://remoteHost.Name]	//GREEN/RED

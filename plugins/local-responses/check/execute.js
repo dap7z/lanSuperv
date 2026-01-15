@@ -1,4 +1,4 @@
-const PluginName = 'check';
+﻿const PluginName = 'check';
 
 let F = require("../../../functions.js");
 

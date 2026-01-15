@@ -1,4 +1,4 @@
-// Fichier de test pour diagnostiquer un problème de détection de la passerelle par défaut
+﻿// Fichier de test pour diagnostiquer un problème de détection de la passerelle par défaut
 // On l'execute avec la commande suivante : 		node debug-lan-discovery.js
 
 const os = require('os');

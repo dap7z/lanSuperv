@@ -1,4 +1,4 @@
-/*************************************************************************************
+﻿/*************************************************************************************
  lanSuperv :
  - affiche les pc connectés et deconnectés du reseau local du serveur.
  - permet d'envoyer des packets WakeOnLan

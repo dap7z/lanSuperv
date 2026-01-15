@@ -1,4 +1,4 @@
-import JSONFormatter from 'json-formatter-js';
+﻿import JSONFormatter from 'json-formatter-js';
 
 export default class Chat {
 	

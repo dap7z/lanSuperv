@@ -1,4 +1,4 @@
-const PluginName = 'sleepmode';
+﻿const PluginName = 'sleepmode';
 const SleepMode = require('sleep-mode');
 
 process.on('message', (eventParams) => {

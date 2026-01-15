@@ -16,6 +16,7 @@ const Path = require('path');
 
 const Express = require('express'); //nodejs framework
 const BodyParser = require('body-parser'); //to get POST data
+const Gun = require('gun'); //Gun.js database
 
 const Crypto = require('crypto');  //hash machineID
 
@@ -98,12 +99,9 @@ class Server {
             res.sendFile(G.CONFIG_FILE);
         });
 
-        // Middleware pour éviter les conflits WebSocket avec Gun.js
-        // Gun.js gère automatiquement les requêtes sur /gun
-        G.WEB_SERVER.use(function(req, res, next) {
-            // Laisser passer toutes les requêtes, Gun.js gérera /gun automatiquement
-            next();
-        });
+        // Ajouter Gun.serve comme middleware Express
+        // Cela permet à Gun.js de gérer automatiquement les requêtes WebSocket sur /gun
+        G.WEB_SERVER.use(Gun.serve);
 
         G.LAN_DISCOVERY = new LanDiscovery({ verbose: false, timeout: 60 });
         G.LAN_DISCOVERY.getDefaultInterface().then( (defaultInterface) => {
@@ -126,7 +124,8 @@ class Server {
                     console.log('Reason : ' + IsPortAvailable.lastError);
                 }
                 else {
-                    G.WEB_SERVER_INSTANCE = G.WEB_SERVER.listen(G.WEB_SERVER.get('port'), () => {
+                    // Écouter sur toutes les interfaces (0.0.0.0) pour accepter les connexions depuis le réseau
+                    G.WEB_SERVER_INSTANCE = G.WEB_SERVER.listen(G.WEB_SERVER.get('port'), '0.0.0.0', () => {
                         //get listening port
                         let port = G.WEB_SERVER_INSTANCE.address().port;
                         let url = 'http://localhost:'+port;

@@ -29,10 +29,12 @@ class ServerDatabase {
         let gunOptions = {};
         if (G.CONFIG.val('LOCAL_DATABASE')) {
             //local gun url (json file storage) + remote gun url :
+            // Utiliser le même serveur Express pour HTTP et WebSocket (comme gunjs-notes-app)
             gunOptions = {
                 file: G.CONFIG.val('FILE_SHARED_DB'),
                 peers: G.CONFIG.val('GUN_PEERS'),
                 web: G.WEB_SERVER_INSTANCE,
+                radisk: false  // Désactiver radisk comme dans gunjs-notes-app
             };
             
             // On s'assure que le serveur est bien défini

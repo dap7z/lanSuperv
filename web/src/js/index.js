@@ -13,10 +13,20 @@ import { createApp, getCurrentInstance } from 'vue';
 import VueGun from 'vue-gun';
 const Gun = require('gun');
 localStorage.clear(); //remove old database saved into browser
-let gunPeers = Config.val('GUN_PEERS');
+
+// Utiliser location.origin + '/gun' comme dans le projet de référence qui fonctionne sur Raspberry Pi
+let gunPeers = [location.origin + '/gun'];
+
+// Ajouter les peers additionnels s'ils existent
+const additionalPeers = Config.val('GUN_PEERS') || [];
+additionalPeers.forEach(peer => {
+    if (peer && peer !== gunPeers[0]) {
+        gunPeers.push(peer);
+    }
+});
+
 
 // Initialiser Gun.js
-
 const gunInstance = Gun({
     peers: gunPeers
 });

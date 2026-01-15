@@ -210,7 +210,7 @@ class ServerLanScanner {
                     //console.log('--> event '+ LanDiscovery.EVENT_DEVICE_INFOS +' :\n', device);
                     let params = {
                         lastCheck: new Date().toISOString(),
-                        hostname: device.name,
+                        hostname: device.name || '',  // Utiliser device.name si disponible
                         lanIP: device.ip,
                         lanMAC: device.mac
                         //machineID: scan cant return that :(

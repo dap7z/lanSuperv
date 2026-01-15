@@ -130,8 +130,14 @@ export default class Client {
         if(id==='' || id===Config.val('TABLE_COMPUTERS')){
             return true; //ignore root element
         }
-        if(typeof(pc.hostname) === 'undefined'){
-            return true; //ignore "removed" gun.js entry, clearGunDatabase() not totaly remove pc
+        
+        // Si on n'a ni hostname ni lanIP, on ignore cet événement (données incomplètes) et on n'affiche pas la carte..
+        const hasHostname = pc.hostname && pc.hostname !== '';
+        const hasLanIP = pc.lanIP && pc.lanIP !== '';
+        if(!hasHostname && !hasLanIP){
+            // Pas assez de données pour afficher, on attend un événement avec plus de données
+            console.log("[CLIENT.JS] Ignoring event - no hostname and no lanIP for id:", id, "pc keys:", Object.keys(pc));
+            return true;
         }
 
         //retrieve element or clone the model if not found

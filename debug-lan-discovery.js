@@ -4,6 +4,8 @@
 const os = require('os');
 const LanDiscovery = require('lan-discovery');
 const F = require('./functions.js'); //FONCTIONS
+const discovery = new LanDiscovery({ verbose: false, timeout: 60 });
+const discoveryVerbose = new LanDiscovery({ verbose: true, timeout: 10 });
 
 console.log('=== DIAGNOSTIC RÉSEAU ===\n');
 
@@ -17,9 +19,23 @@ Object.keys(interfaces).forEach(name => {
     });
 });
 
-// 2. Tester LanDiscovery (comme dans l'application principale)
+// 2. Tester la fonction deviceName
+async function testDeviceName(ipTest){
+    console.log('------------ TEST DEVICE NAME -----------------');
+    console.log('Testing IP:', ipTest);
+    try {
+        // Utiliser la méthode deviceName de l'instance
+        let name = await discoveryVerbose.deviceName(ipTest);
+        console.log(ipTest + " name is :", name);
+    } catch (error) {
+        console.error('Error:', error);
+    }
+    console.log('-----------------------------------------------');
+}
+testDeviceName('10.10.1.200');
+
+// 3. Tester LanDiscovery (comme dans l'application principale)
 console.log('\n2. Test de LanDiscovery.getDefaultInterface():');
-const discovery = new LanDiscovery({ verbose: false, timeout: 60 });
 let defaultInterface = null;
 
 discovery.getDefaultInterface().then(interface => {
@@ -37,7 +53,7 @@ discovery.getDefaultInterface().then(interface => {
     
     defaultInterface = interface;
     
-    // 3. Lancer le scan du LAN
+    // 4. Lancer le scan du LAN
     console.log('\n3. Lancement du scan du LAN:');
     const networkToScan = interface.network + '/' + interface.bitmask;
     console.log(`  Réseau à scanner: ${networkToScan}`);

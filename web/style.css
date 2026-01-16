@@ -83,6 +83,25 @@
 }
 
 
+/* Gun.js DB Modal */
+#gunDbContent {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+#gunDbJson {
+    color: #333;
+    background-color: #fff;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
+#gunDbShowBtn {
+    margin-left: auto;
+}
+
 /* smartphones */
 @media only screen and (max-width : 992px) {
     body{

@@ -36,7 +36,13 @@
             <div class="row">
                 <div id="app" class="col-12">
                     
-                    <h1>Lan Superv</h1>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h1 class="mb-0">Lan Superv</h1>
+                        <button type="button" class="btn btn-info hidden" id="gunDbShowBtn" data-toggle="modal" data-target="#gunDbModal">
+                            <!-- class="... hidden" if no decentralized database diagnostic needed -->
+                            <i class="glyphicon glyphicon-database"></i> Database Gun.js
+                        </button>
+                    </div>
                     
                     <div id="pcModel" style="display: none;">
                         <div class="pcElem col-12 col-sm-6 col-md-6 col-lg-4 col-xl-2">
@@ -141,6 +147,31 @@
 			
 		</div>
 
+        <!-- Modal to show gun.js database content -->
+        <div class="modal fade" id="gunDbModal" tabindex="-1" role="dialog" aria-labelledby="gunDbModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="gunDbModalLabel">Contenu de la base de données Gun.js</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <button type="button" class="btn btn-primary btn-sm" id="btnRefreshGunDb">Actualiser</button>
+                            <span id="gunDbStatus" class="text-muted"></span>
+                        </div>
+                        <div id="gunDbContent" style="max-height: 70vh; overflow-y: auto; background-color: #f5f5f5; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+                            <pre id="gunDbJson" style="margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace; font-size: 12px;"></pre>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- INIT APP -->
         <script src="config.js"></script>

@@ -4,7 +4,7 @@ let G = null; //GLOBALS
 //LIBRARIES:
 const Fs = require('fs');
 const Gun = require('gun');
-const Http = require('http');
+const Path = require('path');
 
 /**
  * This class handle the data persistance layer
@@ -25,16 +25,21 @@ class ServerDatabase {
             return;
         }
 		
+        const dbPath = Path.join(__dirname, G.CONFIG.val('FILE_SHARED_DB'));  //ex: T:\GITLAB\lanSuperv\db1-shared.json
+        console.log("[GUN.JS] Database path (file or directory depending gun.js option radisk) : " + dbPath);
+
         //DECENTRALIZED DB (GUN.JS)
         let gunOptions = {};
         if (G.CONFIG.val('LOCAL_DATABASE')) {
             //local gun url (json file storage) + remote gun url :
             // Utiliser le même serveur Express pour HTTP et WebSocket
             gunOptions = {
-                file: G.CONFIG.val('FILE_SHARED_DB'),
+                file: dbPath,
                 peers: G.CONFIG.val('GUN_PEERS'),
                 web: G.WEB_SERVER_INSTANCE,
-                radisk: false  // Désactiver radisk comme dans gunjs-notes-app
+                //radisk: false  // Désactiver radisk comme dans gunjs-notes-app, sans oublier de renseigner file... mais ne fonctionne pas ici
+                radisk: true     // Avec cette option, le debug database gun.js 10sec apres lancement serveur fonctione.
+
             };
             
             // On s'assure que le serveur est bien défini
@@ -110,14 +115,15 @@ class ServerDatabase {
         // Récupérer le noeud Gun.js
         const gunNode = G.GUN_DB_COMPUTERS.get(idPC);
         
-        // Log pour déboguer pourquoi hostname vide quand serveur sur Raspberry Pi, raison : la commande host n'est pas installée par défaut.
-        // console.log(`[DB-SAVE] idPC: ${idPC}, hostname: ${value.hostname || 'N/A'}, lanIP: ${value.lanIP || 'N/A'}`);
-        
         // Sauvegarde dans la bdd Gun.js :
-        for (let key in value) {
-            gunNode.get(key).put(value[key]);
+        // Si possible utiliser put() avec l'objet complet pour limiter les synchronisations
+        // (dans le cas où l'objet serait partiel il faudrait sauvegarder chaque propriété séparément pour ne pas ecraser les données existantes)
+        try {
+            gunNode.put(value);
+            console.log(`[DATABASE] Save PC - idPC: ${idPC}, keys: ${Object.keys(value).length}, hostname: ${value.hostname || 'N/A'}`);
+        } catch (error) {
+            console.error(`[DATABASE] ERROR saving PC - idPC: ${idPC}, error:`, error);
         }
-        // Gun.js peut avoir des problèmes avec des objets complexes, donc on sauvegarde chaque propriété séparément pour éviter que Gun.js interprète mal la structure.
 
         if(logId){
             F.logCheckResult(logId, value);

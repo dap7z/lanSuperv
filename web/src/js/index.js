@@ -93,6 +93,20 @@ clearLocalStorage().then(() => {
                 chatJS.gunOnChangeDbMessages(message, id);
                 this.dbMessagesModel[id] = message; //OK?
             });
+            
+            // Setup button to show Gun.js database content
+            const gunDbShowBtn = document.getElementById('gunDbShowBtn');
+            const btnRefreshGunDb = document.getElementById('btnRefreshGunDb');
+            if (gunDbShowBtn) {
+                gunDbShowBtn.addEventListener('click', () => {
+                    this.showGunDbContent();
+                });
+            }
+            if (btnRefreshGunDb) {
+                btnRefreshGunDb.addEventListener('click', () => {
+                    this.showGunDbContent();
+                });
+            }
         },
         methods: {
             gunSendMessage: function(message){
@@ -100,6 +114,57 @@ clearLocalStorage().then(() => {
                 //console.log(message);
                 sharedObject.dbMessages.set(message);
             },
+            showGunDbContent: function() {
+                const dbContent = {
+                    computers: {},
+                    messages: {}
+                };
+                let computersLoaded = 0;
+                let messagesLoaded = 0;
+                const rootTableComputers = Config.val('TABLE_COMPUTERS');
+                const rootTableMessages = Config.val('TABLE_MESSAGES');
+                
+                // Afficher un message de chargement
+                document.getElementById('gunDbJson').textContent = 'Chargement des données...';
+                document.getElementById('gunDbStatus').textContent = 'Chargement en cours...';
+                
+                // Récupérer tous les PCs de dbComputers
+                if (sharedObject.dbComputers) {
+                    sharedObject.dbComputers.map().once((pc, id) => {
+                        if (pc !== null && id !== '' && id !== rootTableComputers) {
+                            // Cloner l'objet pour éviter les références
+                            dbContent.computers[id] = JSON.parse(JSON.stringify(pc));
+                            computersLoaded++;
+                        }
+                    });
+                }
+                
+                // Récupérer tous les messages de dbMessages
+                if (sharedObject.dbMessages) {
+                    sharedObject.dbMessages.map().once((message, id) => {
+                        if (message !== null && id !== '' && id !== rootTableMessages) {
+                            // Cloner l'objet pour éviter les références
+                            dbContent.messages[id] = JSON.parse(JSON.stringify(message));
+                            messagesLoaded++;
+                        }
+                    });
+                }
+                
+                // Attendre un peu pour que les données soient chargées, puis afficher
+                setTimeout(() => {
+                    try {
+                        const jsonContent = JSON.stringify(dbContent, null, 2);
+                        document.getElementById('gunDbJson').textContent = jsonContent;
+                        const totalCount = Object.keys(dbContent.computers).length + Object.keys(dbContent.messages).length;
+                        document.getElementById('gunDbStatus').textContent = 
+                            `${Object.keys(dbContent.computers).length} PC(s), ${Object.keys(dbContent.messages).length} message(s) - Total: ${totalCount}`;
+                    } catch (error) {
+                        console.error("[INDEX.JS] Error displaying Gun.js content:", error);
+                        document.getElementById('gunDbJson').textContent = 'Erreur lors de la sérialisation des données: ' + error.message;
+                        document.getElementById('gunDbStatus').textContent = 'Erreur';
+                    }
+                }, 2000); // Attendre 2 secondes pour que toutes les données soient chargées
+            }
         }
     });
 

@@ -257,6 +257,75 @@ class Server {
         eventHandler.setupHttpEventsLiteners();
         eventHandler.setupSocketEventsListeners();
 
+
+        //----- FOR DIAGNOSTIC ONLY, DUMP GUN.JS DATABASE CONTENT AFTER 10 SECONDS -----
+        let dumpDatabaseDiagLvl = 0; // no diag
+        dumpDatabaseDiagLvl = 1; // basic diag
+        //dumpDatabaseDiagLvl = 2; // full dump
+        if(dumpDatabaseDiagLvl){
+            setTimeout(() => {
+                console.log("\n========== GUN.JS DATABASE DUMP (PCs only) ==========");
+                if (typeof G.GUN_DB_COMPUTERS === 'undefined') {
+                    console.log("[GUN-DB-DUMP] ERROR! G.GUN_DB_COMPUTERS is not defined");
+                } else {
+                    const rootTableComputers = G.CONFIG.val('TABLE_COMPUTERS');
+                    console.log(`[GUN-DB-DUMP] Reading from root table: ${rootTableComputers}`);
+                    
+                    const dbContent = {};
+                    let computersCount = 0;
+                    const collectTimeout = 2000; // Collect data for 2 seconds
+                    
+                    const dataCollector = (pc, id) => {
+                        if (pc !== null && id !== '' && id !== rootTableComputers) {
+                            // Clone the object to avoid references
+                            try {
+                                const clonedPc = JSON.parse(JSON.stringify(pc));
+                                // Only count if it has meaningful data
+                                if (clonedPc.hostname || clonedPc.lanIP) {
+                                    dbContent[id] = clonedPc;
+                                    computersCount++;
+                                    console.log(`[GUN-DB-DUMP] idPC: ${id}, hostname: ${clonedPc.hostname || 'N/A'}, lanIP: ${clonedPc.lanIP || 'N/A'}`);
+                                }
+                            } catch (err) {
+                                console.log(`[GUN-DB-DUMP] ERROR cloning PC data for id: ${id}`, err);
+                            }
+                        }
+                    };
+                    
+                    // Use .on() to collect all data
+                    //G.GUN_DB_COMPUTERS.map().on(dataCollector);
+                    G.GUN_DB_COMPUTERS.map().once(dataCollector);
+                    
+                    // Also display what's in G.VISIBLE_COMPUTERS (in-memory Map)
+                    if (G.VISIBLE_COMPUTERS && G.VISIBLE_COMPUTERS.size > 0) {
+                        console.log(`[GUN-DB-DUMP] G.VISIBLE_COMPUTERS contains ${G.VISIBLE_COMPUTERS.size} PCs in memory:`);
+                        if(dumpDatabaseDiagLvl==2){
+                            const visibleComputersData = {};
+                            for (let [idPC, pcObject] of G.VISIBLE_COMPUTERS) {
+                                visibleComputersData[idPC] = pcObject;
+                            }
+                            console.log(JSON.stringify(visibleComputersData, null, 2));
+                        }
+                    }
+                    
+                    // Wait a bit for all data to be loaded, then display
+                    setTimeout(() => {
+                        if (computersCount > 0) {
+                            console.log(`[GUN-DB-DUMP] Total PCs found in gun.js database: ${computersCount}`);
+                            if(dumpDatabaseDiagLvl==2){
+                                console.log(JSON.stringify(dbContent, null, 2));
+                            }
+                        } else {
+                            console.log("[GUN-DB-DUMP] No PCs found in database");
+                        }
+                        console.log("==================================================\n");
+                    }, collectTimeout); // Wait some seconds for all data to be collected
+                }
+            }, 10000); // Wait 10 seconds after server start
+        }
+        //------------------------------------------------------------------------------
+
+
     }
 
 

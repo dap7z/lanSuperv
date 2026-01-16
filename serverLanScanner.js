@@ -38,7 +38,7 @@ class ServerLanScanner extends EventEmitter {
                 
                 // Listen for the detection completed event for this PC
                 this.once(`pcDetected:${idPC}`, () => {
-                    console.log(`[SCAN] pcDetected event received for idPC: ${idPC}, launching onePcScan`);
+                    console.log(`--> event pcDetected received for idPC: ${idPC}, launching onePcScan`);
                     let pcObject = G.VISIBLE_COMPUTERS.get(idPC);
                     if (pcObject) {
                         this.onePcScan(pcObject, idPC);
@@ -52,7 +52,7 @@ class ServerLanScanner extends EventEmitter {
             // EVENT_DEVICES_INFOS : we got IP+MAC of all devices
             .on(LanDiscovery.EVENT_DEVICES_INFOS, (data) => {
 
-                console.log('--> event '+ LanDiscovery.EVENT_DEVICES_INFOS + ', OK ALL ' + data.length + ' DEVICES FOUND HERE :', data.map(device => device.name).join(', '));
+                console.log('--> event '+ LanDiscovery.EVENT_DEVICES_INFOS + 'received, ALL ' + data.length + ' DEVICES FOUND :', data.map(device => device.name).join(', '));
 
                 G.database.dbVisibleComputersSave();
 
@@ -66,7 +66,7 @@ class ServerLanScanner extends EventEmitter {
             // EVENT_SCAN_COMPLETE : scan statistics
             .on(LanDiscovery.EVENT_SCAN_COMPLETE, (data) => {
                 //console.log('--> event '+ LanDiscovery.EVENT_SCAN_COMPLETE +' :\n', data);
-                console.log('OK! scan completed in ' + data.scanTimeMS / 1000 + ' sec');
+                console.log('OK! network scan completed in ' + data.scanTimeMS / 1000 + ' sec');
             });
     }
 

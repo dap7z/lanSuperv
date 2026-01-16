@@ -32,9 +32,24 @@ class ServerLanScanner extends EventEmitter {
                     lanMAC: device.mac
                     //machineID: scan cant return that :(
                 };
+                
+                // Calculer idPC avant processScanResult pour pouvoir écouter l'événement
+                let idPC = F.getPcIdentifier({ lanMAC: params.lanMAC, lanIP: params.lanIP });
+                
+                // Listen for the detection completed event for this PC
+                this.once(`pcDetected:${idPC}`, () => {
+                    console.log(`[SCAN] pcDetected event received for idPC: ${idPC}, launching onePcScan`);
+                    let pcObject = G.VISIBLE_COMPUTERS.get(idPC);
+                    if (pcObject) {
+                        this.onePcScan(pcObject, idPC);
+                    } else {
+                        console.log(`[SCAN] WARNING! pcObject not found in VISIBLE_COMPUTERS for idPC: ${idPC}`);
+                    }
+                });
+                
                 this.processScanResult(params, remotePlugins);
             })
-            // EVENT_DEVICES_INFOS : we got all infos of all devices
+            // EVENT_DEVICES_INFOS : we got IP+MAC of all devices
             .on(LanDiscovery.EVENT_DEVICES_INFOS, (data) => {
 
                 console.log('--> event '+ LanDiscovery.EVENT_DEVICES_INFOS + ', OK ALL ' + data.length + ' DEVICES FOUND HERE :', data.map(device => device.name).join(', '));
@@ -167,7 +182,7 @@ class ServerLanScanner extends EventEmitter {
                 try {
                     const finalResult = await this.pingCheck(pcObject, idPC);
                     F.logCheckWarning("ping", finalResult);
-                    G.database.dbComputersSaveData(idPC, finalResult, "ping");
+                    G.database.dbComputersSaveData(idPC, finalResult, "ping", false);
                 } catch (reason) {
                     console.log("##ERROR## [pingCheck] Error:", reason);
                 }
@@ -180,7 +195,7 @@ class ServerLanScanner extends EventEmitter {
                 try {
                     const finalResult = await this.httpCheck(pcObject, idPC);
                     F.logCheckWarning("http", finalResult);
-                    G.database.dbComputersSaveData(idPC, finalResult, "http");
+                    G.database.dbComputersSaveData(idPC, finalResult, "http", false);
                 } catch (reason) {
                     console.log("##ERROR## [httpCheck] Error:", reason);
                 }
@@ -230,24 +245,14 @@ class ServerLanScanner extends EventEmitter {
             pc[key] = plugins[key];
         }
         
-        //init properties respondsTo-* to false at the first scan
-        if (!pc.hasOwnProperty('respondsTo-ping')) {
-            pc['respondsTo-ping'] = false;
-        }
-        if (!pc.hasOwnProperty('respondsTo-http')) {
-            pc['respondsTo-http'] = false;
-        }
-        if (!pc.hasOwnProperty('respondsTo-socket')) {
-            pc['respondsTo-socket'] = false;
-        }
         
         console.log(`[SCAN] Saving PC - idPC: ${idPC}, hostname: ${pc.hostname || 'N/A'}, lanIP: ${pc.lanIP || 'N/A'}, lanMAC: ${pc.lanMAC || 'N/A'}`);
         G.database.dbComputersSaveData(idPC, pc);
         
-        // Émettre l'événement de sauvegarde terminée
-        // Utiliser setImmediate pour s'assurer que la sauvegarde Gun.js est bien terminée
+        // Émettre l'événement de pcDetected
+        // On utilise setImmediate pour s'assurer que la sauvegarde Gun.js est bien terminée
         setImmediate(() => {
-            this.emit(`pcSaved:${idPC}`);
+            this.emit(`pcDetected:${idPC}`);
         });
     }
 

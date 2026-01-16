@@ -91,39 +91,36 @@ class ServerDatabase {
             console.log("WARNING! dbComputersSaveData() gun.js dbComputers required !");
             return;
         }
+
+        if (idPC) {
+            // Gun.js nécessite des Strings pour les clés, donc on s'assure que idPC est toujours une String.
+            idPC = String(idPC);
+        }else{
+            console.log("WARNING! dbComputersSaveData() idPC required !");
+            return;
+        }
         
         // Vérifier si value est un objet vide
         if (value && typeof value === 'object' && Object.keys(value).length === 0) {
             // Objet vide : réinitialiser les données
-            if (idPC) {
-                idPC = String(idPC);
-                G.GUN_DB_COMPUTERS.get(idPC).put({});
-            }
+            G.GUN_DB_COMPUTERS.get(idPC).put({});
             return;
         }
         
-        if(idPC)
-        {
-            // Gun.js nécessite des Strings pour les clés, donc on s'assure que idPC est toujours une String.
-            idPC = String(idPC);
-            
-            const gunNode = G.GUN_DB_COMPUTERS.get(idPC);
-            
-            // Log pour déboguer pourquoi hostname vide quand serveur sur Raspberry Pi, raison : la commande host n'est pas installée par défaut.
-            // console.log(`[DB-SAVE] idPC: ${idPC}, hostname: ${value.hostname || 'N/A'}, lanIP: ${value.lanIP || 'N/A'}`);
-            
-            // Sauvegarde dans la bdd Gun.js :
-            for (let key in value) {
-                gunNode.get(key).put(value[key]);
-            }
-            // Gun.js peut avoir des problèmes avec des objets complexes, donc on sauvegarde chaque propriété séparément pour éviter que Gun.js interprète mal la structure.
+        // Récupérer le noeud Gun.js
+        const gunNode = G.GUN_DB_COMPUTERS.get(idPC);
+        
+        // Log pour déboguer pourquoi hostname vide quand serveur sur Raspberry Pi, raison : la commande host n'est pas installée par défaut.
+        // console.log(`[DB-SAVE] idPC: ${idPC}, hostname: ${value.hostname || 'N/A'}, lanIP: ${value.lanIP || 'N/A'}`);
+        
+        // Sauvegarde dans la bdd Gun.js :
+        for (let key in value) {
+            gunNode.get(key).put(value[key]);
+        }
+        // Gun.js peut avoir des problèmes avec des objets complexes, donc on sauvegarde chaque propriété séparément pour éviter que Gun.js interprète mal la structure.
 
-            if(logId){
-                F.logCheckResult(logId, value);
-            }
-            
-        }else{
-            console.log('ERROR! dbComputersSaveData() undefined idPC');
+        if(logId){
+            F.logCheckResult(logId, value);
         }
     }
 

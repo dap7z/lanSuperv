@@ -71,7 +71,19 @@ class Server {
         //----- LAUNCH HTTP SERVER -----
         G.WEB_SERVER = Express();
         G.WEB_SERVER.set('port', G.CONFIG.val('SERVER_PORT') );
-        G.WEB_SERVER.use(Express.static(Path.join(__dirname, 'web')));
+        
+        // Serve static files with cache-control headers to force reload on every page load
+        G.WEB_SERVER.use(Express.static(Path.join(__dirname, 'web'), {
+            setHeaders: function(res, path) {
+                // Disable caching for all static files
+                res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+                res.setHeader('Pragma', 'no-cache');
+                res.setHeader('Expires', '0');
+                res.setHeader('Surrogate-Control', 'no-store');
+                // Remove ETag to prevent conditional requests
+                res.removeHeader('ETag');
+            }
+        }));
         //__dirname is native Node variable which contains the file path of the current folder
         G.WEB_SERVER.use(BodyParser.urlencoded({extended: false}));   //to get POST data
         //extended: false means you are parsing strings only (not parsing images/videos..etc)
@@ -95,6 +107,10 @@ class Server {
 
         //Serve config.js as if it was in web directory
         G.WEB_SERVER.get('/config.js', function (req, res) {
+            // Set cache-control headers for config.js
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
             res.sendFile(G.CONFIG_FILE);
         });
 
@@ -198,6 +214,10 @@ class Server {
 
         //----- HANDLE HOMEPAGE REQUEST (HTTP/HTTPS) -----
         G.WEB_SERVER.get('/', function (homePageRequest, homePageResponse) {
+            // Set cache-control headers for HTML page to force reload
+            homePageResponse.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+            homePageResponse.setHeader('Pragma', 'no-cache');
+            homePageResponse.setHeader('Expires', '0');
             homePageResponse.sendFile(Path.join(__dirname + '/web/view.html'));
             console.log("~~~~ SEND HTML PAGE AND START QUICK SCAN (ping/http/socket) ~~~~");
 

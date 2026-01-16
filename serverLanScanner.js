@@ -58,7 +58,7 @@ class ServerLanScanner extends EventEmitter {
 
                 //[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
                 G.SCAN_IN_PROGRESS = false;
-                let nbSecsBeforeNextScan = 60 * 60;
+                let nbSecsBeforeNextScan = 60 * 60;   // FULL SCAN every hour, followed by onePcScan on every detected PC.
                 setTimeout(() => {
                     this.startFullScan();
                 }, 1000 * nbSecsBeforeNextScan);

@@ -190,6 +190,8 @@ class Server {
         //----- LAUNCH FIRST SCAN -----
         const ServerLanScanner = require('./serverLanScanner');
         let lanScanner = new ServerLanScanner(G);
+        // Store lanScanner reference for event emit in ServerLanScanner class
+        G.lanScanner = lanScanner;
         // Setup listener one time only, just after instanciation
         lanScanner.setupScanListeners();
         lanScanner.startFullScan();

@@ -55,7 +55,8 @@ const app = createApp({
         let chatJS = new Chat(this.gunSendMessage);
         chatJS.init();
 
-        //listen on dbComputers database updates :
+        //listen on dbComputers database updates
+        //.on() automatically loads existing data like .once() AND listens for future changes
         sharedObject.dbComputers.map().on((pc, id) => {
             console.log("[INDEX.JS] Gun.js dbComputers event triggered - id:", id, "pc:", pc);
             if(pc !== null){ //null si exec dbComputersClearData()
@@ -63,7 +64,7 @@ const app = createApp({
                 clientJS.gunOnChangeDbComputers(pc, id);
                 this.dbComputersModel[id] = pc;
             } else {
-                console.log("[INDEX.JS] Ignoring null pc for id:", id);
+                console.log("[INDEX.JS] Ignoring null/invalid pc for id:", id);
             }
         });
 

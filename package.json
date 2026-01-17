@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "lan-superv",
-  "version": "0.5.000",
+  "version": "0.6.000",
   "description": "Node.js app for lan supervision",
   "author": "Damien Pointier",
   "license": "MIT",
@@ -47,7 +47,7 @@
     "lan-discovery": "^1.0.5",
     "node-machine-id": "^1.1.12",
     "ping-bluebird": "0.0.3",
-    "power-off": "^1.0.1",
+    "power-off": "^1.1.2",
     "sleep-mode": "^1.1.0",
     "vue": "^3.5.26",
     "vue-gun": "0.0.3",

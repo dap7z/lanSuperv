@@ -149,8 +149,7 @@ class ServerEventHandler {
 
         //used globals: G.PLUGINS_INFOS G.THIS_PC.lanInterface
         //fonctions args: p(eventParameters), f(eventFrom)
-        console.log("LOG! eventDispatcher receive " + p.eventName + " event from " + f + ", pcTarget:" + p.pcTarget.lanMAC);
-        //console.log(p.pcTarget);
+        console.log("LOG! eventDispatcher receive " + p.eventName + " event from " + f + ", pcTarget:", + p.pcTarget);
 
         //add some event parameters :
         p.lanInterface = G.THIS_PC.lanInterface;
@@ -215,6 +214,15 @@ class ServerEventHandler {
     setupSocketEventsListeners(){
         //++++++++++ SOCKET EVENT (GUN.JS) ++++++++++
         G.GUN_DB_MESSAGES.map().on( (eventData, id) => {
+            
+            // Affichage des evénements reçus
+            if (eventData && eventData.eventName) {
+                console.log(`[EVENT] Received event: ${eventData.eventName}, id: ${id}, eventReceivedAt: ${eventData.eventReceivedAt || 'null'}, pcTargetLanMAC: ${eventData.pcTargetLanMAC || 'N/A'}, pcTargetMachineID: ${eventData.pcTargetMachineID || 'N/A'}`);
+            } else if (eventData) {
+                console.log(`[EVENT] Received data without eventName:`, eventData);
+            } else {
+                console.log(`[EVENT] Received null/undefined eventData. id: ${id}`);
+            }
 
             if (eventData && eventData.eventReceivedAt == null) {
 
@@ -223,13 +231,11 @@ class ServerEventHandler {
                     lanMAC: eventData.pcTargetLanMAC,
                     machineID: eventData.pcTargetMachineID
                 };
-                pcTarget.idPC = F.getPcIdentifier(pcTarget);
-                //(idPC: lanMAC sans les deux points ou machineID, pour l'instant uniquement lanMAC')
+                pcTarget.idPC = F.getPcIdentifier(pcTarget);  // required because its G.VISIBLE_COMPUTERS array key
+                let readMessage = this.eventTargetIsThisPC(eventData);
+                let isSelfShutdownEvent = readMessage && (eventData.eventName === 'power-off' || eventData.eventName === 'sleep-mode');
 
-                let readMessage = false;
-                if(pcTarget.lanMAC === G.THIS_PC.lanInterface) readMessage = true;
-                if(pcTarget.machineID === G.THIS_PC.machineID) readMessage = true;
-
+                
                 //If eventData.type == remote-request && eventData.target in G.VISIBLE_COMPUTERS -> read and process event
                 if(typeof G.PLUGINS_INFOS[eventData.eventName] === 'undefined')
                 {
@@ -241,18 +247,53 @@ class ServerEventHandler {
                     //Reminder: G.VISIBLE_COMPUTERS is empty before 1st scan and then contains only powered on pc
                     //May be not the thing to use here ... (for wol)
                     //But still acceptable since we save it in a file :)
-                    readMessage = G.VISIBLE_COMPUTERS.has(pcTarget.idPC);
+                    if(G.VISIBLE_COMPUTERS.has(pcTarget.idPC)) {
+                        readMessage = true;
+                        console.log(`[EVENT] Event ${eventData.eventName} is remote-request and target is in VISIBLE_COMPUTERS`);
+                    }
                 }
 
-
-                if(readMessage)
+                if(!readMessage)
+                {
+                    // Log de débogage pour comprendre pourquoi l'événement n'est pas pris en compte pour etre traité ou transmis
+                    console.log(`[EVENT] Event ${eventData.eventName} NOT processed - pcTarget.lanMAC: ${pcTarget.lanMAC}, THIS_PC.lanInterface.mac_address: ${G.THIS_PC.lanInterface ? G.THIS_PC.lanInterface.mac_address : 'undefined'}, pcTarget.machineID: ${pcTarget.machineID}, THIS_PC.machineID: ${G.THIS_PC.machineID || 'undefined'}`);
+                }
+                else
                 {
                     eventData.eventResult = '';
                     eventData.eventReceivedAt = new Date().toISOString();
-                    //we have to update database first if event is going to stop the server (power-off/sleep-mode/...)
-                    G.GUN_DB_MESSAGES.get(id).put(eventData, () => {
-                        //then we can process event:
 
+                    // --- Traitement specifique aux événements qui arrêtent le PC (power-off/sleep-mode) :
+                    //   - si l'événement date de plus de 2 minutes, on l'ignore et on l'aquitte pour éviter re-traitement au redémarrage
+                    let shouldIgnoreEvent = false;
+                    if (isSelfShutdownEvent)
+                    {
+                        let ageInMinutes = 0;
+                        if(! eventData.eventSendedAt){
+                            shouldIgnoreEvent = true;
+                        }else{
+                            // Vérifier si l'événement date de plus de 2 minutes
+                            const eventDate = new Date(eventData.eventSendedAt);
+                            const now = new Date();
+                            ageInMinutes = (now - eventDate) / (1000 * 60);
+                            if (ageInMinutes > 2) {
+                                shouldIgnoreEvent = true;
+                            }
+                        }
+                        if(shouldIgnoreEvent){
+                            let message = `Event ${eventData.eventName} ignored (too old: ${ageInMinutes.toFixed(2)} minutes)`;
+                            console.log('[EVENT] ' + message);
+                            // Acquitter l'événement comme si on l'avait traité
+                            eventData.eventResult = JSON.stringify({ msg: message });
+                            G.GUN_DB_MESSAGES.get(id).put(eventData);
+                            // L'événement doit être ignoré, ne pas continuer le traitement
+                            return;
+                            }
+                        }
+                     // ---
+
+
+                     G.GUN_DB_MESSAGES.get(id).put(eventData, () => {
                         if(eventData.eventName === 'check')
                         {
                             if(this.eventTargetIsThisPC(eventData))

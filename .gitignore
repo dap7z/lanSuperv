@@ -9,6 +9,7 @@ dev-install/
 *-shared.json
 *-local.json
 visibleComputers.json
+/radata
 
 #current config file:
 config.js

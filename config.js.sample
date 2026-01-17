@@ -4,11 +4,12 @@ let PARAMS = new Array();
 PARAMS['APP_AUTO_UPDATE'] = true;       //NEXTS RELEASES
 PARAMS['APP_AUTO_START'] = true;        //NEXTS RELEASES
 
-PARAMS['DATABASE_NAME'] = 'db1';  //change db name to reset data (by creating a new db)
+PARAMS['DATABASE_NAME'] = 'db-lansuperv';  // /!\ NAME HAVE TO BE THE SAME BETWEEN ALL INTANCES OF THE APP OTHERWISE EVENTS CANT BE READ /!\
 
 PARAMS['SERVER_ADDRESS'] = '';
 //'' AS DEFAULT (localhost, create database for each installed application)
 //'https://main-server-domain.com' AS SHARED GUN.JS DATABASE
+// /!\ LET IT EMPTY IF THIS MACHINE IS THE MAIN SERVER /!\
 
 PARAMS['SERVER_PORT'] = 842;
 PARAMS['SOCKET_PORT'] = 842;

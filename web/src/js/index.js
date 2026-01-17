@@ -50,7 +50,7 @@ clearLocalStorage().then(() => {
     const gunInstance = Gun({
         peers: gunPeers
     });
-    console.log("[INDEX.JS] Gun.js instance created:", gunInstance);
+    console.log("[INDEX.JS] Gun.js instance created with peers:", gunPeers);
 
     // Créer l'application Vue 3
     const app = createApp({
@@ -110,9 +110,12 @@ clearLocalStorage().then(() => {
         },
         methods: {
             gunSendMessage: function(message){
-                //console.log("execute function gunSendMessage() with msg:");
-                //console.log(message);
-                sharedObject.dbMessages.set(message);
+                try {
+                    sharedObject.dbMessages.set(message);
+                    //console.log("[CLIENT] Message sent to Gun.js:", message);
+                } catch (error) {
+                    console.error("[CLIENT] ERROR sending message to Gun.js:", error);
+                }
             },
             showGunDbContent: function() {
                 const dbContent = {

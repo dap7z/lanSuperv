@@ -1,4 +1,4 @@
-let F = require('./functions.js'); //FONCTIONS
+﻿let F = require('./functions.js'); //FONCTIONS
 let G = null; //GLOBALS
 
 //LIBRARIES:
@@ -51,7 +51,7 @@ class ServerDatabase {
 
         } else {
             //only remote gun url :
-            gunOptions = G.CONFIG.val('SOCKET_URL_DATABASE');
+            gunOptions = {peers: G.CONFIG.val('GUN_PEERS')};
             //PASSE ICI DANS LE CAS LANSUPERV LANCER SUR PC-XX-LAN AVEC :
             //	PARAMS['SERVER_ADDRESS'] = 'http://main-server.fr.cr';
             //	PARAMS['GUN_ADDITIONAL_PEERS'] = [];

@@ -25,6 +25,7 @@ const LanDiscovery = require('lan-discovery');
 
 const IsPortAvailable = require('is-port-available');
 
+let F = require('./functions.js'); //FONCTIONS
 
 
 //--GLOBALS--
@@ -35,6 +36,7 @@ let G = {
     THIS_PC: {
         hostnameLocal: Os.hostname(),
         machineID: null,
+        idPC: null,
         lanInterface: null,
         wanInterface: null
     },
@@ -130,7 +132,10 @@ class Server {
                     //return Crypto.createHash('sha1').update(guid).digest('hex'); //=>40
                     return Crypto.createHash('sha256').update(guid).digest('hex'); //=>64
                 }
-                G.THIS_PC.machineID = hash(id + G.THIS_PC.lanInterface.mac_address); //global scope
+                let macAddress = G.THIS_PC.lanInterface.mac_address;
+                G.THIS_PC.machineID = hash(id + macAddress); //global scope
+                G.THIS_PC.idPC = F.getPcIdentifier({lanMAC: macAddress});
+                console.log("[PcIdentifier] Finaly got mac address from lan interface, now we can calculate G.THIS_PC.idPC:", G.THIS_PC.idPC);
             });
 
             IsPortAvailable(G.WEB_SERVER.get('port')).then( (status) => {
@@ -159,13 +164,14 @@ class Server {
                                 serverUpNotification += 'wanIP: ' + ip + ')';
                                 G.THIS_PC.wanInterface = {ip: ip};
                                 console.log('OK! '+ serverUpNotification);
-                                this.onWebServerReady();  //function of Server class
                             })
                             .catch(err => {
                                 clearTimeout(timeoutId);
                                 serverUpNotification += 'unknow wanIP)';
                                 G.THIS_PC.wanInterface = {ip: null};
                                 console.log('OK! '+ serverUpNotification);
+                            })
+                            .finally(() => {
                                 this.onWebServerReady();  //function of Server class
                             });
                     });
@@ -192,6 +198,22 @@ class Server {
         const ServerDatabase = require('./serverDatabase');
         G.database = new ServerDatabase(G);
         G.database.initConnection();
+        
+        // Attendre un peu que Gun.js soit complètement initialisé, puis configurer les listeners d'événements
+        setTimeout(() => {
+            if (!G.GUN_DB_MESSAGES) {
+                console.error("[SERVER] ERROR! G.GUN_DB_MESSAGES is not defined after initConnection()!");
+                console.error("[SERVER] G.GUN:", G.GUN);
+                console.error("[SERVER] G.CONFIG.val('TABLE_MESSAGES'):", G.CONFIG.val('TABLE_MESSAGES'));
+            } else {
+                console.log("[SERVER] G.GUN_DB_MESSAGES is defined, setting up socket events listeners...");
+                if (G.eventHandler) {
+                    G.eventHandler.setupSocketEventsListeners();
+                } else {
+                    console.error("[SERVER] ERROR! G.eventHandler is not defined!");
+                }
+            }
+        }, 500); // Attendre 500ms pour que Gun.js soit complètement initialisé
         //G.GUN_DB_COMPUTERS is decentralized db and can be updated by multiples servers and so represents multiples lans
         //we need a way to determine if one computer is in the lan of the server (to declare him offline).
         //-> Reload G.VISIBLE_COMPUTERS map on server restart
@@ -253,16 +275,18 @@ class Server {
 
         //----- HANDLE EVENTS (HTTP/SCOKET) -----
         const ServerEventHandler = require('./serverEventHandler');
-        let eventHandler = new ServerEventHandler(G);
-        eventHandler.setupHttpEventsLiteners();
-        eventHandler.setupSocketEventsListeners();
+        G.eventHandler = new ServerEventHandler(G);  // Stocker dans G pour y accéder dans onWebServerReady()
+        G.eventHandler.setupHttpEventsLiteners();
+        // NOTE: setupSocketEventsListeners() sera appelé dans onWebServerReady() après initConnection()
 
 
         //----- FOR DIAGNOSTIC ONLY, DUMP GUN.JS DATABASE CONTENT AFTER 10 SECONDS -----
-        let dumpDatabaseDiagLvl = 0; // no diag
-        dumpDatabaseDiagLvl = 1; // basic diag
-        //dumpDatabaseDiagLvl = 2; // full dump
-        if(dumpDatabaseDiagLvl){
+        let dumpDatabaseDiagLvl = 0;  // no diag
+        dumpDatabaseDiagLvl = 1;      // basic diag
+        //dumpDatabaseDiagLvl = 2;    // full dump
+        if (dumpDatabaseDiagLvl && G.CONFIG.val('SERVER_ADDRESS').indexOf("localhost") === -1) {
+            console.log("[GUN-DB-DUMP] The Gun.js database is not populated here, it is populated on : " + G.CONFIG.val('SERVER_ADDRESS'));
+        } else if(dumpDatabaseDiagLvl){
             setTimeout(() => {
                 console.log("\n========== GUN.JS DATABASE DUMP (PCs only) ==========");
                 if (typeof G.GUN_DB_COMPUTERS === 'undefined') {

@@ -2,16 +2,23 @@
 
 let F = require("../../../functions.js");
 
-//import {checkData} from '../../../functions.js';
-//=> NODEJS9.11 SyntaxError: Unexpected token import
-
-
 process.on('message', (eventParams) => {
 	process.send('start');
     try {
-        let THIS_PC = eventParams.pcTarget;
         let respondsTo = eventParams.eventFrom;
-
+        
+        // donnes du pc local transmises specifiquement lors de l'execution du plugin check
+        let THIS_PC = eventParams.thisPC;
+        /*
+            hostnameLocal: x,
+            lanInterface : {
+                ip_address: x,
+                mac_address: x
+            },
+            machineID: x,
+            ...
+        */
+        
         let eventResult = F.checkData(THIS_PC, respondsTo);
         process.send(eventResult);
 		
@@ -19,7 +26,7 @@ process.on('message', (eventParams) => {
         process.exit();
 
     } catch (e) {
-        console.warn('Catched error on '+PluginName, e);
+        console.warn('Catched error on '+PluginName, eventParams.pcTargetLanMAC, e);
         process.send('fail');
     }
 });

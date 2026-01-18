@@ -74,6 +74,10 @@ class Server {
         G.WEB_SERVER = Express();
         G.WEB_SERVER.set('port', G.CONFIG.val('SERVER_PORT') );
         
+        // Ajouter Gun.serve AVANT les autres middlewares pour gérer correctement les WebSockets
+        // Les WebSockets nécessitent un traitement spécial et doivent être gérés avant les routes statiques
+        G.WEB_SERVER.use(Gun.serve);
+        
         // Serve static files with cache-control headers to force reload on every page load
         G.WEB_SERVER.use(Express.static(Path.join(__dirname, 'web'), {
             setHeaders: function(res, path) {
@@ -116,10 +120,6 @@ class Server {
             res.sendFile(G.CONFIG_FILE);
         });
 
-        // Ajouter Gun.serve comme middleware Express
-        // Cela permet à Gun.js de gérer automatiquement les requêtes WebSocket sur /gun
-        G.WEB_SERVER.use(Gun.serve);
-
         G.LAN_DISCOVERY = new LanDiscovery({ verbose: false, timeout: 60 });
         G.LAN_DISCOVERY.getDefaultInterface().then( (defaultInterface) => {
             //we start here with network informations
@@ -135,7 +135,7 @@ class Server {
                 let macAddress = G.THIS_PC.lanInterface.mac_address;
                 G.THIS_PC.machineID = hash(id + macAddress); //global scope
                 G.THIS_PC.idPC = F.getPcIdentifier({lanMAC: macAddress});
-                console.log("[PcIdentifier] Finaly got mac address from lan interface, now we can calculate G.THIS_PC.idPC:", G.THIS_PC.idPC);
+                console.log("[PcIdentifier] OK! Got mac address from lan interface, now we can calculate G.THIS_PC.idPC:", G.THIS_PC.idPC);
             });
 
             IsPortAvailable(G.WEB_SERVER.get('port')).then( (status) => {

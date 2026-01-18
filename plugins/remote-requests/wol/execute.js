@@ -5,7 +5,7 @@ process.on('message', (eventParams) => {
 	process.send('start');
 	try {
 
-		let macAddress = eventParams.pcTarget.lanMAC;
+		let macAddress = eventParams.pcTargetLanMAC;
         process.send('try wake up '+ macAddress);
 		if(macAddress)
 		{
@@ -21,7 +21,7 @@ process.on('message', (eventParams) => {
 		}
 
 	} catch (e) {
-		console.warn('Catched error on '+ PluginName, macAddress, e);
+		console.warn('Catched error on '+ PluginName, eventParams.pcTargetLanMAC, e);
 		process.send('fail');
 	}
 	

@@ -8,52 +8,34 @@ class ServerEventHandler {
 
     constructor(G_ref) {
         G = G_ref;
+        // Set pour tracker les événements en cours de traitement (évite les doubles traitements)
+        this.processingEvents = new Set();
     }
 
+    // Fonction pour obtenir l'idPC de la cible à partir de eventData
+    targetIdPC(eventData){
+        return F.getPcIdentifier({lanMAC: eventData.pcTargetLanMAC});
+    }
 
     eventTargetIsThisPC(eventData){
-        let pcTargetLanMAC = null;
-        let pcTargetMachineID = null;
-
-        if (typeof eventData.pcTarget === 'undefined') {
-            if(typeof eventData.pcTargetLanMAC === 'undefined' && typeof eventData.pcTargetMachineID === 'undefined'){
-                return true;  //not specified -> self event
-            }
-
-            //gun js event :
-            pcTargetLanMAC = eventData.pcTargetLanMAC;
-            pcTargetMachineID = eventData.pcTargetMachineID;
-        }else{
-
-            //http event :
-            pcTargetLanMAC = eventData.pcTarget.lanMAC;
-            pcTargetMachineID = eventData.pcTarget.machineID;
+        // Si aucune cible spécifiée (undefined pour pcTargetLanMAC), alors evenement broadcasté vers tous les PC y compris celui-ci.
+        if (!eventData.pcTargetLanMAC) {
+            return true;
         }
-
-        if(pcTargetLanMAC === G.THIS_PC.lanInterface.mac_address) return true;
-        if(pcTargetMachineID === G.THIS_PC.machineID) return true;
-
-        return false;
+        // Vérifier si l'idPC de la cible correspond à ce PC
+        let pcTargetIdPC = this.targetIdPC(eventData);
+        let myIdPC = G.THIS_PC.idPC;
+        return pcTargetIdPC === myIdPC;
     }
 
 
     eventRedirection(eventData, dbComputers, method='http'){
-        let pcTarget = eventData.pcTarget;
         let eventName = eventData.eventName;
 
         console.log('[PLUGIN '+ eventName +']: local execution only => resend event through socket');
-        //console.log('pcTarget');
-        //console.log(pcTarget);
-
-
-
-        //Search computer that have the same machineID in (gun.js bdd|local array!) and get his actual IP:
-        //console.log('Search for machineID:'+ pcTarget.machineID);
-        //TODO
-
 
         //Retrieve pc info from database :
-        let idTargetPC = this.getPcIdentifier(pcTarget);
+        let idTargetPC = this.targetIdPC(eventData);
         dbComputers.get(idTargetPC).once(function(pcTarget, id){
             //necessite dbComputers en parametre fonction eventRedirection...
 
@@ -70,7 +52,8 @@ class ServerEventHandler {
                 //====[HTTP]====
                 let jsonString = JSON.stringify({
                     'eventName': eventName,
-                    'pcTarget': pcTarget,
+                    'pcTargetLanMAC': eventData.pcTargetLanMAC,
+                    'pcTargetMachineID': eventData.pcTargetMachineID,
                     'password' : '*not*Implemented*',
                 });
 
@@ -149,7 +132,7 @@ class ServerEventHandler {
 
         //used globals: G.PLUGINS_INFOS G.THIS_PC.lanInterface
         //fonctions args: p(eventParameters), f(eventFrom)
-        console.log("LOG! eventDispatcher receive " + p.eventName + " event from " + f + ", pcTarget:", + p.pcTarget);
+        console.log("LOG! eventDispatcher receive " + p.eventName + " event from " + f + ", for pcTargetIdPC : " + (p.pcTargetIdPC || 'N/A') );
 
         //add some event parameters :
         p.lanInterface = G.THIS_PC.lanInterface;
@@ -162,12 +145,16 @@ class ServerEventHandler {
         }
 
         let processEvent = true;
+        let pcTargetIsThisPC = this.eventTargetIsThisPC(p);
+        
         if (p.dirPath.indexOf('local-responses') >= 0) //if local-response
         {
-            if (this.eventTargetIsThisPC(p)) {
-                p.pcTarget = 'self';
+            if (pcTargetIsThisPC) {
+                // Événement destiné à ce PC, on le traite
+                p.thisPC = G.THIS_PC;
             }
-            else if (p.pcTarget !== 'self') {
+            else {
+                // Événement destiné à un autre PC, on le redirige
                 if (f !== 'socket') {
                     this.eventRedirection(p, G.GUN_DB_COMPUTERS);
                 }
@@ -177,8 +164,8 @@ class ServerEventHandler {
             }
         }
         if (processEvent) {
-            if (p.pcTarget === 'self') {
-                p.pcTarget = G.THIS_PC;
+            if (pcTargetIsThisPC) {
+                p.thisPC = G.THIS_PC;
                 //(required for self check event)
             }
             //exec plugin in child process
@@ -198,40 +185,45 @@ class ServerEventHandler {
             //request.body properties come from a form post where the form data
             //request.params comes from path segments of the URL that match a parameter in the route definition such a /song/:songid
             let p = {
-                eventName: request.params.eventName,
-                pcTarget: 'self'
+                eventName: request.params.eventName
             };
+            
+            // Recuperation d'un eventuel pcTarget autre que le PC local
+            if (request.body && request.body.pcTargetLanMAC) {
+                p.pcTargetLanMAC = request.body.pcTargetLanMAC;
+            }
+            if (request.body && request.body.pcTargetMachineID) {
+                p.pcTargetMachineID = request.body.pcTargetMachineID;
+            }
+            
             //example:
             //http://localhost:842/cmd/check
             //http://localhost:842/cmd/power-off
             let responseData = await this.eventDispatcher(p, 'http');
             response.json(responseData); //json response
         });
-        console.log("OK! setup http events listeners");
+        console.log("[EVENT-RECEPTION] OK, http events listeners have been setup");
     }
 
 
     setupSocketEventsListeners(){
         //++++++++++ SOCKET EVENT (GUN.JS) ++++++++++
+        console.log("[EVENT-RECEPTION] Setting up Gun.js socket events listeners on DATABASE MESSAGES.");
+        //console.log("[EVENT-RECEPTION] LOCAL_DATABASE:", G.CONFIG.val('LOCAL_DATABASE'));
+        //console.log("[EVENT-RECEPTION] GUN_PEERS:", G.CONFIG.val('GUN_PEERS'));
+        
         G.GUN_DB_MESSAGES.map().on( (eventData, id) => {
-            
-            // Affichage des evénements reçus
-            if (eventData && eventData.eventName) {
-                console.log(`[EVENT] Received event: ${eventData.eventName}, id: ${id}, eventReceivedAt: ${eventData.eventReceivedAt || 'null'}, pcTargetLanMAC: ${eventData.pcTargetLanMAC || 'N/A'}, pcTargetMachineID: ${eventData.pcTargetMachineID || 'N/A'}`);
-            } else if (eventData) {
-                console.log(`[EVENT] Received data without eventName:`, eventData);
-            } else {
-                console.log(`[EVENT] Received null/undefined eventData. id: ${id}`);
-            }
-
             if (eventData && eventData.eventReceivedAt == null) {
 
+                // log des evénements reçus pas encore traités
+                if (eventData.eventName) {
+                    //console.log(`[EVENT-RECEPTION] Received event: ${eventData.eventName}, id: ${id}, pcTargetLanMAC: ${eventData.pcTargetLanMAC || 'N/A'}, pcTargetMachineID: ${eventData.pcTargetMachineID || 'N/A'}`);
+                } else {
+                    console.log(`[EVENT-RECEPTION] Received data without eventName:`, eventData);
+                }
+
                 //calculate idPC of target
-                let pcTarget = {
-                    lanMAC: eventData.pcTargetLanMAC,
-                    machineID: eventData.pcTargetMachineID
-                };
-                pcTarget.idPC = F.getPcIdentifier(pcTarget);  // required because its G.VISIBLE_COMPUTERS array key
+                let pcTargetIdPC = this.targetIdPC(eventData);
                 let readMessage = this.eventTargetIsThisPC(eventData);
                 let isSelfShutdownEvent = readMessage && (eventData.eventName === 'power-off' || eventData.eventName === 'sleep-mode');
 
@@ -247,21 +239,22 @@ class ServerEventHandler {
                     //Reminder: G.VISIBLE_COMPUTERS is empty before 1st scan and then contains only powered on pc
                     //May be not the thing to use here ... (for wol)
                     //But still acceptable since we save it in a file :)
-                    if(G.VISIBLE_COMPUTERS.has(pcTarget.idPC)) {
+                    if(G.VISIBLE_COMPUTERS.has(pcTargetIdPC)) {
                         readMessage = true;
-                        console.log(`[EVENT] Event ${eventData.eventName} is remote-request and target is in VISIBLE_COMPUTERS`);
+                        console.log(`[EVENT-RECEPTION] Event ${eventData.eventName} is remote-request and target is in VISIBLE_COMPUTERS`);
                     }
                 }
 
                 if(!readMessage)
                 {
                     // Log de débogage pour comprendre pourquoi l'événement n'est pas pris en compte pour etre traité ou transmis
-                    console.log(`[EVENT] Event ${eventData.eventName} NOT processed - pcTarget.lanMAC: ${pcTarget.lanMAC}, THIS_PC.lanInterface.mac_address: ${G.THIS_PC.lanInterface ? G.THIS_PC.lanInterface.mac_address : 'undefined'}, pcTarget.machineID: ${pcTarget.machineID}, THIS_PC.machineID: ${G.THIS_PC.machineID || 'undefined'}`);
+                    let myIdPC = G.THIS_PC.idPC;
+                    console.log(`[EVENT-RECEPTION] Event ${eventData.eventName} NOT processed - pcTargetIdPC: ${pcTargetIdPC}, THIS_PC.idPC: ${myIdPC}`);
+                    // Ne pas acquitter l'événement s'il n'est pas destiné à ce PC (sauf si on le transfère à un autre PC)
+                    return;
                 }
                 else
                 {
-                    eventData.eventResult = '';
-                    eventData.eventReceivedAt = new Date().toISOString();
 
                     // --- Traitement specifique aux événements qui arrêtent le PC (power-off/sleep-mode) :
                     //   - si l'événement date de plus de 2 minutes, on l'ignore et on l'aquitte pour éviter re-traitement au redémarrage
@@ -285,6 +278,7 @@ class ServerEventHandler {
                             console.log('[EVENT] ' + message);
                             // Acquitter l'événement comme si on l'avait traité
                             eventData.eventResult = JSON.stringify({ msg: message });
+                            eventData.eventReceivedAt = new Date().toISOString();
                             G.GUN_DB_MESSAGES.get(id).put(eventData);
                             // L'événement doit être ignoré, ne pas continuer le traitement
                             return;
@@ -292,16 +286,24 @@ class ServerEventHandler {
                         }
                      // ---
 
-
-                     G.GUN_DB_MESSAGES.get(id).put(eventData, () => {
+                    // Marquer l'événement comme "en cours de traitement" immédiatement pour éviter les doubles traitements
+                    // Mettre à jour directement la propriété eventReceivedAt sur le noeud Gun.js
+                    let eventReceivedAt = new Date().toISOString();
+                    G.GUN_DB_MESSAGES.get(id).get('eventReceivedAt').put(eventReceivedAt, () => {
+                        console.log(`[EVENT-RECEPTION] Event ${eventData.eventName} (id: ${id}) marked as received at ${eventReceivedAt}`);
+                        
+                        // Maintenant traiter l'événement
                         if(eventData.eventName === 'check')
                         {
                             if(this.eventTargetIsThisPC(eventData))
                             {
                                 //check events (specific, socketCheck update database directly) :
                                 let finalResult = F.checkData(G.THIS_PC, 'socket');
-                                finalResult['idPC'] = pcTarget.idPC;
+                                finalResult['idPC'] = pcTargetIdPC;
                                 G.database.dbComputersSaveData(finalResult.idPC, finalResult, "socket"); //NEW
+                                
+                                // Mettre à jour eventResult pour les événements check
+                                G.GUN_DB_MESSAGES.get(id).get('eventResult').put(JSON.stringify({ msg: 'check completed' }));
                             }
                         }
                         else
@@ -309,22 +311,26 @@ class ServerEventHandler {
                             //standard events :
                             let p = {
                                 eventName: eventData.eventName,
-                                pcTarget: pcTarget,
+                                pcTargetLanMAC: eventData.pcTargetLanMAC,
+                                pcTargetMachineID: eventData.pcTargetMachineID,
                             };
-                            let responseData = this.eventDispatcher(p, 'socket');
-
-                            let evtResult = {};
-                            if (responseData) {
-                                evtResult = responseData;
-                                //contain evtResult.msg
-                            }
-                            else {
-                                evtResult.msg = eventData.eventName + ' event received (no response)';
-                            }
-                            //send response message by updating eventResult database field:
-                            eventData.eventResult = JSON.stringify(evtResult);
-
-                            G.GUN_DB_MESSAGES.get(id).put(eventData);
+                            
+                            // Utiliser await pour attendre la fin du traitement
+                            this.eventDispatcher(p, 'socket').then((responseData) => {
+                                let evtResult = {};
+                                if (responseData) {
+                                    evtResult = responseData;
+                                    //contain evtResult.msg
+                                }
+                                else {
+                                    evtResult.msg = eventData.eventName + ' event received (no response)';
+                                }
+                                //send response message by updating eventResult database field:
+                                G.GUN_DB_MESSAGES.get(id).get('eventResult').put(JSON.stringify(evtResult));
+                            }).catch((error) => {
+                                console.error(`[EVENT] Error processing event ${eventData.eventName}:`, error);
+                                G.GUN_DB_MESSAGES.get(id).get('eventResult').put(JSON.stringify({ msg: 'error: ' + error.message }));
+                            });
                         }
 
                     });

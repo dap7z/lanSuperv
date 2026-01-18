@@ -14,7 +14,7 @@ process.on('message', (eventParams) => {
         });
 
     } catch (e) {
-        console.warn('Catched error on '+PluginName, macAddr, e);
+        console.warn('Catched error on '+PluginName, eventParams.pcTargetLanMAC, e);
         process.send('fail');
     }
 });

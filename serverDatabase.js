@@ -159,6 +159,105 @@ class ServerDatabase {
     }
     //---------------------------- END LOCAL DATABASE -----------------------------
 
+    // Nettoyer les messages de plus d'une heure (uniquement en mode local)
+    dbMessagesCleanup(){
+        if (!G.GUN_DB_MESSAGES) {
+            console.log("[DATABASE] WARNING! G.GUN_DB_MESSAGES not initialized, skipping cleanup");
+            return;
+        }
+
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        let deletedCount = 0;
+
+        console.log(`[DATABASE] Starting cleanup of messages older than 1 hour (before ${oneHourAgo})`);
+
+        G.GUN_DB_MESSAGES.map().once((message, id) => {
+            if (!message || !id) return;
+
+            // Vérifier si le message a plus d'une heure
+            let messageDate = null;
+            if (message.eventSendedAt) {
+                messageDate = new Date(message.eventSendedAt);
+            } else if (message.eventReceivedAt) {
+                messageDate = new Date(message.eventReceivedAt);
+            }
+
+            if (messageDate && messageDate < new Date(oneHourAgo)) {
+                // Supprimer le message
+                G.GUN_DB_MESSAGES.get(id).put(null);
+                deletedCount++;
+            }
+        });
+
+        // Attendre un peu pour que tous les messages soient traités
+        setTimeout(() => {
+            if (deletedCount > 0) {
+                console.log(`[DATABASE] Cleanup completed: ${deletedCount} message(s) deleted`);
+            } else {
+                console.log(`[DATABASE] Cleanup completed: no messages to delete`);
+            }
+        }, 1000);
+    }
+
+    // Démarrer le nettoyage périodique de la table messages si l'application est en mode local (maitre).
+    startMessagesCleanupInterval(){
+        if (G.CONFIG.val('LOCAL_DATABASE')) {
+            setInterval(() => {
+                console.log("[DATABASE] ==== Periodic cleanup of old messages (every hour) ====");
+                this.dbMessagesCleanup(); // Nettoyer toutes les heures
+            }, 60 * 60 * 1000); // 1 heure en millisecondes
+        }
+    }
+
+    // Ping manuel pour maintenir la connexion WebSocket Gun.js ouverte
+    // Écrit périodiquement dans un noeud spécial pour forcer la synchronisation et maintenir la connexion active
+    pingGunConnection(){
+        if (!G.GUN || !G.GUN_DB_MESSAGES) {
+            console.log("[GUN-PING] WARNING! Gun.js not initialized, skipping ping");
+            return;
+        }
+
+        // Créer un noeud spécial pour le ping (ne sera jamais utilisé pour des événements réels)
+        const pingNode = G.GUN_DB_MESSAGES.get('_ping_keepalive');
+        const pingData = {
+            timestamp: new Date().toISOString(),
+            idPC: G.THIS_PC.idPC || 'unknown',
+            hostname: G.THIS_PC.hostnameLocal || 'unknown'
+        };
+
+        // Mettre à jour le noeud ping pour forcer une synchronisation avec les peers
+        pingNode.put(pingData, (ack) => {
+            // Callback optionnel pour confirmer l'écriture
+            if (ack && ack.err) {
+                console.log("[GUN-PING] Ping sent but got error:", ack.err);
+            } else {
+                // Ping réussi - la connexion est maintenue
+                // Ne pas logger à chaque ping pour éviter le spam, seulement en cas d'erreur
+            }
+        });
+    }
+
+    // Démarrer le ping périodique pour maintenir la connexion WebSocket active
+    // Surtout utile en mode remote-only (quand LOCAL_DATABASE = false)
+    startGunPingInterval(){
+        if (!G.GUN) {
+            console.log("[GUN-PING] WARNING! Gun.js not initialized, cannot start ping interval");
+            return;
+        }
+
+        // Ping toutes les 30 secondes pour maintenir la connexion active
+        // (les timeouts WebSocket sont généralement de 60-120 secondes)
+        const pingInterval = 30 * 1000; // 30 secondes
+
+        // Ping la database gun.js à interval regulier pour maintenir la connexion active
+        setInterval(() => {
+            console.log("[GUN-PING] Periodic ping to keep WebSocket connection alive (every " + (pingInterval/1000) + " seconds)");
+            this.pingGunConnection();
+        }, pingInterval);
+        // ... ok la connexion est maintenue mais on recoi tjrs pas les evt en temps reel en provenance du rasp
+        // ni en rechargeant l'application dailleurs....
+    }
+
 
 }
 

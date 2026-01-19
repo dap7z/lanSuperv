@@ -6,6 +6,8 @@ PARAMS['APP_AUTO_START'] = true;        //NEXTS RELEASES
 
 PARAMS['DATABASE_NAME'] = 'db-lansuperv';  // /!\ NAME HAVE TO BE THE SAME BETWEEN ALL INTANCES OF THE APP OTHERWISE EVENTS CANT BE READ /!\
 
+PARAMS['INTERVAL_SCAN'] = 0;                      //number of minutes between each scan, set 0 to disable it
+PARAMS['ENABLE_SCAN'] = false;                    //set true on main server for allowing him to ping the lan, others clients on the same lan doesnt need to scan too 
 PARAMS['SERVER_ADDRESS'] = '';
 //'' AS DEFAULT (localhost, create database for each installed application)
 //'https://main-server-domain.com' AS SHARED GUN.JS DATABASE
@@ -16,8 +18,6 @@ PARAMS['SOCKET_PORT'] = 842;
 
 PARAMS['PATH_HTTP_EVENTS'] = '/cmd';              //example: http://localhost:842/cmd/power-off
 PARAMS['PATH_DATABASE'] = '/gun';                 //default: '/gun'   //20170901 gun.js does not allow custom path
-
-PARAMS['ENABLE_SCAN'] = false;                    //set true on main server for allowing him to ping the lan, others clients on the same lan doesnt need to scan too 
 
 PARAMS['GUN_ADDITIONAL_PEERS'] = [];  //empty by default: no link between servers
 //PARAMS['GUN_ADDITIONAL_PEERS'] = ['https://main-server-domain.com/gun']; 

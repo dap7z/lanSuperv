@@ -25,12 +25,6 @@ $ npm install -g node-gyp #(node-gyp have to be installed globaly)
 6) Copy "config.js.sample" to "config.js" and edit the file
 7) Launch application with the command: "npm start"
 
-### How to build ?
-1) Do all "How to dev ?" steps
-2) Execute "npm install -g pkg"
-3) Build application with the command: "npm run build"
-4) Run in windows console "lan-superv.exe --config=config.js"
-
 ### On the target machine(s), how to enable WOL and PING ?
 #### WOL :
 You have to validate all theses things :

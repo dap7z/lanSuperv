@@ -32,7 +32,7 @@ let F = require('./functions.js'); //FONCTIONS
 let G = {
     CONFIG_FILE: null,
     CONFIG: null,
-    SCAN_IN_PROGRESS: false,
+
     THIS_PC: {
         hostnameLocal: Os.hostname(),
         machineID: null,
@@ -42,8 +42,11 @@ let G = {
     },
     VISIBLE_COMPUTERS_FILE: null,
     VISIBLE_COMPUTERS: null,
-    SCANNED_COMPUTERS: null, //(reset before each scan)
+    SCAN_IN_PROGRESS: false,
+    SCAN_CURRENT_STEP: '',
+    QUICKSCAN_EXECUTED_AT: null,
     SCAN_NETWORK: null,
+    SCANNED_COMPUTERS: null, //(reset before each scan)
     PLUGINS_INFOS: [],
     WEB_SERVER: null,
     WEB_SERVER_INSTANCE: null,
@@ -51,6 +54,7 @@ let G = {
     GUN_DB_MESSAGES: null,
     GUN_DB_COMPUTERS: null,
     LAN_DISCOVERY: null,
+    QUICKSCAN_CHECK_QUEUE: new Set(),
 };
 
 

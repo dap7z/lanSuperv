@@ -107,6 +107,21 @@ clearLocalStorage().then(() => {
                     this.showGunDbContent();
                 });
             }
+
+            // Setup button to delete all messages
+            const btnDeleteGunMessages = document.getElementById('btnDeleteGunMessages');
+            if (btnDeleteGunMessages) {
+                btnDeleteGunMessages.addEventListener('click', () => {
+                    const clearAllBtn = document.getElementById('clearAllMessages');
+                    if (clearAllBtn) {
+                        clearAllBtn.click();
+                        // Refresh after a short delay to allow the clear action to propagate
+                        setTimeout(() => {
+                            this.showGunDbContent();
+                        }, 1000);
+                    }
+                });
+            }
         },
         methods: {
             gunSendMessage: function(message){
@@ -145,10 +160,15 @@ clearLocalStorage().then(() => {
                 // Récupérer tous les messages de dbMessages
                 if (sharedObject.dbMessages) {
                     sharedObject.dbMessages.map().once((message, id) => {
-                        if (message !== null && id !== '' && id !== rootTableMessages) {
+                        if (message !== undefined && message !== null && id !== '' && id !== rootTableMessages) {
                             // Cloner l'objet pour éviter les références
-                            dbContent.messages[id] = JSON.parse(JSON.stringify(message));
-                            messagesLoaded++;
+                            //console.log("Processing message:", id, message);
+                            try {
+                                dbContent.messages[id] = JSON.parse(JSON.stringify(message));
+                                messagesLoaded++;
+                            } catch (e) {
+                                console.warn("Could not parse message for id:", id, message);
+                            }
                         }
                     });
                 }

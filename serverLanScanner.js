@@ -4,6 +4,7 @@ let G = null; //GLOBALS
 //LIBRARIES:
 const Ping = require('ping-bluebird');  //ping with better promise
 const LanDiscovery = require('lan-discovery');
+const Net = require('net');
 const EventEmitter = require('events');
 
 class ServerLanScanner extends EventEmitter {
@@ -41,7 +42,18 @@ class ServerLanScanner extends EventEmitter {
                     console.log(`--> event pcDetected received for idPC: ${idPC}, launching onePcScan`);
                     let pcObject = G.VISIBLE_COMPUTERS.get(idPC);
                     if (pcObject) {
-                        this.onePcScan(pcObject, idPC);
+                        let do1PcScan = false;
+                        if (G.SCAN_CURRENT_STEP == 'FULL_SCAN') {
+                            // Check if already scanned in the last/current QuickScan
+                            if (pcObject.QuickScanExecutedAt && G.QUICKSCAN_EXECUTED_AT && pcObject.QuickScanExecutedAt === G.QUICKSCAN_EXECUTED_AT) {
+                                console.log(`[SCAN] Skipping onePcScan for ${idPC} (Already executed, just before, in last QuickScan)`);
+                            } else {
+                                do1PcScan = true;
+                            }
+                        }
+                        if (do1PcScan) {
+                            this.onePcScan(pcObject, idPC);
+                        }
                     } else {
                         console.log(`[SCAN] WARNING! pcObject not found in VISIBLE_COMPUTERS for idPC: ${idPC}`);
                     }
@@ -58,10 +70,17 @@ class ServerLanScanner extends EventEmitter {
 
                 //[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
                 G.SCAN_IN_PROGRESS = false;
-                let nbSecsBeforeNextScan = 60 * 60;   // FULL SCAN every hour, followed by onePcScan on every detected PC.
-                setTimeout(() => {
-                    this.startFullScan();
-                }, 1000 * nbSecsBeforeNextScan);
+
+                let intervalMinutes = G.CONFIG.val('INTERVAL_SCAN');
+                if (intervalMinutes > 0) {
+                    let nbSecsBeforeNextScan = intervalMinutes * 60;
+                    console.log(`[SCAN] Next scan scheduled in ${intervalMinutes} minutes`);
+                    setTimeout(() => {
+                        this.startFullScan();
+                    }, 1000 * nbSecsBeforeNextScan);
+                } else {
+                    console.log(`[SCAN] Periodic scan is disabled`);
+                }
             })
             // EVENT_SCAN_COMPLETE : scan statistics
             .on(LanDiscovery.EVENT_SCAN_COMPLETE, (data) => {
@@ -135,7 +154,54 @@ class ServerLanScanner extends EventEmitter {
     }
 
 
-    socketCheckNoNeedPromise(pc, idPC) {
+    async socketCheck(pc, idPC, bypassDecentralizedDb = false) {
+
+        if (bypassDecentralizedDb) {
+            G.QUICKSCAN_CHECK_QUEUE.add(idPC);
+        }
+
+        let checkResult = { 'respondsTo-socket': false };
+
+
+        try {
+            // LIGHT CHECK VIA TCP CONNECT (No Gun.js write)
+            await new Promise((resolve, reject) => {
+                let socket = new Net.Socket();
+                let port = G.CONFIG.val('SERVER_PORT');
+                let host = pc.lanIP;
+
+                socket.setTimeout(2000); // 2 sec timeout
+
+                socket.on('connect', () => {
+                    // Connection successful -> Socket is listening
+                    checkResult['respondsTo-socket'] = true;
+                    socket.destroy();
+                    resolve();
+                });
+
+                socket.on('timeout', () => {
+                    // Timeout -> Socket likely not listening or firewall
+                    socket.destroy();
+                    resolve(); // We resolve to continue, checkResult stays false
+                });
+
+                socket.on('error', (err) => {
+                    // Error -> Socket unreachable
+                    socket.destroy();
+                    resolve(); // We resolve to continue
+                });
+
+                socket.connect(port, host);
+            });
+        } catch (e) {
+            // Should not happen as we catch errors in promise
+        }
+
+        if (bypassDecentralizedDb) {
+            G.QUICKSCAN_CHECK_QUEUE.delete(idPC);
+        }
+
+
         //like sendRequest function in client.js :
         let reqData = {
             eventName: 'check',
@@ -149,18 +215,9 @@ class ServerLanScanner extends EventEmitter {
             reqData['pcTargetMachineID'] = pc.machineID;
         }
 
-        //20181014: attention PC-LAN-AVEC-LANSUPERV-INSTALLE n'a pas de machineID ici...
-        //(alors qu'il en renvoi bien un lors appel http://localhost:842/cmd/check)
-        //console.log("exec socketCheckWithoutPromise(), lanMAC:"+pc.lanMAC);
-        //console.log("machineID:"+pc.machineID);
-
-        let dbMsg = G.GUN.get(G.CONFIG.val('TABLE_MESSAGES'));
-        dbMsg.set(reqData);
-        //we cant wait for a response as with http event
-        //respondTo-socket update is done in gun.js database directly
-
-        //console.log("[INFO] socketCheckNoNeedPromise dbMsg.set:");
-        //console.log(reqData);
+        checkResult.idPC = idPC;
+        checkResult.lanIP = pc.lanIP;
+        return this._generateCheckResponse(checkResult, pc);
     }
 
 
@@ -202,16 +259,30 @@ class ServerLanScanner extends EventEmitter {
             })()
         );
 
-        this.socketCheckNoNeedPromise(pcObject, idPC);
-        
+        //SOCKET CHECK
+        promises.push(
+            (async () => {
+                try {
+                    const finalResult = await this.socketCheck(pcObject, idPC, true);
+                    F.logCheckWarning("socket", finalResult);
+                    G.database.dbComputersSaveData(idPC, finalResult, "socket", false);
+                } catch (reason) {
+                    console.log("##ERROR## [socketCheck] Error:", reason);
+                }
+            })()
+        );
+
         return promises;
     }
 
     async startQuickScan() {
+        G.SCAN_CURRENT_STEP = 'QUICK_SCAN';
+        G.QUICKSCAN_EXECUTED_AT = new Date().toISOString();
         //use global variable G.VISIBLE_COMPUTERS
         const promises = [];
 
         for (let [idPC, pcObject] of G.VISIBLE_COMPUTERS) {
+            pcObject.QuickScanExecutedAt = G.QUICKSCAN_EXECUTED_AT;
             const pcPromises = this.onePcScan(pcObject, idPC);
             promises.push(...pcPromises);
         }
@@ -281,6 +352,7 @@ class ServerLanScanner extends EventEmitter {
         }
         else {
             G.SCAN_IN_PROGRESS = true;
+            G.SCAN_CURRENT_STEP = 'FULL_SCAN';
             console.log("OK! launchLanScan at", new Date().toISOString());
 
             let networkToScan = G.THIS_PC.lanInterface.network + '/' + G.THIS_PC.lanInterface.bitmask; //cdir notation

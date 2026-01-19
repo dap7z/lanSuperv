@@ -1,0 +1,2 @@
+- Ne pas modifier les espacements, tabulations et fin de ligne sur le code existant que tu n'as pas besoin de changer.
+- Pour le code que tu ajoute ou modifie, utilise le caractère fin de ligne "\n" (LF, pas CRLF).

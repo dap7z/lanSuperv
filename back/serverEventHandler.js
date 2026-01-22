@@ -29,72 +29,82 @@ class ServerEventHandler {
     }
 
 
-    eventRedirection(eventData, dbComputers, method='http'){
+    eventRedirection(eventData, method='http'){
         let eventName = eventData.eventName;
 
-        console.log('[PLUGIN '+ eventName +']: local execution only => resend event through socket');
+        console.log('[PLUGIN '+ eventName +']: local execution only => resend event through http');
 
         //Retrieve pc info from database :
         let idTargetPC = this.targetIdPC(eventData);
-        dbComputers.get(idTargetPC).once(function(pcTarget, id){
-            //necessite dbComputers en parametre fonction eventRedirection...
+        
+        // Récupérer les informations du PC depuis WebRTC
+        if (!G.webrtcManager) {
+            console.log('[eventRedirection] ERROR! G.webrtcManager is not defined');
+            return;
+        }
+        
+        const allComputers = G.webrtcManager.getAllData('computers');
+        const pcTarget = allComputers.get(idTargetPC);
+        
+        if (!pcTarget) {
+            console.log(`[eventRedirection] ERROR! PC target not found in database - idTargetPC: ${idTargetPC}`);
+            return;
+        }
 
-            if(method==='socket')
-            {
-                //====[SOCKET]====
-                console.log("[ERROR] GUN.JS SOCKETS EVENTS NO NEED REDIRECTION !");
-            }
-            else if(method==='http')
-            {
-                //HALF WORKING (form post data is not sended => selfTarget => OK FOR ONE REDIRECTION, NOT MORE)
-                //TODO: TESTS AND DEV
+        if(method==='socket')
+        {
+            //====[SOCKET]====
+            console.log("[ERROR] WebRTC sockets events NO NEED REDIRECTION !");
+        }
+        else if(method==='http')
+        {
+            //HALF WORKING (form post data is not sended => selfTarget => OK FOR ONE REDIRECTION, NOT MORE)
+            //TODO: TESTS AND DEV
 
-                //====[HTTP]====
-                let jsonString = JSON.stringify({
-                    'eventName': eventName,
-                    'pcTargetLanMAC': eventData.pcTargetLanMAC,
-                    'pcTargetMachineID': eventData.pcTargetMachineID,
-                    'password' : '*not*Implemented*',
-                });
+            //====[HTTP]====
+            let jsonString = JSON.stringify({
+                'eventName': eventName,
+                'pcTargetLanMAC': eventData.pcTargetLanMAC,
+                'pcTargetMachineID': eventData.pcTargetMachineID,
+                'password' : '*not*Implemented*',
+            });
 
-                let reqUrl = 'http://'+ pcTarget.lanIP +':'+ G.CONFIG.val('SERVER_PORT') + G.CONFIG.val('PATH_HTTP_EVENTS') +'/'+ eventName;
-                console.log('[eventRedirection with http] reqUrl: '+reqUrl);
+            let reqUrl = 'http://'+ pcTarget.lanIP +':'+ G.CONFIG.val('SERVER_PORT') + G.CONFIG.val('PATH_HTTP_EVENTS') +'/'+ eventName;
+            console.log('[eventRedirection with http] reqUrl: '+reqUrl);
 
-                const params = new URLSearchParams({ jsonString });
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const params = new URLSearchParams({ jsonString });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-                fetch(reqUrl, {
-                    method: 'POST',
-                    headers: {
-                        'User-Agent': 'LanSuperv Agent/1.0.0',
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: params.toString(),
-                    signal: controller.signal
-                })
-                .then(response => {
-                    clearTimeout(timeoutId);
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("JSON response:", data);
-                })
-                .catch(err => {
-                    clearTimeout(timeoutId);
-                    const errorMsg = err.name === 'AbortError' ? 'timeout' : (err.code || err.message);
-                    console.log(`Error: ${errorMsg} ${reqUrl}`);
-                });
+            fetch(reqUrl, {
+                method: 'POST',
+                headers: {
+                    'User-Agent': 'LanSuperv Agent/1.0.0',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: params.toString(),
+                signal: controller.signal
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                console.log("JSON response:", data);
+            })
+            .catch(err => {
+                clearTimeout(timeoutId);
+                const errorMsg = err.name === 'AbortError' ? 'timeout' : (err.code || err.message);
+                console.log(`Error: ${errorMsg} ${reqUrl}`);
+            });
 
-                //===============
-            }
-            else
-            {
-                console.log('[error] function eventRedirection: unknow method parameter');
-            }
-
-        });
+            //===============
+        }
+        else
+        {
+            console.log('[error] function eventRedirection: unknow method parameter');
+        }
 
     }
 
@@ -156,10 +166,10 @@ class ServerEventHandler {
             else {
                 // Événement destiné à un autre PC, on le redirige
                 if (f !== 'socket') {
-                    this.eventRedirection(p, G.GUN_DB_COMPUTERS);
+                    this.eventRedirection(p);
                 }
                 //event transmited, nothing more to do.
-                //(and not even need eventRedirection if it comes from gun.js db)
+                //(and not even need eventRedirection if it comes from WebRTC)
                 processEvent = false;
             }
         }
@@ -207,12 +217,21 @@ class ServerEventHandler {
 
 
     setupSocketEventsListeners(){
-        //++++++++++ SOCKET EVENT (GUN.JS) ++++++++++
-        console.log("[EVENT-RECEPTION] Setting up Gun.js socket events listeners on DATABASE MESSAGES.");
-        //console.log("[EVENT-RECEPTION] LOCAL_DATABASE:", G.CONFIG.val('LOCAL_DATABASE'));
-        //console.log("[EVENT-RECEPTION] GUN_PEERS:", G.CONFIG.val('GUN_PEERS'));
+        //++++++++++ SOCKET EVENT (WebRTC) ++++++++++
+        console.log("[EVENT-RECEPTION] Setting up WebRTC socket events listeners on DATABASE MESSAGES.");
         
-        G.GUN_DB_MESSAGES.map().on( (eventData, id) => {
+        if (!G.webrtcManager) {
+            console.error("[EVENT-RECEPTION] ERROR! G.webrtcManager is not defined");
+            return;
+        }
+        
+        // Écouter les mises à jour de messages depuis WebRTC
+        G.webrtcManager.on('dataUpdate', ({ table, id, data }) => {
+            if (table !== 'messages') {
+                return;
+            }
+            
+            const eventData = data;
             if (eventData && eventData.eventReceivedAt == null) {
 
                 // log des evénements reçus pas encore traités
@@ -279,7 +298,7 @@ class ServerEventHandler {
                             // Acquitter l'événement comme si on l'avait traité
                             eventData.eventResult = JSON.stringify({ msg: message });
                             eventData.eventReceivedAt = new Date().toISOString();
-                            G.GUN_DB_MESSAGES.get(id).put(eventData);
+                            G.webrtcManager.saveData('messages', id, eventData);
                             // L'événement doit être ignoré, ne pas continuer le traitement
                             return;
                             }
@@ -287,62 +306,62 @@ class ServerEventHandler {
                      // ---
 
                     // Marquer l'événement comme "en cours de traitement" immédiatement pour éviter les doubles traitements
-                    // Mettre à jour directement la propriété eventReceivedAt sur le noeud Gun.js
                     let eventReceivedAt = new Date().toISOString();
-                    G.GUN_DB_MESSAGES.get(id).get('eventReceivedAt').put(eventReceivedAt, () => {
-                        console.log(`[EVENT-RECEPTION] Event ${eventData.eventName} (id: ${id}) marked as received at ${eventReceivedAt}`);
-                        
-                        // Maintenant traiter l'événement
-                        if(eventData.eventName === 'check')
+                    eventData.eventReceivedAt = eventReceivedAt;
+                    G.webrtcManager.saveData('messages', id, eventData);
+                    console.log(`[EVENT-RECEPTION] Event ${eventData.eventName} (id: ${id}) marked as received at ${eventReceivedAt}`);
+                    
+                    // Maintenant traiter l'événement
+                    if(eventData.eventName === 'check')
+                    {
+                        if(this.eventTargetIsThisPC(eventData))
                         {
-                            if(this.eventTargetIsThisPC(eventData))
-                            {
-                                //check events (specific, socketCheck update database directly) :
-                                let finalResult = F.checkData(G.THIS_PC, 'socket');
-                                finalResult['idPC'] = pcTargetIdPC;
-                                G.database.dbComputersSaveData(finalResult.idPC, finalResult, "socket"); //NEW
-                                
-                                // Mettre à jour eventResult pour les événements check
-                                G.GUN_DB_MESSAGES.get(id).get('eventResult').put(JSON.stringify({ msg: 'check completed' }));
-                            }
-                        }
-                        else
-                        {
-                            //standard events :
-                            let p = {
-                                eventName: eventData.eventName,
-                                pcTargetLanMAC: eventData.pcTargetLanMAC,
-                                pcTargetMachineID: eventData.pcTargetMachineID,
-                            };
+                            //check events (specific, socketCheck update database directly) :
+                            let finalResult = F.checkData(G.THIS_PC, 'socket');
+                            finalResult['idPC'] = pcTargetIdPC;
+                            G.database.dbComputersSaveData(finalResult.idPC, finalResult, "socket"); //NEW
                             
-                            // Utiliser await pour attendre la fin du traitement
-                            this.eventDispatcher(p, 'socket').then((responseData) => {
-                                let evtResult = {};
-                                if (responseData) {
-                                    evtResult = responseData;
-                                    //contain evtResult.msg
-                                }
-                                else {
-                                    evtResult.msg = eventData.eventName + ' event received (no response)';
-                                }
-                                //send response message by updating eventResult database field:
-                                G.GUN_DB_MESSAGES.get(id).get('eventResult').put(JSON.stringify(evtResult));
-                            }).catch((error) => {
-                                console.error(`[EVENT] Error processing event ${eventData.eventName}:`, error);
-                                G.GUN_DB_MESSAGES.get(id).get('eventResult').put(JSON.stringify({ msg: 'error: ' + error.message }));
-                            });
+                            // Mettre à jour eventResult pour les événements check
+                            eventData.eventResult = JSON.stringify({ msg: 'check completed' });
+                            G.webrtcManager.saveData('messages', id, eventData);
                         }
-
-                    });
+                    }
+                    else
+                    {
+                        //standard events :
+                        let p = {
+                            eventName: eventData.eventName,
+                            pcTargetLanMAC: eventData.pcTargetLanMAC,
+                            pcTargetMachineID: eventData.pcTargetMachineID,
+                        };
+                        
+                        // Utiliser await pour attendre la fin du traitement
+                        this.eventDispatcher(p, 'socket').then((responseData) => {
+                            let evtResult = {};
+                            if (responseData) {
+                                evtResult = responseData;
+                                //contain evtResult.msg
+                            }
+                            else {
+                                evtResult.msg = eventData.eventName + ' event received (no response)';
+                            }
+                            //send response message by updating eventResult database field:
+                            eventData.eventResult = JSON.stringify(evtResult);
+                            G.webrtcManager.saveData('messages', id, eventData);
+                        }).catch((error) => {
+                            console.error(`[EVENT] Error processing event ${eventData.eventName}:`, error);
+                            eventData.eventResult = JSON.stringify({ msg: 'error: ' + error.message });
+                            G.webrtcManager.saveData('messages', id, eventData);
+                        });
+                    }
 
                 }
             }
         });
-        console.log("OK! setup gun.js socket events listeners");
+        console.log("OK! setup WebRTC socket events listeners");
     }
 
-
-};
+}
 
 
 module.exports = ServerEventHandler;

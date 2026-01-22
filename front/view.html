@@ -1,190 +1,198 @@
 ﻿<!DOCTYPE html>
 <html lang="fr">
-    
-    <head>
-        <meta charset="utf-8">
-        <title>lanSuperv</title>
-        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-        
-        <!-- STYLES -->
-        <link rel="stylesheet" href="assets/bootstrap.min.css">
-        <link rel="stylesheet" href="assets/toastr.min.css">
-        <link rel="stylesheet" href="assets/pace.css">
-        <link rel="stylesheet" href="style.css">
-		<link rel="stylesheet" href="chat.css">
-        
-        <!-- JAVASCRIPS -->
-        <script src="assets/jquery-3.2.1.min.js"></script>
-        <script src="assets/jquery.timeago.js"></script>
-        <script src="assets/tether.min.js"></script>
-        <script src="assets/bootstrap.min.js"></script>
-        <script src="assets/toastr.min.js"></script>
-		<script src="assets/moment.min.js"></script>
-    </head>
-    
-    <body>
-        
-		<div id="loader" class="pace pace-active initial-box-sizing">
-            <div class="pace-progress initial-box-sizing" data-progress="50" data-progress-text="50%">
-				<div class="pace-progress-inner initial-box-sizing"></div>
-            </div>
-            <div class="pace-activity initial-box-sizing"></div>
+
+<head>
+    <meta charset="utf-8">
+    <title>lanSuperv</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+
+    <!-- STYLES -->
+    <link rel="stylesheet" href="assets/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/toastr.min.css">
+    <link rel="stylesheet" href="assets/pace.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="chat.css">
+
+    <!-- JAVASCRIPS -->
+    <script src="assets/jquery-3.2.1.min.js"></script>
+    <script src="assets/jquery.timeago.js"></script>
+    <script src="assets/tether.min.js"></script>
+    <script src="assets/bootstrap.min.js"></script>
+    <script src="assets/toastr.min.js"></script>
+    <script src="assets/moment.min.js"></script>
+</head>
+
+<body>
+
+    <div id="loader" class="pace pace-active initial-box-sizing">
+        <div class="pace-progress initial-box-sizing" data-progress="50" data-progress-text="50%">
+            <div class="pace-progress-inner initial-box-sizing"></div>
         </div>
+        <div class="pace-activity initial-box-sizing"></div>
+    </div>
 
-        
-        <div class="container-fluid">
-            <div class="row">
-                <div id="app" class="col-12">
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h1 class="mb-0">Lan Superv</h1>
-                        <button type="button" class="btn btn-info hidden" id="gunDbShowBtn" data-toggle="modal" data-target="#gunDbModal">
-                            <!-- class="... hidden" if no decentralized database diagnostic needed -->
-                            <i class="glyphicon glyphicon-database"></i> Database Gun.js
-                        </button>
-                    </div>
-                    
-                    <div id="pcModel" style="display: none;">
-                        <div class="pcElem col-12 col-sm-6 col-md-6 col-lg-4 col-xl-2">
-                            <div class="card">
-                                <div class="card-header">
-                                    <span class="nickname"></span>
-                                    <span class="hostname"></span>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div id="app" class="col-12">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h1 class="mb-0">Lan Superv</h1>
+                    <button type="button" class="btn btn-info" id="gunDbShowBtn" data-toggle="modal"
+                        data-target="#gunDbModal">
+                        <!-- class="... hidden" if no decentralized database diagnostic needed -->
+                        <i class="glyphicon glyphicon-database"></i> Database Gun.js
+                    </button>
+                </div>
+
+                <div id="pcModel" style="display: none;">
+                    <div class="pcElem col-12 col-sm-6 col-md-6 col-lg-4 col-xl-2">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="nickname"></span>
+                                <span class="hostname"></span>
+                            </div>
+                            <div class="card-block">
+
+                                <div class="btn-group btn-plugin-container" role="group">
+                                    <div class="btn-group btn-plugin-choice" role="group">
+                                        <a class="btn btn-secondary dropdown-toggle btn-plugin-link"
+                                            data-toggle="dropdown" href="#">
+                                            <span class='btn-plugin-value'></span><span class="caret"></span>
+                                        </a>
+                                        <ul class="dropdown-menu">
+                                            <li class="dropdown-item"></li>
+                                        </ul>
+                                    </div>
+                                    <button type="button" class="btn btn-primary btn-plugin-submit">Send</button>
                                 </div>
-                                <div class="card-block">
-                                    
-                                    <div class="btn-group btn-plugin-container" role="group" >
-                                        <div class="btn-group btn-plugin-choice" role="group">
-                                            <a class="btn btn-secondary dropdown-toggle btn-plugin-link" data-toggle="dropdown" href="#">
-                                                <span class='btn-plugin-value'></span><span class="caret"></span>
-                                            </a>
-                                            <ul class="dropdown-menu">
-                                                <li class="dropdown-item"></li>
-                                            </ul>
+
+
+                                <div class="row">
+                                    <span class="col-3 nowrap">IP :</span><span class="lanIP col-9 breakword"></span>
+                                </div>
+                                <div class="row">
+                                    <span class="col-3 nowrap">MAC :</span><span class="lanMAC col-9 breakword"></span>
+                                </div>
+                                <div class="row">
+                                    <span class="col-3 nowrap">MachineID :</span><span class="machineID col-9 cutword"
+                                        alt=""></span>
+                                </div>
+
+                                <div class="row">
+                                    <span class="col-12">
+                                        <div class="d-flex flex-wrap respondsTo">
+                                            <div class="p-2 badge-container">Responds to :</div>
+                                            <div class="p-2 badge-container">
+                                                <span class="badge badge-default respondsTo-ping">ping</span>
+                                                <span class="badge badge-default respondsTo-http requireApp">http</span>
+                                                <span
+                                                    class="badge badge-default respondsTo-socket requireApp">socket</span>
+                                            </div>
                                         </div>
-                                        <button type="button" class="btn btn-primary btn-plugin-submit">Send</button>
-                                    </div>
-
-
-                                    <div class="row">
-                                        <span class="col-3 nowrap">IP :</span><span class="lanIP col-9 breakword"></span>
-                                    </div>
-                                    <div class="row">
-                                        <span class="col-3 nowrap">MAC :</span><span class="lanMAC col-9 breakword"></span>
-                                    </div>
-                                    <div class="row">
-                                        <span class="col-3 nowrap">MachineID :</span><span class="machineID col-9 cutword" alt=""></span>
-                                    </div>
-
-                                    <div class="row">
-                                        <span class="col-12">
-                                            <div class="d-flex flex-wrap respondsTo">
-                                                <div class="p-2 badge-container">Responds to :</div>
-                                                <div class="p-2 badge-container">
-                                                    <span class="badge badge-default respondsTo-ping">ping</span>
-                                                    <span class="badge badge-default respondsTo-http requireApp">http</span>
-                                                    <span class="badge badge-default respondsTo-socket requireApp">socket</span>
-                                                </div>
-                                            </div>
-                                        </span>
-                                    </div>
-
-                                    <div class="row">
-                                        <span class="col-12">
-                                            <div class="d-flex flex-wrap respondsTo">
-                                                <div class="p-2 badge-container">Last response :</div>
-                                                <div class="p-2 badge-container">
-                                                    <span class="lastResponse col-9 breakword">
-                                                        <time class="timeago" datetime=""></time>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </span>
-                                    </div>
-                                    
+                                    </span>
                                 </div>
+
+                                <div class="row">
+                                    <span class="col-12">
+                                        <div class="d-flex flex-wrap respondsTo">
+                                            <div class="p-2 badge-container">Last response :</div>
+                                            <div class="p-2 badge-container">
+                                                <span class="lastResponse col-9 breakword">
+                                                    <time class="timeago" datetime=""></time>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </span>
+                                </div>
+
                             </div>
                         </div>
                     </div>
-                    
-                    <div id="pcList" class="row"></div>
-                    
                 </div>
-            </div>
-        
-			<!-- CHAT START -->
-            <div class="chat-container">
-                <div class="model" style="display: none;">
-                    <li>
-                        <b class="who"></b>
-                        <span class="when-style">(</span><span class="when"></span><span class="when-style">)</span>
-                        : <span class="what"></span>
-                        <i class="deletemsg"></i>
-                    </li>
-                </div>
-                <div class="row">
-                    <div class="col-12">
-                        <hr>
-                    </div>
-                    <div class="col-12">
-                        <div>
-                            <img id="clearAllMessages" class="clickable float-right" src="img/clear-messages.png"/>
-                            <h4>Console</h4>
-                        </div>
-                        <hr>
-                        <div class="clearfix"></div>
-                        <div class="chatbox">
-                            <ul class="collection chatmessage"></ul>
-                        </div>
-                        <form id="chat">
-                            <input placeholder="Message" class="msg msgTextBox" required>
-                            <button class="waves-effect waves-light btn msgSubmitBtn">send</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            <!-- CHAT END -->
-			
-		</div>
 
-        <!-- Modal to show gun.js database content -->
-        <div class="modal fade" id="gunDbModal" tabindex="-1" role="dialog" aria-labelledby="gunDbModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="gunDbModalLabel">Contenu de la base de données Gun.js</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <button type="button" class="btn btn-primary btn-sm" id="btnRefreshGunDb">Actualiser</button>
-                            <button type="button" class="btn btn-danger btn-sm" id="btnDeleteGunMessages" style="margin-left: 10px;">Suppr. messages</button>
-                            <span id="gunDbStatus" class="text-muted"></span>
-                        </div>
-                        <div id="gunDbContent" style="max-height: 70vh; overflow-y: auto; background-color: #f5f5f5; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
-                            <pre id="gunDbJson" style="margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace; font-size: 12px;"></pre>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
-                    </div>
-                </div>
+                <div id="pcList" class="row"></div>
+
             </div>
         </div>
 
-        <!-- INIT APP -->
-        <script src="config.js"></script>
-        <script>
-            let sharedObject = {
-                gun:null,
-                dbMessages:null,
-                dbComputers:null,
-            };
-        </script>
-        <script src="dist/bundle.js"></script>
-        
-    </body>
-    
+        <!-- CHAT START -->
+        <div class="chat-container">
+            <div class="model" style="display: none;">
+                <li>
+                    <b class="who"></b>
+                    <span class="when-style">(</span><span class="when"></span><span class="when-style">)</span>
+                    : <span class="what"></span>
+                    <i class="deletemsg"></i>
+                </li>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <hr>
+                </div>
+                <div class="col-12">
+                    <div>
+                        <img id="clearAllMessages" class="clickable float-right" src="img/clear-messages.png" />
+                        <h4>Console</h4>
+                    </div>
+                    <hr>
+                    <div class="clearfix"></div>
+                    <div class="chatbox">
+                        <ul class="collection chatmessage"></ul>
+                    </div>
+                    <form id="chat">
+                        <input placeholder="Message" class="msg msgTextBox" required>
+                        <button class="waves-effect waves-light btn msgSubmitBtn">send</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <!-- CHAT END -->
+
+    </div>
+
+    <!-- Modal to show gun.js database content -->
+    <div class="modal fade" id="gunDbModal" tabindex="-1" role="dialog" aria-labelledby="gunDbModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gunDbModalLabel">Contenu de la base de données Gun.js</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <button type="button" class="btn btn-primary btn-sm" id="btnRefreshGunDb">Actualiser</button>
+                        <button type="button" class="btn btn-danger btn-sm" id="btnDeleteGunMessages"
+                            style="margin-left: 10px;">Suppr. messages</button>
+                        <span id="gunDbStatus" class="text-muted"></span>
+                    </div>
+                    <div id="gunDbContent"
+                        style="max-height: 70vh; overflow-y: auto; background-color: #f5f5f5; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+                        <pre id="gunDbJson"
+                            style="margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace; font-size: 12px;"></pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- INIT APP -->
+    <script src="config.js"></script>
+    <script>
+        let sharedObject = {
+            gun: null,
+            dbMessages: null,
+            dbComputers: null,
+        };
+    </script>
+    <script src="dist/bundle.js"></script>
+
+</body>
+
 </html>

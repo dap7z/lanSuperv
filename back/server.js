@@ -16,7 +16,7 @@ const Path = require('path');
 
 const Express = require('express'); //nodejs framework
 const BodyParser = require('body-parser'); //to get POST data
-const Gun = require('gun'); //Gun.js database
+const WebSocket = require('ws'); //WebSocket pour signalisation WebRTC
 
 const Crypto = require('crypto');  //hash machineID
 
@@ -43,18 +43,15 @@ let G = {
     VISIBLE_COMPUTERS_FILE: null,
     VISIBLE_COMPUTERS: null,
     SCAN_IN_PROGRESS: false,
-    SCAN_CURRENT_STEP: '',
     QUICKSCAN_EXECUTED_AT: null,
     SCAN_NETWORK: null,
     SCANNED_COMPUTERS: null, //(reset before each scan)
     PLUGINS_INFOS: [],
     WEB_SERVER: null,
     WEB_SERVER_INSTANCE: null,
-    GUN: null,
-    GUN_DB_MESSAGES: null,
-    GUN_DB_COMPUTERS: null,
     LAN_DISCOVERY: null,
     QUICKSCAN_CHECK_QUEUE: new Set(),
+    WEBSOCKET_SERVER: null, // Serveur WebSocket pour signalisation WebRTC
 };
 
 
@@ -63,8 +60,9 @@ class Server {
 
     constructor(configFileAbsolutePath) {
         if(! configFileAbsolutePath){
+            // Utiliser CONFIG_FILE de l'environnement si défini (Docker), sinon config.js local
             const path = require('path');
-            configFileAbsolutePath = path.join(process.cwd(), 'config.js');
+            configFileAbsolutePath = process.env.CONFIG_FILE || path.join(process.cwd(), 'config.js');
             console.log('no config file path specified, assume :', configFileAbsolutePath);
         }
         G.CONFIG_FILE = configFileAbsolutePath;
@@ -78,12 +76,8 @@ class Server {
         G.WEB_SERVER = Express();
         G.WEB_SERVER.set('port', G.CONFIG.val('SERVER_PORT') );
         
-        // Ajouter Gun.serve AVANT les autres middlewares pour gérer correctement les WebSockets
-        // Les WebSockets nécessitent un traitement spécial et doivent être gérés avant les routes statiques
-        G.WEB_SERVER.use(Gun.serve);
-        
         // Serve static files with cache-control headers to force reload on every page load
-        G.WEB_SERVER.use(Express.static(Path.join(__dirname, '../front'), {
+        G.WEB_SERVER.use(Express.static(Path.join(__dirname, '../web'), {
             setHeaders: function(res, path) {
                 // Disable caching for all static files
                 res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
@@ -152,6 +146,157 @@ class Server {
                     G.WEB_SERVER_INSTANCE = G.WEB_SERVER.listen(G.WEB_SERVER.get('port'), '0.0.0.0', () => {
                         //get listening port
                         let port = G.WEB_SERVER_INSTANCE.address().port;
+                        
+                        //----- INITIALIZE WEBSOCKET SERVER FOR WebRTC SIGNALING -----
+                        G.WEBSOCKET_SERVER = new WebSocket.Server({ 
+                            server: G.WEB_SERVER_INSTANCE,
+                            path: '/webrtc-signaling'
+                        });
+                        
+                        // Définir handleWebRTCSignaling dans la portée de start()
+                        const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = require('wrtc');
+                        
+                        async function handleWebRTCSignaling(ws, message, clientState) {
+                            switch (message.type) {
+                                case 'request-offer':
+                                    // Le client demande une offre, créer une connexion WebRTC
+                                    if (!clientState.pc) {
+                                        clientState.pc = new RTCPeerConnection({
+                                            iceServers: [
+                                                { urls: 'stun:stun.l.google.com:19302' }
+                                            ]
+                                        });
+                                        
+                                        // Créer un data channel pour échanger des données
+                                        const dataChannel = clientState.pc.createDataChannel('lansuperv', {
+                                            ordered: true
+                                        });
+                                        
+                                        clientState.dataChannel = dataChannel;
+                                        setupServerDataChannel(dataChannel);
+                                        
+                                        // Gérer les candidats ICE
+                                        clientState.pc.onicecandidate = (event) => {
+                                            if (event.candidate && ws.readyState === WebSocket.OPEN) {
+                                                ws.send(JSON.stringify({
+                                                    type: 'ice-candidate',
+                                                    candidate: event.candidate
+                                                }));
+                                            }
+                                        };
+                                        
+                                        // Créer une offre
+                                        const offer = await clientState.pc.createOffer();
+                                        await clientState.pc.setLocalDescription(offer);
+                                        
+                                        ws.send(JSON.stringify({
+                                            type: 'offer',
+                                            offer: offer
+                                        }));
+                                    }
+                                    break;
+                                    
+                                case 'answer':
+                                    if (clientState.pc) {
+                                        await clientState.pc.setRemoteDescription(new RTCSessionDescription(message.answer));
+                                    }
+                                    break;
+                                    
+                                case 'ice-candidate':
+                                    if (clientState.pc && clientState.pc.remoteDescription) {
+                                        await clientState.pc.addIceCandidate(new RTCIceCandidate(message.candidate));
+                                    }
+                                    break;
+                            }
+                        }
+                        
+                        function setupServerDataChannel(dataChannel) {
+                            dataChannel.onopen = () => {
+                                console.log('[WebRTC Signaling] Data channel opened with client');
+                                
+                                // Envoyer les données initiales
+                                const initialData = {
+                                    computers: {},
+                                    messages: {}
+                                };
+                                
+                                // Récupérer toutes les données computers depuis WebRTCManager
+                                if (G.webrtcManager) {
+                                    const computers = G.webrtcManager.getAllData('computers');
+                                    computers.forEach((pc, id) => {
+                                        initialData.computers[id] = pc;
+                                    });
+                                    
+                                    const messages = G.webrtcManager.getAllData('messages');
+                                    messages.forEach((msg, id) => {
+                                        initialData.messages[id] = msg;
+                                    });
+                                }
+                                
+                                dataChannel.send(JSON.stringify({
+                                    type: 'initial-data',
+                                    data: initialData
+                                }));
+                            };
+                            
+                            dataChannel.onmessage = (event) => {
+                                try {
+                                    const message = JSON.parse(event.data);
+                                    if (message.type === 'update') {
+                                        // Sauvegarder via WebRTCManager
+                                        if (G.webrtcManager) {
+                                            G.webrtcManager.saveData(message.table, message.id, message.data);
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.error('[WebRTC Signaling] Error handling data channel message:', error);
+                                }
+                            };
+                            
+                            // Écouter les mises à jour depuis WebRTCManager pour les envoyer au client
+                            if (G.webrtcManager) {
+                                const updateListener = ({ table, id, data }) => {
+                                    if (dataChannel.readyState === 'open') {
+                                        dataChannel.send(JSON.stringify({
+                                            type: 'update',
+                                            table: table,
+                                            id: id,
+                                            data: data
+                                        }));
+                                    }
+                                };
+                                G.webrtcManager.on('dataUpdate', updateListener);
+                                
+                                // Nettoyer le listener quand le data channel se ferme
+                                dataChannel.onclose = () => {
+                                    G.webrtcManager.removeListener('dataUpdate', updateListener);
+                                };
+                            }
+                        }
+                        
+                        G.WEBSOCKET_SERVER.on('connection', (ws) => {
+                            console.log('[WebRTC Signaling] Client connected');
+                            const clientState = { pc: null, dataChannel: null };
+                            
+                            ws.on('message', async (message) => {
+                                try {
+                                    const data = JSON.parse(message);
+                                    await handleWebRTCSignaling(ws, data, clientState);
+                                } catch (error) {
+                                    console.error('[WebRTC Signaling] Error handling message:', error);
+                                }
+                            });
+                            
+                            ws.on('close', () => {
+                                console.log('[WebRTC Signaling] Client disconnected');
+                                if (clientState.pc) {
+                                    clientState.pc.close();
+                                }
+                            });
+                        });
+                        
+                        console.log('[WebRTC Signaling] WebSocket server started on /webrtc-signaling');
+                        
                         let url = 'http://localhost:'+port;
                         let serverUpNotification = 'Web server available on '+ url +' (lanIP: '+ G.THIS_PC.lanInterface.ip_address +', ';
                         //get public ip using fetch native (replaces ext-ip)
@@ -202,32 +347,30 @@ class Server {
         const ServerDatabase = require('./serverDatabase');
         G.database = new ServerDatabase(G);
         G.database.initConnection();
-        
-        // Attendre un peu que Gun.js soit complètement initialisé, puis configurer les listeners d'événements
-        setTimeout(() => {
-            if (!G.GUN_DB_MESSAGES) {
-                console.error("[SERVER] ERROR! G.GUN_DB_MESSAGES is not defined after initConnection()!");
-                console.error("[SERVER] G.GUN:", G.GUN);
-                console.error("[SERVER] G.CONFIG.val('TABLE_MESSAGES'):", G.CONFIG.val('TABLE_MESSAGES'));
-            } else {
-                console.log("[SERVER] G.GUN_DB_MESSAGES is defined, setting up socket events listeners...");
-                if (G.eventHandler) {
-                    G.eventHandler.setupSocketEventsListeners();
-                } else {
-                    console.error("[SERVER] ERROR! G.eventHandler is not defined!");
-                }
-            }
-        }, 500); // Attendre 500ms pour que Gun.js soit complètement initialisé
-        //G.GUN_DB_COMPUTERS is decentralized db and can be updated by multiples servers and so represents multiples lans
-        //we need a way to determine if one computer is in the lan of the server (to declare him offline).
-        //-> Reload G.VISIBLE_COMPUTERS map on server restart
-        G.database.dbVisibleComputersLoad();
-        ///!\ here G.VISIBLE_COMPUTERS is not yet loaded /!\
-        //but no need await function (only used at the end of lan scan to mark pc as offline)
 
         //----- GET PLUGINS INFORMATIONS -----
         const ServerPluginsInfos = require('./serverPluginsInfos');
         G.PLUGINS_INFOS = ServerPluginsInfos.build();
+
+        //----- INITIALIZE EVENT HANDLER (avant WebRTC pour éviter les erreurs) -----
+        const ServerEventHandler = require('./serverEventHandler');
+        G.eventHandler = new ServerEventHandler(G);
+        G.eventHandler.setupHttpEventsLiteners();
+
+        //----- INITIALIZE WebRTC MANAGER -----
+        const ServerWebRTCManager = require('./serverWebRTCManager');
+        G.webrtcManager = new ServerWebRTCManager(G);
+        G.webrtcManager.init();
+        
+        // Configurer les listeners d'événements après l'initialisation de WebRTC
+        G.eventHandler.setupSocketEventsListeners();
+        
+        //we need a way to determine if one computer is in the lan of the server (to declare him offline).
+
+        //-> Reload G.VISIBLE_COMPUTERS map on server restart
+        G.database.dbVisibleComputersLoad();
+        ///!\ here G.VISIBLE_COMPUTERS is not yet loaded /!\
+        //but no need await function (only used at the end of lan scan to mark pc as offline)
 
         //----- LAUNCH FIRST SCAN -----
         const ServerLanScanner = require('./serverLanScanner');
@@ -236,7 +379,84 @@ class Server {
         G.lanScanner = lanScanner;
         // Setup listener one time only, just after instanciation
         lanScanner.setupScanListeners();
-        lanScanner.startFullScan();
+        
+        // Écouter les découvertes de PC via Bonjour/WebRTC
+        G.webrtcManager.on('pcDiscovered', (pcInfo) => {
+            console.log(`[SCAN] PC discovered via Bonjour: ${pcInfo.hostname} (${pcInfo.lanIP}, idPC: ${pcInfo.idPC})`);
+            lanScanner.processBonjourDiscovery(pcInfo);
+        });
+        
+        // Initialiser SCANNED_COMPUTERS (nécessaire pour processScanResult)
+        if (!G.SCANNED_COMPUTERS) {
+            G.SCANNED_COMPUTERS = new Map();
+        }
+        
+        // Lancer le scan initial (Bonjour ou broadcast selon config)
+        if (G.CONFIG.val('ENABLE_SCAN') === false) {
+            // Si le scan est désactivé, on utilise uniquement Bonjour
+            console.log("[SCAN] Broadcast scan disabled, using Bonjour discovery only");
+            // Ajouter ce PC à la liste
+            let params = {
+                lastCheck: new Date().toISOString(),
+                lanIP: G.THIS_PC.lanInterface.ip_address,
+                lanMAC: G.THIS_PC.lanInterface.mac_address,
+                hostname: G.THIS_PC.hostnameLocal || "SELF",
+            };
+            let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
+            lanScanner.processScanResult(params, remotePlugins);
+        } else {
+            // Utiliser Bonjour au lieu du broadcast scan
+            console.log("[SCAN] Using Bonjour/mDNS for network discovery");
+            // Bonjour découvrira automatiquement les autres instances
+            // On ajoute quand même ce PC à la liste
+            let params = {
+                lastCheck: new Date().toISOString(),
+                lanIP: G.THIS_PC.lanInterface.ip_address,
+                lanMAC: G.THIS_PC.lanInterface.mac_address,
+                hostname: G.THIS_PC.hostnameLocal || "SELF",
+            };
+            let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
+            lanScanner.processScanResult(params, remotePlugins);
+        }
+
+
+        //----- HANDLE WebRTC ROUTES (pour compatibilité Node.js à Node.js) -----
+        G.WEB_SERVER.post('/webrtc/offer', BodyParser.json(), function (req, res) {
+            const { from, offer } = req.body;
+            console.log(`[WebRTC] Received offer - from: ${from}, THIS_PC.idPC: ${G.THIS_PC.idPC}, offer present: ${!!offer}`);
+            
+            if (!from || !offer) {
+                console.log(`[WebRTC] Missing from or offer - from: ${from}, offer: ${offer ? 'present' : 'missing'}`);
+                return res.status(400).json({ error: 'Missing from or offer' });
+            }
+
+            // Ignorer notre propre offre
+            if (from === G.THIS_PC.idPC) {
+                console.log(`[WebRTC] Ignoring offer from self - from: ${from}, THIS_PC.idPC: ${G.THIS_PC.idPC}`);
+                return res.status(400).json({ error: 'Cannot connect to self' });
+            }
+
+            console.log(`[WebRTC] Handling offer from ${from}`);
+            G.webrtcManager.handleOffer(from, offer)
+                .then(answer => {
+                    console.log(`[WebRTC] Offer handled successfully, sending answer to ${from}`);
+                    res.json({ answer: answer });
+                })
+                .catch(error => {
+                    console.error(`[WebRTC] Error handling offer from ${from}:`, error);
+                    res.status(500).json({ error: error.message });
+                });
+        });
+
+        G.WEB_SERVER.post('/webrtc/ice-candidate', BodyParser.json(), function (req, res) {
+            const { from, candidate } = req.body;
+            if (!from || !candidate) {
+                return res.status(400).json({ error: 'Missing from or candidate' });
+            }
+
+            G.webrtcManager.handleIceCandidate(from, candidate);
+            res.json({ status: 'ok' });
+        });
 
         //----- HANDLE HOMEPAGE REQUEST (HTTP/HTTPS) -----
         G.WEB_SERVER.get('/', function (homePageRequest, homePageResponse) {
@@ -244,7 +464,7 @@ class Server {
             homePageResponse.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
             homePageResponse.setHeader('Pragma', 'no-cache');
             homePageResponse.setHeader('Expires', '0');
-            homePageResponse.sendFile(Path.join(__dirname + '../front/view.html'));
+            homePageResponse.sendFile(Path.join(__dirname, '../web/view.html'));
             console.log("~~~~ SEND HTML PAGE AND START QUICK SCAN (ping/http/socket) ~~~~");
 
             //console.log("G.VISIBLE_COMPUTERS");
@@ -260,7 +480,7 @@ class Server {
                     .then(function (v) {
                         console.log('°°°°°°°°°°°°° PROMISES (PENDINGS)  °°°°°°°°°°°°°°');
                         console.log(v);
-                        lanScanner.startFullScan();
+                        lanScanner.startBroadcastScan();
                     })
                     .catch(function (err) {
                         console.error(err);
@@ -277,81 +497,9 @@ class Server {
         });
 
 
-        //----- HANDLE EVENTS (HTTP/SCOKET) -----
-        const ServerEventHandler = require('./serverEventHandler');
-        G.eventHandler = new ServerEventHandler(G);  // Stocker dans G pour y accéder dans onWebServerReady()
-        G.eventHandler.setupHttpEventsLiteners();
-        // NOTE: setupSocketEventsListeners() sera appelé dans onWebServerReady() après initConnection()
+        // NOTE: G.eventHandler est déjà initialisé plus haut dans onWebServerReady()
 
 
-        //----- FOR DIAGNOSTIC ONLY, DUMP GUN.JS DATABASE CONTENT AFTER 10 SECONDS -----
-        let dumpDatabaseDiagLvl = 0;  // no diag
-        dumpDatabaseDiagLvl = 1;      // basic diag
-        //dumpDatabaseDiagLvl = 2;    // full dump
-        if (dumpDatabaseDiagLvl && G.CONFIG.val('SERVER_ADDRESS').indexOf("localhost") === -1) {
-            console.log("[GUN-DB-DUMP] The Gun.js database is not populated here, it is populated on : " + G.CONFIG.val('SERVER_ADDRESS'));
-        } else if(dumpDatabaseDiagLvl){
-            setTimeout(() => {
-                console.log("\n========== GUN.JS DATABASE DUMP (PCs only) ==========");
-                if (typeof G.GUN_DB_COMPUTERS === 'undefined') {
-                    console.log("[GUN-DB-DUMP] ERROR! G.GUN_DB_COMPUTERS is not defined");
-                } else {
-                    const rootTableComputers = G.CONFIG.val('TABLE_COMPUTERS');
-                    console.log(`[GUN-DB-DUMP] Reading from root table: ${rootTableComputers}`);
-                    
-                    const dbContent = {};
-                    let computersCount = 0;
-                    const collectTimeout = 2000; // Collect data for 2 seconds
-                    
-                    const dataCollector = (pc, id) => {
-                        if (pc !== null && id !== '' && id !== rootTableComputers) {
-                            // Clone the object to avoid references
-                            try {
-                                const clonedPc = JSON.parse(JSON.stringify(pc));
-                                // Only count if it has meaningful data
-                                if (clonedPc.hostname || clonedPc.lanIP) {
-                                    dbContent[id] = clonedPc;
-                                    computersCount++;
-                                    console.log(`[GUN-DB-DUMP] idPC: ${id}, hostname: ${clonedPc.hostname || 'N/A'}, lanIP: ${clonedPc.lanIP || 'N/A'}`);
-                                }
-                            } catch (err) {
-                                console.log(`[GUN-DB-DUMP] ERROR cloning PC data for id: ${id}`, err);
-                            }
-                        }
-                    };
-                    
-                    // Use .on() to collect all data
-                    //G.GUN_DB_COMPUTERS.map().on(dataCollector);
-                    G.GUN_DB_COMPUTERS.map().once(dataCollector);
-                    
-                    // Also display what's in G.VISIBLE_COMPUTERS (in-memory Map)
-                    if (G.VISIBLE_COMPUTERS && G.VISIBLE_COMPUTERS.size > 0) {
-                        console.log(`[GUN-DB-DUMP] G.VISIBLE_COMPUTERS contains ${G.VISIBLE_COMPUTERS.size} PCs in memory:`);
-                        if(dumpDatabaseDiagLvl==2){
-                            const visibleComputersData = {};
-                            for (let [idPC, pcObject] of G.VISIBLE_COMPUTERS) {
-                                visibleComputersData[idPC] = pcObject;
-                            }
-                            console.log(JSON.stringify(visibleComputersData, null, 2));
-                        }
-                    }
-                    
-                    // Wait a bit for all data to be loaded, then display
-                    setTimeout(() => {
-                        if (computersCount > 0) {
-                            console.log(`[GUN-DB-DUMP] Total PCs found in gun.js database: ${computersCount}`);
-                            if(dumpDatabaseDiagLvl==2){
-                                console.log(JSON.stringify(dbContent, null, 2));
-                            }
-                        } else {
-                            console.log("[GUN-DB-DUMP] No PCs found in database");
-                        }
-                        console.log("==================================================\n");
-                    }, collectTimeout); // Wait some seconds for all data to be collected
-                }
-            }, 10000); // Wait 10 seconds after server start
-        }
-        //------------------------------------------------------------------------------
 
 
     }

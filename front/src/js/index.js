@@ -7,11 +7,9 @@ To compile in /dist folder, open cmd and run :
 
 import Client from './client';
 import Chat from './chat';
-
+import WebRTCClient from './webrtcClient';
 
 import { createApp, getCurrentInstance } from 'vue';
-import VueGun from 'vue-gun';
-const Gun = require('gun');
 
 
 function clearLocalStorage() {
@@ -33,24 +31,11 @@ function clearLocalStorage() {
 }
 
 // Clear localStorage and wait for it to complete before app initialization
-clearLocalStorage().then(() => {
-    // Utiliser location.origin + '/gun' comme dans le projet de référence qui fonctionne sur Raspberry Pi
-    let gunPeers = [location.origin + '/gun'];
-
-    // Ajouter les peers additionnels s'ils existent
-    const additionalPeers = Config.val('GUN_PEERS') || [];
-    additionalPeers.forEach(peer => {
-        if (peer && peer !== gunPeers[0]) {
-            gunPeers.push(peer);
-        }
-    });
-
-
-    // Initialiser Gun.js
-    const gunInstance = Gun({
-        peers: gunPeers
-    });
-    console.log("[INDEX.JS] Gun.js instance created with peers:", gunPeers);
+clearLocalStorage().then(async () => {
+    // Initialiser WebRTC Client
+    const webrtcClient = new WebRTCClient(Config);
+    await webrtcClient.init();
+    console.log("[INDEX.JS] WebRTC client initialized");
 
     // Créer l'application Vue 3
     const app = createApp({
@@ -63,11 +48,11 @@ clearLocalStorage().then(() => {
         },
         mounted: function() {
 
-            //update sharedObject :
-            sharedObject.gun = gunInstance;
-            sharedObject.dbComputers = gunInstance.get(Config.val('TABLE_COMPUTERS'));
-            sharedObject.dbMessages = gunInstance.get(Config.val('TABLE_MESSAGES'));
-            console.log("[INDEX.JS] Gun.js objects initialized - dbComputers:", sharedObject.dbComputers, "dbMessages:", sharedObject.dbMessages);
+            //update sharedObject avec WebRTC (compatible API Gun.js) :
+            sharedObject.gun = webrtcClient; // Pour compatibilité
+            sharedObject.dbComputers = webrtcClient.get(Config.val('TABLE_COMPUTERS'));
+            sharedObject.dbMessages = webrtcClient.get(Config.val('TABLE_MESSAGES'));
+            console.log("[INDEX.JS] WebRTC objects initialized - dbComputers:", sharedObject.dbComputers, "dbMessages:", sharedObject.dbMessages);
 
             //execute client.js and chat.js :
             let clientJS = new Client(this.gunSendMessage);
@@ -78,7 +63,7 @@ clearLocalStorage().then(() => {
             //listen on dbComputers database updates
             //.on() automatically loads existing data like .once() AND listens for future changes
             sharedObject.dbComputers.map().on((pc, id) => {
-                console.log("[INDEX.JS] Gun.js dbComputers event triggered - id:", id, "pc:", pc);
+                console.log("[INDEX.JS] WebRTC dbComputers event triggered - id:", id, "pc:", pc);
                 if(pc !== null){ //null si exec dbComputersClearData()
 
                     clientJS.gunOnChangeDbComputers(pc, id);
@@ -126,7 +111,10 @@ clearLocalStorage().then(() => {
         methods: {
             gunSendMessage: function(message){
                 try {
-                    sharedObject.dbMessages.set(message);
+                    // Générer un ID unique pour le message
+                    const messageId = message.eventSendedAt + '_' + Math.random().toString(36).substr(2, 9);
+                    // Utiliser .get(id).put() au lieu de .set() pour sauvegarder correctement toutes les propriétés
+                    sharedObject.dbMessages.get(messageId).put(message);
                     //console.log("[CLIENT] Message sent to Gun.js:", message);
                 } catch (error) {
                     console.error("[CLIENT] ERROR sending message to Gun.js:", error);
@@ -191,9 +179,8 @@ clearLocalStorage().then(() => {
         }
     });
 
-    // Configurer vue-gun pour Vue 3
-    // vue-gun utilise Vue.prototype.$gun, mais Vue 3 utilise app.config.globalProperties
-    app.config.globalProperties.$gun = gunInstance;
+    // Configurer pour Vue 3 (compatibilité)
+    app.config.globalProperties.$gun = webrtcClient;
 
     // Monter l'application
     console.log("[INDEX.JS] Mounting Vue app to #app");

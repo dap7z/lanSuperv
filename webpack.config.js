@@ -1,4 +1,4 @@
-/* Execution :
+﻿/* Execution :
 *  -> npm run build
 *  -> npm run dev //for non-minified
 */

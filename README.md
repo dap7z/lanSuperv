@@ -7,7 +7,7 @@
 1) Download and install last stable version of node js for windows : 
 <br /> https://nodejs.org/en/download
 2) Download the application zip and extract it
-3) Setup node-gyp requirements (if needed for native modules)
+3) Setup node-gyp requirements (for WebRTC and native modules)
 > Node.js 24 LTS is required
 > For native modules compilation, install Visual Studio Build Tools or Visual Studio Community
 ```sh
@@ -16,7 +16,7 @@ $ npm install -g node-gyp-install
 $ npm install -g node-gyp #(node-gyp have to be installed globaly)
 ```
 4) Install dependencies with the command: "npm install" 
-5) Build assets with the command: "npm run dev" (no minified javascript for debug purposes)
+5) Build assets with the command: "npm run dev"
 6) Copy "config.js.sample" to "config.js" and edit the file
 7) Launch application with the command: "npm start"
 

@@ -129,7 +129,12 @@ export default class Chat {
                 let firstChar = content.slice(0,1);
                 let lastChar = content.slice(-1);
                 if(firstChar==='{' && lastChar==='}'){
-                    content = Chat.jsonDisplay(JSON.parse(content));
+                    try {
+                        content = Chat.jsonDisplay(JSON.parse(content));
+                    } catch (e) {
+                        console.error("[CHAT.JS] Error parsing JSON content:", e, "Raw content:", content);
+                        // En cas d'erreur, on garde le contenu tel quel
+                    }
                 }
             }else{
                 content = Chat.jsonDisplay(message);

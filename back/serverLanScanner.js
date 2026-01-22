@@ -41,21 +41,14 @@ class ServerLanScanner extends EventEmitter {
                 this.once(`pcDetected:${idPC}`, () => {
                     console.log(`--> event pcDetected received for idPC: ${idPC}, launching onePcScan`);
                     let pcObject = G.VISIBLE_COMPUTERS.get(idPC);
-                    if (pcObject) {
-                        let do1PcScan = false;
-                        if (G.SCAN_CURRENT_STEP == 'FULL_SCAN') {
-                            // Check if already scanned in the last/current QuickScan
-                            if (pcObject.QuickScanExecutedAt && G.QUICKSCAN_EXECUTED_AT && pcObject.QuickScanExecutedAt === G.QUICKSCAN_EXECUTED_AT) {
-                                console.log(`[SCAN] Skipping onePcScan for ${idPC} (Already executed, just before, in last QuickScan)`);
-                            } else {
-                                do1PcScan = true;
-                            }
-                        }
-                        if (do1PcScan) {
-                            this.onePcScan(pcObject, idPC);
-                        }
-                    } else {
+                    if (!pcObject) {
                         console.log(`[SCAN] WARNING! pcObject not found in VISIBLE_COMPUTERS for idPC: ${idPC}`);
+                        return;
+                    }
+                    if (pcObject.QuickScanExecutedAt && G.QUICKSCAN_EXECUTED_AT && pcObject.QuickScanExecutedAt === G.QUICKSCAN_EXECUTED_AT) {
+                        console.log(`[SCAN] Skipping onePcScan for ${idPC} (Already executed, just before, in last QuickScan)`);
+                    } else {
+                        this.onePcScan(pcObject, idPC);
                     }
                 });
                 
@@ -64,19 +57,21 @@ class ServerLanScanner extends EventEmitter {
             // EVENT_DEVICES_INFOS : we got IP+MAC of all devices
             .on(LanDiscovery.EVENT_DEVICES_INFOS, (data) => {
 
+                // Inutile de lancer un QuickScan ici, on a deja demandé un onePcScan asyunchrone à chaque PC dectecé (EVENT_DEVICE_INFOS)
+                // Donc on affiche simplement un log de fin du broadcast scan et on retire le lock SCAN_IN_PROGRESS ...même si il reste des onePcScan en cours :
                 console.log('--> event '+ LanDiscovery.EVENT_DEVICES_INFOS + 'received, ALL ' + data.length + ' DEVICES FOUND :', data.map(device => device.name).join(', '));
-
-                G.database.dbVisibleComputersSave();
 
                 //[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
                 G.SCAN_IN_PROGRESS = false;
 
+                // Si INTERVAL_SCAN est défini dans le config.js, on programme le prochain broadcast scan :
+                // Sinon il interviendra lors du prochain chargement de la page web
                 let intervalMinutes = G.CONFIG.val('INTERVAL_SCAN');
                 if (intervalMinutes > 0) {
                     let nbSecsBeforeNextScan = intervalMinutes * 60;
                     console.log(`[SCAN] Next scan scheduled in ${intervalMinutes} minutes`);
                     setTimeout(() => {
-                        this.startFullScan();
+                        this.startBroadcastScan();
                     }, 1000 * nbSecsBeforeNextScan);
                 } else {
                     console.log(`[SCAN] Periodic scan is disabled`);
@@ -90,11 +85,11 @@ class ServerLanScanner extends EventEmitter {
     }
 
     //QuickScan: only previously visibles computers
-    //LanScan: map ping on whole lan primary interface
+    //LanScan: using Bonjour/mDNS discovery (ping removed)
 
     //utility function to ensure that essential properties are initialized in the result
     _generateCheckResponse(checkResult, pc) {
-        if (checkResult["respondsTo-ping"]) {
+        if (checkResult["respondsTo-ping"] || checkResult["respondsTo-http"] || checkResult["respondsTo-socket"]) {
             checkResult.lastResponse = new Date().toISOString();
         }
         checkResult.hostname = pc.hostname || '';
@@ -222,7 +217,8 @@ class ServerLanScanner extends EventEmitter {
 
 
     // onePcScan: checks ping/http/socket sur UN SEUL PC
-    // Retourne un tableau de promises pour ping, http et socket
+    // Retourne une promesse qui se résout quand tous les checks sont terminés
+    // Note: La découverte initiale se fait via Bonjour, mais on vérifie toujours le ping dans onePcScan
     onePcScan(pcObject, idPC) {
         // RESET seulement les propriétés respondsTo-* en les mettant à false
         G.database.dbComputersSaveData(idPC, {
@@ -231,63 +227,71 @@ class ServerLanScanner extends EventEmitter {
             'respondsTo-socket': false
         });
 
-        const promises = [];
+        // Lancer les 3 checks en parallèle
+        const pingPromise = this.pingCheck(pcObject, idPC).catch((reason) => {
+            console.log("##ERROR## [pingCheck] Error:", reason);
+            return { 'respondsTo-ping': false, idPC: idPC, lanIP: pcObject.lanIP };
+        });
 
-        //PING CHECK
-        promises.push(
-            (async () => {
-                try {
-                    const finalResult = await this.pingCheck(pcObject, idPC);
-                    F.logCheckWarning("ping", finalResult);
-                    G.database.dbComputersSaveData(idPC, finalResult, "ping", false);
-                } catch (reason) {
-                    console.log("##ERROR## [pingCheck] Error:", reason);
-                }
-            })()
-        );
+        const httpPromise = this.httpCheck(pcObject, idPC).catch((reason) => {
+            console.log("##ERROR## [httpCheck] Error:", reason);
+            return { 'respondsTo-http': false, idPC: idPC, lanIP: pcObject.lanIP };
+        });
 
-        //HTTP CHECK
-        promises.push(
-            (async () => {
-                try {
-                    const finalResult = await this.httpCheck(pcObject, idPC);
-                    F.logCheckWarning("http", finalResult);
-                    G.database.dbComputersSaveData(idPC, finalResult, "http", false);
-                } catch (reason) {
-                    console.log("##ERROR## [httpCheck] Error:", reason);
-                }
-            })()
-        );
+        const socketPromise = this.socketCheck(pcObject, idPC, true).catch((reason) => {
+            console.log("##ERROR## [socketCheck] Error:", reason);
+            return { 'respondsTo-socket': false, idPC: idPC, lanIP: pcObject.lanIP };
+        });
 
-        //SOCKET CHECK
-        promises.push(
-            (async () => {
-                try {
-                    const finalResult = await this.socketCheck(pcObject, idPC, true);
-                    F.logCheckWarning("socket", finalResult);
-                    G.database.dbComputersSaveData(idPC, finalResult, "socket", false);
-                } catch (reason) {
-                    console.log("##ERROR## [socketCheck] Error:", reason);
-                }
-            })()
-        );
+        // Retourner une promesse qui attend tous les checks relatifs à un PC pour faire une seule mise à jour
+        return Promise.all([pingPromise, httpPromise, socketPromise]).then(([pingResult, httpResult, socketResult]) => {
+            // Fusionner tous les résultats en un seul objet
+            const mergedResult = {
+                ...pingResult,
+                ...httpResult,
+                ...socketResult
+            };
 
-        return promises;
+            // Logs de warning si nécessaire
+            F.logCheckWarning("ping", pingResult);
+            F.logCheckWarning("http", httpResult);
+            F.logCheckWarning("socket", socketResult);
+
+            // Une seule mise à jour à Gun.js avec tous les résultats fusionnés
+            G.database.dbComputersSaveData(idPC, mergedResult, "quickScan", false);
+        });
     }
 
     async startQuickScan() {
-        G.SCAN_CURRENT_STEP = 'QUICK_SCAN';
         G.QUICKSCAN_EXECUTED_AT = new Date().toISOString();
         //use global variable G.VISIBLE_COMPUTERS
         const promises = [];
 
+        let delay = 0;
+        const DELAY_BETWEEN_ONE_PC_SCAN = 200; // Délai de 200ms entre chaque scan de PC
+
         for (let [idPC, pcObject] of G.VISIBLE_COMPUTERS) {
             pcObject.QuickScanExecutedAt = G.QUICKSCAN_EXECUTED_AT;
-            const pcPromises = this.onePcScan(pcObject, idPC);
-            promises.push(...pcPromises);
+            
+            // Créer une promesse qui attend le délai puis lance le scan
+            const pcPromise = new Promise((resolve) => {
+                setTimeout(async () => {
+                    // onePcScan retourne maintenant une seule promesse qui attend tous les checks
+                    try {
+                        await this.onePcScan(pcObject, idPC);
+                        resolve();
+                    } catch (error) {
+                        console.error(`[QUICKSCAN] Error scanning PC ${idPC}:`, error);
+                        resolve(); // Résoudre quand même pour ne pas bloquer les autres scans
+                    }
+                }, delay);
+            });
+            
+            promises.push(pcPromise);
+            delay += DELAY_BETWEEN_ONE_PC_SCAN; // Incrémenter le délai pour le prochain PC
         }
 
-        console.log("OK! QuickScan launched (work in async, not finished yet)");
+        console.log(`OK! QuickScan launched (work in async, not finished yet) - ${G.VISIBLE_COMPUTERS.size} PC(s) will be scanned with ${DELAY_BETWEEN_ONE_PC_SCAN}ms delay between each`);
         return promises;
     }
 
@@ -316,7 +320,6 @@ class ServerLanScanner extends EventEmitter {
             pc[key] = plugins[key];
         }
         
-        
         console.log(`[SCAN] Saving PC - idPC: ${idPC}, hostname: ${pc.hostname || 'N/A'}, lanIP: ${pc.lanIP || 'N/A'}, lanMAC: ${pc.lanMAC || 'N/A'}`);
         G.database.dbComputersSaveData(idPC, pc);
         
@@ -328,14 +331,84 @@ class ServerLanScanner extends EventEmitter {
     }
 
 
-    startFullScan() {
+    /**
+     * Traite une découverte de PC via Bonjour/mDNS
+     */
+    processBonjourDiscovery(pcInfo) {
+        let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
+        
+        // Si on n'a pas la MAC, essayer de la récupérer depuis VISIBLE_COMPUTERS si le PC était déjà connu
+        let lanMAC = pcInfo.lanMAC;
+        if (!lanMAC && pcInfo.idPC) {
+            const existingPC = G.VISIBLE_COMPUTERS.get(pcInfo.idPC);
+            if (existingPC && existingPC.lanMAC) {
+                lanMAC = existingPC.lanMAC;
+            }
+        }
+        
+        // Si on n'a toujours pas la MAC, essayer de la récupérer via ARP si possible
+        // (dans Docker, cela peut ne pas fonctionner, mais on essaie quand même)
+        if (!lanMAC && pcInfo.lanIP && G.LAN_DISCOVERY) {
+            // Essayer de récupérer la MAC via lan-discovery si disponible
+            // Note: dans Docker, cela peut ne pas fonctionner
+            try {
+                // On laisse la MAC vide pour l'instant, elle sera peut-être récupérée lors du onePcScan
+                console.log(`[SCAN] MAC address not available for ${pcInfo.lanIP}, will try to retrieve during onePcScan`);
+            } catch (error) {
+                console.log(`[SCAN] Could not retrieve MAC for ${pcInfo.lanIP}:`, error.message);
+            }
+        }
+        
+        let params = {
+            lastCheck: new Date().toISOString(),
+            hostname: pcInfo.hostname || '',
+            lanIP: pcInfo.lanIP,
+            lanMAC: lanMAC || ''
+        };
+        
+        // Calculer idPC - utiliser celui fourni par Bonjour si disponible, sinon calculer
+        let idPC = pcInfo.idPC;
+        if (!idPC) {
+            if (params.lanMAC) {
+                idPC = F.getPcIdentifier({ lanMAC: params.lanMAC, lanIP: params.lanIP });
+            } else {
+                // Si on n'a pas de MAC, utiliser l'IP pour générer un idPC temporaire
+                // Note: l'idPC basé uniquement sur l'IP peut changer si l'IP change
+                idPC = F.getPcIdentifier({ lanIP: params.lanIP });
+                console.log(`[SCAN] Generated temporary idPC from IP for ${params.lanIP}: ${idPC}`);
+            }
+        }
+        
+        // Écouter l'événement de détection complète pour ce PC et déclencher onePcScan
+        // Utiliser 'on' au lieu de 'once' pour permettre de déclencher un scan à chaque nouvelle détection
+        this.on(`pcDetected:${idPC}`, () => {
+            console.log(`[SCAN] PC detected via Bonjour - idPC: ${idPC}, launching onePcScan`);
+            let pcObject = G.VISIBLE_COMPUTERS.get(idPC);
+            if (!pcObject) {
+                console.log(`[SCAN] WARNING! pcObject not found in VISIBLE_COMPUTERS for idPC: ${idPC}`);
+                return;
+            }
+            // Toujours déclencher onePcScan pour une nouvelle détection Bonjour
+            // (même si un QuickScan a été exécuté, car Bonjour peut détecter de nouveaux PC)
+            console.log(`[SCAN] Triggering onePcScan for Bonjour-discovered PC: ${idPC}`);
+            this.onePcScan(pcObject, idPC);
+        });
+        
+        this.processScanResult(params, remotePlugins);
+    }
+
+    startBroadcastScan() {
         if (G.SCAN_IN_PROGRESS) {
             console.log("FIXED! launchLanScan canceled (G.SCAN_IN_PROGRESS)");
             return false;
         }
 
         let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
-        G.SCANNED_COMPUTERS = new Map();
+        
+        // Initialiser SCANNED_COMPUTERS s'il n'existe pas
+        if (!G.SCANNED_COMPUTERS) {
+            G.SCANNED_COMPUTERS = new Map();
+        }
 
         if (G.CONFIG.val('ENABLE_SCAN') === false) {
             console.log("FIXED! launchLanScan canceled (G.CONFIG.val('ENABLE_SCAN') === false)");
@@ -346,20 +419,16 @@ class ServerLanScanner extends EventEmitter {
                 lastCheck: new Date().toISOString(),
                 lanIP: G.THIS_PC.lanInterface.ip_address,
                 lanMAC: G.THIS_PC.lanInterface.mac_address,
-                hostname: "SELF (ENABLE_SCAN=false)", //(quickly override by computer name)
+                hostname: G.THIS_PC.hostnameLocal || "SELF",
             };
             this.processScanResult(params, remotePlugins);
         }
         else {
-            G.SCAN_IN_PROGRESS = true;
-            G.SCAN_CURRENT_STEP = 'FULL_SCAN';
-            console.log("OK! launchLanScan at", new Date().toISOString());
-
-            let networkToScan = G.THIS_PC.lanInterface.network + '/' + G.THIS_PC.lanInterface.bitmask; //cdir notation
-            let tabIP = F.cidrRange(networkToScan);
-            
-            // Les listeners sont déjà configurés dans setupScanListeners(), on lance juste le scan
-            G.LAN_DISCOVERY.startScan({ ipArrayToScan: tabIP });
+            // Utiliser Bonjour/mDNS au lieu du broadcast scan ARP
+            console.log("OK! Using Bonjour/mDNS for network discovery at", new Date().toISOString());
+            console.log("[SCAN] Bonjour will automatically discover other LanSuperv instances");
+            // Bonjour découvrira automatiquement les autres instances via serverWebRTCManager
+            // Les PC seront traités via processBonjourDiscovery()
         }
     }
 

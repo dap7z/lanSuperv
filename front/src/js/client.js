@@ -221,7 +221,7 @@ export default class Client {
         }
         $elem.find('.btn-plugin-value').text(defaultPlugin);
 
-        console.log("[CLIENT.JS] Hiding loader for computer:", id);
+        //console.log("[CLIENT.JS] Hiding loader for computer:", id);
         $('#loader').hide();
     }
     //==END=ON=CHANGE=DB=COMPUTERS=====================================================================================
@@ -236,7 +236,17 @@ export default class Client {
                 //caused by two gun.js 0.8 database update separated by few ms (.eventReceivedAt and then .eventResult)
                 //... make .on() function called twice with filled .eventResult
 
-                let response = JSON.parse(this.lastNotification);
+                let response = null;
+                // Vérifier que eventResult n'est pas vide, null ou undefined avant de parser
+                if(this.lastNotification && typeof this.lastNotification === 'string' && this.lastNotification.trim() !== ''){
+                    try {
+                        response = JSON.parse(this.lastNotification);
+                    } catch (e) {
+                        console.error("[CLIENT.JS] Error parsing eventResult JSON:", e, "Raw value:", this.lastNotification);
+                        // Si le parsing échoue, on continue avec response = null
+                        response = null;
+                    }
+                }
 
                 let informations = '';
                 informations += 'Event '+ message.eventName +', target :';
@@ -248,7 +258,7 @@ export default class Client {
                 if(message.pcTargetMachineID){
                     informations += '<br>[MachineID] '+ message.pcTargetMachineID;
                 }
-                if(response.msg){
+                if(response && response.msg){
                     informations += '<br>'+ response.msg;
                 }
 

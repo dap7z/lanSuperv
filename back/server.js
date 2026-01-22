@@ -77,7 +77,7 @@ class Server {
         G.WEB_SERVER.set('port', G.CONFIG.val('SERVER_PORT') );
         
         // Serve static files with cache-control headers to force reload on every page load
-        G.WEB_SERVER.use(Express.static(Path.join(__dirname, '../web'), {
+        G.WEB_SERVER.use(Express.static(Path.join(__dirname, '../front'), {
             setHeaders: function(res, path) {
                 // Disable caching for all static files
                 res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
@@ -109,7 +109,7 @@ class Server {
             //(Debian "pm2 start server.js" + "~/.nvm/versions/node/v8.5.0/bin/node server.js")
         });
 
-        //Serve config.js as if it was in web directory
+        //Serve config.js as if it was in front directory
         G.WEB_SERVER.get('/config.js', function (req, res) {
             // Set cache-control headers for config.js
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
@@ -464,7 +464,7 @@ class Server {
             homePageResponse.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
             homePageResponse.setHeader('Pragma', 'no-cache');
             homePageResponse.setHeader('Expires', '0');
-            homePageResponse.sendFile(Path.join(__dirname, '../web/view.html'));
+            homePageResponse.sendFile(Path.join(__dirname, '../front/view.html'));
             console.log("~~~~ SEND HTML PAGE AND START QUICK SCAN (ping/http/socket) ~~~~");
 
             //console.log("G.VISIBLE_COMPUTERS");

@@ -238,6 +238,21 @@ export default class Client {
                 pcIsOnline = true;
             }
 
+            //plugins availables - traiter AVANT le return pour les clés sans conteneur DOM
+            if(key.startsWith("plugin")){
+                let pluginName = value;
+                if(pluginName !== null && pluginList){
+                    let li = document.createElement('li');
+                    li.className = 'dropdown-item';
+                    li.textContent = pluginName;
+                    pluginList.appendChild(li);
+                    if(pluginName===powerOffPlugin){
+                        powerOffAvailable = true;
+                    }
+                }
+                return;
+            }
+
             let dataContainer = elem.querySelector('.'+key);
             if (!dataContainer) return;
             
@@ -263,20 +278,6 @@ export default class Client {
             else {
                 //update html (.hostname/.lanIP/.lanMAC/...)
                 dataContainer.textContent = value;
-            }
-            
-            //plugins availables
-            if(key.startsWith("plugin")){
-                let pluginName = value;
-                if(pluginName !== null && pluginList){
-                    let li = document.createElement('li');
-                    li.className = 'dropdown-item';
-                    li.textContent = pluginName;
-                    pluginList.appendChild(li);
-                    if(pluginName===powerOffPlugin){
-                        powerOffAvailable = true;
-                    }
-                }
             }
         });
 

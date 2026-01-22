@@ -37,7 +37,7 @@
                     <button type="button" class="btn btn-info" id="gunDbShowBtn" data-bs-toggle="modal"
                         data-bs-target="#gunDbModal">
                         <!-- class="... hidden" if no decentralized database diagnostic needed -->
-                        <span>🗄️</span> Database Gun.js
+                        <span>🗄️</span> Database Gun.js 
                     </button>
                 </div>
 
@@ -52,7 +52,7 @@
 
                                 <div class="btn-group btn-plugin-container" role="group">
                                     <div class="btn-group btn-plugin-choice" role="group">
-                                        <a class="btn btn-secondary dropdown-toggle btn-plugin-link"
+                                        <a class="btn btn-plugins dropdown-toggle btn-plugin-link"
                                             data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
                                             <span class='btn-plugin-value'></span>
                                         </a>
@@ -127,18 +127,17 @@
                     <hr>
                 </div>
                 <div class="col-12">
-                    <div>
-                        <img id="clearAllMessages" class="clickable float-right" src="img/clear-messages.png" />
-                        <h4>Console</h4>
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h4 class="mb-0">Console</h4>
+                        <img id="clearAllMessages" class="clickable" src="img/clear-messages.png" />
                     </div>
-                    <hr>
                     <div class="clearfix"></div>
                     <div class="chatbox">
                         <ul class="collection chatmessage"></ul>
                     </div>
-                    <form id="chat">
-                        <input placeholder="Message" class="msg msgTextBox" required>
-                        <button class="waves-effect waves-light btn msgSubmitBtn">send</button>
+                    <form id="chat" class="d-flex gap-2">
+                        <input name="message" placeholder="Message" class="msg msgTextBox form-control" required>
+                        <button class="btn btn-primary msgSubmitBtn">send</button>
                     </form>
                 </div>
             </div>

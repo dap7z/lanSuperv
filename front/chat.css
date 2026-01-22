@@ -29,10 +29,12 @@ hr {
 }
 
 .chatbox {
+	min-height: 300px;
 	max-height: 300px;
 	overflow-y: scroll;
 	overflow-x: hidden;
 	background: #f6f7f9;
+	margin-bottom: 10px;
 }
 
 .chatmessage:empty {
@@ -88,9 +90,13 @@ i.deletemsg:focus, i.deletemsg:hover {
 }
 
 .msgTextBox{
-	width:80% !important;
+	flex: 1;
 }
 
 .msgSubmitBtn{
-	width:19% !important;
+	flex-shrink: 0;
+}
+
+#clearAllMessages{
+	margin-bottom: 4px;
 }

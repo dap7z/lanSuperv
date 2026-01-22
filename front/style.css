@@ -82,6 +82,28 @@
     cursor: pointer;
 }
 
+/* Classe btn-plugins pour les boutons de sélection de plugins (couleur plus claire) */
+.btn-plugins {
+    background-color: #e0e0e0;
+    border-color: #adadad;
+    color: #333;
+}
+
+.btn-plugins:hover,
+.btn-plugins:focus {
+    background-color: #d4d4d4;
+    border-color: #8c8c8c;
+    color: #333;
+}
+
+.btn-plugins:active,
+.btn-plugins.active,
+.btn-plugins.show {
+    background-color: #c6c6c6;
+    border-color: #8c8c8c;
+    color: #333;
+}
+
 
 /* Gun.js DB Modal */
 #gunDbContent {

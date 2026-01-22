@@ -24,7 +24,7 @@
 
 
 .initial-box-sizing, .initial-box-sizing:before{
-    //required for pace and bootstrap compatibility (border-box => content-box)
+    /* required for pace and bootstrap compatibility (border-box => content-box) */
     -webkit-box-sizing: initial;
     -moz-box-sizing: initial;
     box-sizing: initial;
@@ -84,14 +84,14 @@
 
 /* Classe btn-plugins pour les boutons de sélection de plugins (couleur plus claire) */
 .btn-plugins {
-    background-color: #e0e0e0;
+    background-color: white;
     border-color: #adadad;
     color: #333;
 }
 
 .btn-plugins:hover,
 .btn-plugins:focus {
-    background-color: #d4d4d4;
+    background-color: white;
     border-color: #8c8c8c;
     color: #333;
 }
@@ -99,10 +99,15 @@
 .btn-plugins:active,
 .btn-plugins.active,
 .btn-plugins.show {
-    background-color: #c6c6c6;
+    background-color: white;
     border-color: #8c8c8c;
     color: #333;
 }
+
+.lastResponse{
+    margin-left: 2px;
+}
+
 
 
 /* Database Modal */

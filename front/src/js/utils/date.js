@@ -3,10 +3,9 @@
  */
 
 /**
- * Formate une date en format relatif (ex: "il y a 2 minutes")
- * Remplace moment().fromNow() et jQuery.timeago()
+ * Format a date in relative format (ex: "2 minutes ago")
  */
-export function formatRelativeTime(dateString, locale = 'fr') {
+export function formatRelativeTime(dateString, locale = 'en') {
     if (!dateString) return '';
     
     const date = new Date(dateString);

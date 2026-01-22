@@ -320,6 +320,10 @@ export default class Client {
         if(message && message.eventSendedAt){
             if(this.pageLoadedAt < message.eventSendedAt && this.lastNotification !== message.eventResult)
             {
+                if(!message.eventName){
+                    return; // dont show notification for simple chat messages
+                }
+
                 this.lastNotification = message.eventResult; //fix double notification
                 //caused by two database updates separated by few ms (.eventReceivedAt and then .eventResult)
                 //... make .on() function called twice with filled .eventResult

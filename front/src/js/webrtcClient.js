@@ -1,4 +1,4 @@
-/**
+﻿/**
  * WebRTCClient : Gère les connexions WebRTC côté client
  * Remplace Gun.js pour la synchronisation de données avec le serveur
  */

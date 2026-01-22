@@ -1,4 +1,4 @@
-services:
+﻿services:
   lansuperv-1:
     build: .
     container_name: lansuperv-instance-1

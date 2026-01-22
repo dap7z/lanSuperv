@@ -29,16 +29,17 @@ foreach ($extension in $extensions) {
     Write-Host "  Traitement: $($file.Name)" -ForegroundColor Gray
 
     try {
-      # Lire le contenu du fichier
-      $content = Get-Content -Path $file.FullName -Raw -Encoding UTF8
+      # Lire le contenu du fichier (sans BOM)
+      $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+      $content = [System.IO.File]::ReadAllText($file.FullName, $utf8NoBom)
 
       # Verifier si le fichier contient des CRLF
       if ($content -match "`r`n") {
         # Remplacer CRLF par LF
         $newContent = $content -replace "`r`n", "`n"
 
-        # Ecrire le nouveau contenu
-        Set-Content -Path $file.FullName -Value $newContent -NoNewline -Encoding UTF8
+        # Ecrire le nouveau contenu (sans BOM)
+        [System.IO.File]::WriteAllText($file.FullName, $newContent, $utf8NoBom)
 
         $convertedFiles++
         Write-Host "    Converti: $($file.Name)" -ForegroundColor Green

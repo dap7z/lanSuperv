@@ -8,13 +8,13 @@ PARAMS['DATABASE_NAME'] = 'db-lansuperv';  // /!\ NAME HAVE TO BE THE SAME BETWE
 
 PARAMS['INTERVAL_SCAN'] = 0;                      //number of minutes between each scan, set 0 to disable it
 PARAMS['ENABLE_SCAN'] = false;                    //set true on main server for allowing him to ping the lan, others clients on the same lan doesnt need to scan too 
-PARAMS['SERVER_ADDRESS'] = '';
+PARAMS['SERVER_ADDRESS'] = ''; //<-{SERVER_ADDRESS}
 //'' AS DEFAULT (localhost, create database for each installed application)
 //'https://main-server-domain.com' AS SHARED GUN.JS DATABASE
 // /!\ LET IT EMPTY IF THIS MACHINE IS THE MAIN SERVER /!\
 
-PARAMS['SERVER_PORT'] = 842;
-PARAMS['SOCKET_PORT'] = 842;
+PARAMS['SERVER_PORT'] = 842 ; //<-{SERVER_PORT}   //-> 842 will be replace by docker-compose build
+PARAMS['SOCKET_PORT']=842;// <-{SOCKET_PORT}      //-> 842 will be replace by docker-compose build
 
 PARAMS['PATH_HTTP_EVENTS'] = '/cmd';              //example: http://localhost:842/cmd/power-off
 PARAMS['PATH_DATABASE'] = '/gun';                 //default: '/gun'   //20170901 gun.js does not allow custom path

@@ -83,7 +83,7 @@ class Server {
         G.WEB_SERVER.use(Gun.serve);
         
         // Serve static files with cache-control headers to force reload on every page load
-        G.WEB_SERVER.use(Express.static(Path.join(__dirname, 'web'), {
+        G.WEB_SERVER.use(Express.static(Path.join(__dirname, '../front'), {
             setHeaders: function(res, path) {
                 // Disable caching for all static files
                 res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
@@ -244,7 +244,7 @@ class Server {
             homePageResponse.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
             homePageResponse.setHeader('Pragma', 'no-cache');
             homePageResponse.setHeader('Expires', '0');
-            homePageResponse.sendFile(Path.join(__dirname + '/web/view.html'));
+            homePageResponse.sendFile(Path.join(__dirname + '../front/view.html'));
             console.log("~~~~ SEND HTML PAGE AND START QUICK SCAN (ping/http/socket) ~~~~");
 
             //console.log("G.VISIBLE_COMPUTERS");

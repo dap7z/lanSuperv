@@ -4,7 +4,7 @@ const Os = require('os');
 const Util = require('util');
 const Exec = require('child_process').exec;
 const ExecPromise = Util.promisify(Exec);
-let F = require('./functions.js'); //FONCTIONS
+let F = require('../back/functions.js'); //FONCTIONS
 
 //CONSTANTES
 const OS_WINDOWS = 'Windows_NT';

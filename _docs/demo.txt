@@ -14,9 +14,9 @@ Concernant les scans du réseau local, ils ne se font que :
 - toutes les heures (paramétrable dans le fichier config.js)
 
 Description du flux côté serveur :
-1) quickScan : au chargement de la page (sur les PC déjà connus dans G.VISIBLE_COMPUTERS)
-2) fullScan  : découvre tous les PC du réseau
-2) onePcScan : dès qu'un PC est detecté (pendant le fullScan), ses statuts ping/http/socket sont vérifiés immédiatement.
+1) quickScan/onePcScan/individualScan : au chargement de la page (sur les PC déjà connus dans G.VISIBLE_COMPUTERS)
+2) broadcastScan  : découvre tous les PC du réseau
+2) onePcScan : dès qu'un PC est detecté (pendant le broadcastScan), ses statuts ping/http/socket sont vérifiés.
 3) dump du contenu de la base de données pour verifications eventuelles
 
 Description du flux coté navigateur client :

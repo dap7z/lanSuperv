@@ -1,12 +1,7 @@
 ﻿# lanSuperv
 ## nodejs lan supervision
 
-![](demo.gif)
-
-### How to install ?
-1) Run executable, by example in windows console : "lan-superv.exe --config=D:\SRV_WEB\lanSuperv\config.js"
-note : if no --config is specified, it's looks for a "config.js" file in the executable directory
-2) Go to http://localhost:842
+![](docs/demo.gif)
 
 ### How to dev ?
 1) Download and install last stable version of node js for windows : 

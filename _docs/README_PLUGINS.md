@@ -4,7 +4,7 @@ LanSuperv utilise un système de plugins modulaire permettant d'étendre simplem
 
 ## Structure des Plugins
 
-Les plugins sont situés dans le dossier `plugins/` à la racine du projet et sont classés en deux catégories :
+Les plugins sont situés dans le dossier `back/plugins/` et sont classés en deux catégories :
 
 1.  **`remote-requests/`** : Plugins exécutés par le serveur pour agir sur une machine distante (ex: Wake-on-LAN).
 2.  **`local-responses/`** : Plugins exécutés par l'agent local (sur la machine cible) en réponse à une commande reçue (ex: Shutdown).
@@ -39,12 +39,12 @@ Pour créer un plugin (ex: `hello-world`), suivez ces étapes :
 
 1.  **Créer le dossier** :
     ```bash
-    mkdir plugins/local-responses/hello-world
+    mkdir back/plugins/local-responses/hello-world
     ```
 
 2.  **Créer le script `execute.js`** :
     ```javascript
-    // plugins/local-responses/hello-world/execute.js
+    // back/plugins/local-responses/hello-world/execute.js
     
     // 1. Écouter le message de démarrage
     process.on('message', (eventParams) => {

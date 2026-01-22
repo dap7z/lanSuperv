@@ -8,8 +8,8 @@
   "pkg": {
     "assets": [
       "web/**/*",
-      "plugins/local-responses/**/*",
-      "plugins/remote-requests/**/*"
+      "back/plugins/local-responses/**/*",
+      "back/plugins/remote-requests/**/*"
     ],
     "scripts": [],
     "targets": [

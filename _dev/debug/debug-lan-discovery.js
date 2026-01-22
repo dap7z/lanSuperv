@@ -3,7 +3,7 @@
 
 const os = require('os');
 const LanDiscovery = require('lan-discovery');
-const F = require('./functions.js'); //FONCTIONS
+const F = require('../back/functions.js'); //FONCTIONS
 const discovery = new LanDiscovery({ verbose: false, timeout: 60 });
 const discoveryVerbose = new LanDiscovery({ verbose: true, timeout: 10 });
 

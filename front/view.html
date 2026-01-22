@@ -8,18 +8,14 @@
 
     <!-- STYLES -->
     <link rel="stylesheet" href="assets/bootstrap.min.css">
-    <link rel="stylesheet" href="assets/toastr.min.css">
     <link rel="stylesheet" href="assets/pace.css">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="chat.css">
+    <!-- Notyf CSS (remplace Toastr) -->
+    <link rel="stylesheet" href="assets/notyf.min.css">
 
     <!-- JAVASCRIPS -->
-    <script src="assets/jquery-3.2.1.min.js"></script>
-    <script src="assets/jquery.timeago.js"></script>
-    <script src="assets/tether.min.js"></script>
     <script src="assets/bootstrap.min.js"></script>
-    <script src="assets/toastr.min.js"></script>
-    <script src="assets/moment.min.js"></script>
 </head>
 
 <body>
@@ -38,10 +34,10 @@
 
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h1 class="mb-0">Lan Superv</h1>
-                    <button type="button" class="btn btn-info" id="gunDbShowBtn" data-toggle="modal"
-                        data-target="#gunDbModal">
+                    <button type="button" class="btn btn-info" id="gunDbShowBtn" data-bs-toggle="modal"
+                        data-bs-target="#gunDbModal">
                         <!-- class="... hidden" if no decentralized database diagnostic needed -->
-                        <i class="glyphicon glyphicon-database"></i> Database Gun.js
+                        <span>🗄️</span> Database Gun.js
                     </button>
                 </div>
 
@@ -52,13 +48,13 @@
                                 <span class="nickname"></span>
                                 <span class="hostname"></span>
                             </div>
-                            <div class="card-block">
+                            <div class="card-body">
 
                                 <div class="btn-group btn-plugin-container" role="group">
                                     <div class="btn-group btn-plugin-choice" role="group">
                                         <a class="btn btn-secondary dropdown-toggle btn-plugin-link"
-                                            data-toggle="dropdown" href="#">
-                                            <span class='btn-plugin-value'></span><span class="caret"></span>
+                                            data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
+                                            <span class='btn-plugin-value'></span>
                                         </a>
                                         <ul class="dropdown-menu">
                                             <li class="dropdown-item"></li>
@@ -84,10 +80,10 @@
                                         <div class="d-flex flex-wrap respondsTo">
                                             <div class="p-2 badge-container">Responds to :</div>
                                             <div class="p-2 badge-container">
-                                                <span class="badge badge-default respondsTo-ping">ping</span>
-                                                <span class="badge badge-default respondsTo-http requireApp">http</span>
+                                                <span class="badge bg-secondary respondsTo-ping">ping</span>
+                                                <span class="badge bg-secondary respondsTo-http requireApp">http</span>
                                                 <span
-                                                    class="badge badge-default respondsTo-socket requireApp">socket</span>
+                                                    class="badge bg-secondary respondsTo-socket requireApp">socket</span>
                                             </div>
                                         </div>
                                     </span>
@@ -152,21 +148,18 @@
     </div>
 
     <!-- Modal to show gun.js database content -->
-    <div class="modal fade" id="gunDbModal" tabindex="-1" role="dialog" aria-labelledby="gunDbModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-lg" role="document">
+    <div class="modal fade" id="gunDbModal" tabindex="-1" aria-labelledby="gunDbModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="gunDbModalLabel">Contenu de la base de données Gun.js</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <h5 class="modal-title" id="gunDbModalLabel">Decentralized database content</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <button type="button" class="btn btn-primary btn-sm" id="btnRefreshGunDb">Actualiser</button>
+                        <button type="button" class="btn btn-primary btn-sm" id="btnRefreshGunDb">Refresh</button>
                         <button type="button" class="btn btn-danger btn-sm" id="btnDeleteGunMessages"
-                            style="margin-left: 10px;">Suppr. messages</button>
+                            style="margin-left: 10px;">Delete messages</button>
                         <span id="gunDbStatus" class="text-muted"></span>
                     </div>
                     <div id="gunDbContent"
@@ -176,7 +169,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>

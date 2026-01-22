@@ -8,6 +8,9 @@ if (!String.prototype.startsWith) {
 }
 //=====================================================
 
+import { $, $$, hasClass, addClass, removeClass } from './utils/dom.js';
+import { updateTimeElement } from './utils/date.js';
+import { toastr } from './utils/notifications.js';
 
 export default class Client {
 
@@ -24,89 +27,137 @@ export default class Client {
         let self = this;  //that reference to this ca be used inside sub function scope
 
         //use bootstrap popover on dynamically generated element :
-        $(document).on('mouseenter', '.cutword', function(){
-            let thisElement = this;
-            if($(thisElement).hasClass('popover-initialized') === false)
-            {
-                if($(thisElement).text().trim() !== '')
-                {
-                    $(thisElement).addClass('clickable');
-                    $(thisElement).popover({
-                        html : true,
-                        container: 'body',
-                        placement: 'top',
-                        trigger: 'click',
-                        content: function(){
-                            return $(this).html();
+        // Bootstrap 5 popover avec Vanilla JS (pas besoin de jQuery)
+        document.addEventListener('mouseenter', function(event) {
+            let target = event.target;
+            // Vérifier que target est un Element avec classList
+            if (target && target.classList && target.classList.contains('cutword')) {
+                let thisElement = target;
+                if (!hasClass(thisElement, 'popover-initialized')) {
+                    const textContent = thisElement.textContent.trim();
+                    if (textContent !== '') {
+                        addClass(thisElement, 'clickable');
+                        
+                        // Vérifier si Bootstrap est disponible (window.bootstrap ou bootstrap global)
+                        const Bootstrap = window.bootstrap || (typeof bootstrap !== 'undefined' ? bootstrap : null);
+                        if (Bootstrap && Bootstrap.Popover) {
+                            // Initialiser le popover Bootstrap 5
+                            try {
+                                new Bootstrap.Popover(thisElement, {
+                                    trigger: 'hover focus',
+                                    placement: 'top',
+                                    content: textContent,
+                                    html: false
+                                });
+                                addClass(thisElement, 'popover-initialized');
+                            } catch (error) {
+                                console.warn('[CLIENT.JS] Erreur lors de l\'initialisation du popover:', error);
+                            }
+                        } else {
+                            console.warn('[CLIENT.JS] Bootstrap 5 n\'est pas disponible');
+                            addClass(thisElement, 'popover-initialized');
                         }
-                    });
+                    }
                 }
-                $(thisElement).addClass('popover-initialized');
             }
-        });
+        }, true); // Use capture phase for event delegation
 
-        //use bootstrap drowpdown as select :
-        $(document).on("click", function(event){
-            let $elem = $(event.target);
-            //click anywhere on document :
-            if($elem.hasClass('popover-initialized') === false)
-            {
+        //use bootstrap dropdown as select :
+        document.addEventListener("click", function(event) {
+            let elem = event.target;
+            
+            // Vérifier que elem est un Element avec classList
+            if (!elem || !elem.classList) {
+                return;
+            }
+            
+            //close all popovers when clicking outside :
+            if (!hasClass(elem, 'popover-initialized') && !hasClass(elem, 'cutword')) {
                 let hasAnyPopoverClass = false;
-                let attrClass = $elem.attr('class');
-                if(attrClass) {
+                let attrClass = elem.getAttribute('class');
+                if (attrClass) {
                     let tabClass = attrClass.split(' ');
-                    for(let i = 0; i < tabClass.length; i++) {
-                        if(tabClass[i].indexOf('popover') === 0){
+                    for (let i = 0; i < tabClass.length; i++) {
+                        if (tabClass[i].indexOf('popover') === 0) {
                             hasAnyPopoverClass = true;
                         }
                     }
                 }
-                //close all popover:
-                if(!hasAnyPopoverClass){
-                    $('.popover-initialized').popover('hide');
+                // Fermer tous les popovers si on clique ailleurs
+                const Bootstrap = window.bootstrap || (typeof bootstrap !== 'undefined' ? bootstrap : null);
+                if (!hasAnyPopoverClass && Bootstrap && Bootstrap.Popover) {
+                    try {
+                        // Récupérer tous les popovers initialisés et les fermer
+                        const popoverElements = document.querySelectorAll('.cutword.popover-initialized');
+                        popoverElements.forEach(element => {
+                            const popoverInstance = Bootstrap.Popover.getInstance(element);
+                            if (popoverInstance) {
+                                popoverInstance.hide();
+                            }
+                        });
+                    } catch (error) {
+                        console.warn('[CLIENT.JS] Erreur lors de la fermeture des popovers:', error);
+                    }
                 }
             }
+            
             //click on li inside .dropdown-menu :
-            if(event.target.nodeName.toLowerCase() === 'li')
-            {
-                if($elem.closest(".dropdown-menu").length > 0)
-                {
-                    let selText = $elem.text();
-                    $elem.parents('.btn-group').find('.btn-plugin-value').html(selText);
+            if (elem.nodeName.toLowerCase() === 'li') {
+                let dropdownMenu = elem.closest(".dropdown-menu");
+                if (dropdownMenu) {
+                    let selText = elem.textContent;
+                    let btnGroup = elem.closest('.btn-group');
+                    if (btnGroup) {
+                        let btnPluginValue = btnGroup.querySelector('.btn-plugin-value');
+                        if (btnPluginValue) {
+                            btnPluginValue.innerHTML = selText;
+                        }
+                    }
                 }
             }
         });
 
+        let clearAllMessages = $("#clearAllMessages");
+        if (clearAllMessages) {
+            clearAllMessages.addEventListener('click', function() {
+                //prevent multiple click :
+                clearAllMessages.style.display = 'none';
+                window.setTimeout(function() {
+                    clearAllMessages.style.display = '';
+                }, 1000);
 
-        let $clearAllMessages = $("#clearAllMessages");
-        $clearAllMessages.on('click', function(){
-            //prevent multiple click :
-            $clearAllMessages.hide();
-            window.setTimeout(function(){
-                $clearAllMessages.show();
-            }, 1000);
+                //simulate click on all deletemsg btn :
+                let deletemsgBtns = document.querySelectorAll('i.deletemsg');
+                deletemsgBtns.forEach(btn => {
+                    btn.click();
+                });
+            });
+        }
 
-            //simulate click on all deletemsg btn :
-            $('body').find('i.deletemsg').trigger('click');
-        });
-
-
-        $(".btn-plugin-submit").on('click', function(){
-            let thisBtn = this;
-            self.sendRequest(thisBtn);
+        let btnPluginSubmits = $$(".btn-plugin-submit");
+        btnPluginSubmits.forEach(btn => {
+            btn.addEventListener('click', function() {
+                self.sendRequest(this);
+            });
         });
     }
 
     //OTHERS METHODS :
     sendRequest(btn){
-        let $pc =  $(btn).closest(".pcElem");
+        let pc = btn.closest(".pcElem");
+        if (!pc) return;
+        
+        let btnPluginValue = pc.querySelector('.btn-plugin-value');
+        let lanMAC = pc.querySelector(".lanMAC");
+        let machineID = pc.querySelector(".machineID");
+        
         let reqData = {
-            eventName: $pc.find('.btn-plugin-value').text(),
+            eventName: btnPluginValue ? btnPluginValue.textContent : '',
             eventResult: '',
             eventSendedAt: new Date().toISOString(),
             eventReceivedAt: null,
-            pcTargetLanMAC: $pc.find(".lanMAC").html(),
-            pcTargetMachineID: $pc.find(".machineID").html(),
+            pcTargetLanMAC: lanMAC ? lanMAC.innerHTML : '',
+            pcTargetMachineID: machineID ? machineID.innerHTML : '',
             //-- chat.js --
             type: 'event', //(not text)
             who: localStorage.getItem('userName'), //uname
@@ -141,21 +192,38 @@ export default class Client {
         }
 
         //retrieve element or clone the model if not found
-        let $elem = $('#' + id);
-        if(!$elem.get(0)){
-            $elem = $('#pcModel').find('.pcElem').clone(true).attr('id', id).appendTo('#pcList');
+        let elem = document.getElementById(id);
+        if(!elem){
+            let pcModel = document.querySelector('#pcModel .pcElem');
+            if (pcModel) {
+                elem = pcModel.cloneNode(true);
+                elem.id = id;
+                let pcList = document.querySelector('#pcList');
+                if (pcList) {
+                    pcList.appendChild(elem);
+                }
+            } else {
+                console.error("[CLIENT.JS] pcModel not found");
+                return;
+            }
         }
 
         //hide some badges if app is not installed :
-        let $badges = $elem.find(".badge.requireApp");
+        let badges = elem.querySelectorAll(".badge.requireApp");
         if(pc.machineID){
-            $badges.show();
+            badges.forEach(badge => {
+                badge.style.display = '';
+            });
         }else{
-            $badges.hide();
+            badges.forEach(badge => {
+                badge.style.display = 'none';
+            });
         }
 
-        let $pluginList = $elem.find('.btn-plugin-choice').find('.dropdown-menu');
-        $pluginList.html(''); //empty plugin list of this pc
+        let pluginList = elem.querySelector('.btn-plugin-choice .dropdown-menu');
+        if (pluginList) {
+            pluginList.innerHTML = ''; //empty plugin list of this pc
+        }
 
         let pcIsOnline = false;
         Object.entries(pc).forEach(([key, value]) => {
@@ -170,36 +238,41 @@ export default class Client {
                 pcIsOnline = true;
             }
 
-            let $dataContainer = $elem.find('.'+key);
+            let dataContainer = elem.querySelector('.'+key);
+            if (!dataContainer) return;
+            
             //badges respondsTo
-            if($dataContainer.hasClass("badge")){
+            if(hasClass(dataContainer, "badge")){
                 // Vérifier si la valeur est true (booléen ou chaîne "true")
                 if(valueIsTrue){
-                    $dataContainer.removeClass("badge-default");
-                    $dataContainer.addClass("badge-success");
+                    removeClass(dataContainer, "bg-secondary");
+                    addClass(dataContainer, "bg-success");
                 }else{
-                    $dataContainer.removeClass("badge-success");
-                    $dataContainer.addClass("badge-default");
+                    removeClass(dataContainer, "bg-success");
+                    addClass(dataContainer, "bg-secondary");
                 }
             }
             //lastResponse
             else if(key === "lastResponse"){
-                let $time = $dataContainer.find("time").first();
-                $time.attr("datetime", value);
-                $time.timeago(); //has to be called after datetime change
-                //(first page loading: load database value of previous scan)
-                //TODO: fix refresh on gun.js computer.lastResponse update
+                let time = dataContainer.querySelector("time");
+                if (time) {
+                    updateTimeElement(time, value);
+                }
             }
             //pc description
-            else if($dataContainer.length > 0){
+            else {
                 //update html (.hostname/.lanIP/.lanMAC/...)
-                $dataContainer.text(value);
+                dataContainer.textContent = value;
             }
+            
             //plugins availables
-            else if(key.startsWith("plugin")){
+            if(key.startsWith("plugin")){
                 let pluginName = value;
-                if(pluginName !== null){
-                    $pluginList.append('<li class="dropdown-item">'+ pluginName +'</li>');
+                if(pluginName !== null && pluginList){
+                    let li = document.createElement('li');
+                    li.className = 'dropdown-item';
+                    li.textContent = pluginName;
+                    pluginList.appendChild(li);
                     if(pluginName===powerOffPlugin){
                         powerOffAvailable = true;
                     }
@@ -207,11 +280,13 @@ export default class Client {
             }
         });
 
-
         //update web ui with online status :
-        $elem.find(".card-header").removeClass("onlinePc");
-        if(pcIsOnline){
-            $elem.find(".card-header").addClass("onlinePc");
+        let cardHeader = elem.querySelector(".card-header");
+        if (cardHeader) {
+            removeClass(cardHeader, "onlinePc");
+            if(pcIsOnline){
+                addClass(cardHeader, "onlinePc");
+            }
         }
 
         //selected plugin
@@ -219,10 +294,16 @@ export default class Client {
         if(pcIsOnline && powerOffAvailable){
             defaultPlugin = powerOffPlugin;
         }
-        $elem.find('.btn-plugin-value').text(defaultPlugin);
+        let btnPluginValue = elem.querySelector('.btn-plugin-value');
+        if (btnPluginValue) {
+            btnPluginValue.textContent = defaultPlugin;
+        }
 
         //console.log("[CLIENT.JS] Hiding loader for computer:", id);
-        $('#loader').hide();
+        let loader = $("#loader");
+        if (loader) {
+            loader.style.display = 'none';
+        }
     }
     //==END=ON=CHANGE=DB=COMPUTERS=====================================================================================
 

@@ -1,88 +1,108 @@
 ﻿import JSONFormatter from 'json-formatter-js';
+import { $, $$ } from './utils/dom.js';
+import { scrollToBottom, fadeOut } from './utils/dom.js';
+import { formatRelativeTime } from './utils/date.js';
 
 export default class Chat {
 	
-	/*
-	 * [ORIGINALS SOURCES]
-	 * Name : Gun Js chat 
-	 * Author : Ronald Aug
-	 * License : MIT
-	 * Link : https://www.github.com/ronaldaug/gunjschat
-	 * Require : JQuery/Moment/Gun
-	 */
 
     constructor(functionSendMessage) {
         //CLASS ATTRIBUTS :
         this.functionSendMessage = functionSendMessage;
-		this.$container = null;
-        this.$chatBox = null;
-        this.$form = null;
+        this.container = null;
+        this.chatBox = null;
+        this.form = null;
     }
 
     //MAIN METHOD :
 	init(){
-        self = this;
-        this.$container = $('div.chat-container');
-        this.$chatBox = $('div.chatbox');
-        this.$form = $('form#chat');
+        let self = this;
+        this.container = document.querySelector('div.chat-container');
+        this.chatBox = document.querySelector('div.chatbox');
+        this.form = document.querySelector('form#chat');
 
         //------------------------------------
         // LoginChat
         //------------------------------------//
         let uname = 'notLoaded';
-        $.getJSON('/cmd/check', {}, (data) => {
-            let userName = 'userFrom';
-            if(data.hostname){
-                userName += data.hostname;
-            }
-            localStorage.setItem('userName', userName);
-            uname = localStorage.getItem('userName');
-            this.scrollToButton();
-            this.$container.addClass('show');
-        });
+        fetch('/cmd/check')
+            .then(response => response.json())
+            .then(data => {
+                let userName = 'userFrom';
+                if(data.hostname){
+                    userName += data.hostname;
+                }
+                localStorage.setItem('userName', userName);
+                uname = localStorage.getItem('userName');
+                this.scrollToButton();
+                if (this.container) {
+                    this.container.classList.add('show');
+                }
+            })
+            .catch(error => {
+                console.error('[CHAT.JS] Error fetching /cmd/check:', error);
+            });
 
         //------------------------------------
         // On submit a message
         //------------------------------------//
-        this.$form.on('submit', (event) => {
-            event.preventDefault();
-            let u_msg = this.$form.find('input.msg').val();
-            if (uname && u_msg) {
-                let message = {
-                    what: u_msg,
-                    when: new Date().toISOString(),
-                    who: uname,
-                    type: 'text'
-                };
-                this.$form.find('input.msg').val("");
-                this.functionSendMessage(message);
-            }
-        });
+        if (this.form) {
+            this.form.addEventListener('submit', (event) => {
+                event.preventDefault();
+                let msgInput = this.form.querySelector('input.msg');
+                let u_msg = msgInput ? msgInput.value : '';
+                if (uname && u_msg) {
+                    let message = {
+                        what: u_msg,
+                        when: new Date().toISOString(),
+                        who: uname,
+                        type: 'text'
+                    };
+                    if (msgInput) {
+                        msgInput.value = "";
+                    }
+                    this.functionSendMessage(message);
+                }
+            });
+        }
 
         //------------------------------------
         // When hit enter
         //------------------------------------//
-        $("input.msg").keypress( (event) => {
-            if (event.which !== 13) {
-                return;
-            }
-            event.preventDefault();
-            let userMsg = this.$form.find('input.msg').val();
-            if (userMsg) {
-                this.$form.submit();
-            } else {
-                alert('Please do not leave input blank');
-            }
-        });
+        let msgInput = document.querySelector("input.msg");
+        if (msgInput) {
+            msgInput.addEventListener('keypress', (event) => {
+                if (event.key !== 'Enter') {
+                    return;
+                }
+                event.preventDefault();
+                let userMsg = msgInput.value;
+                if (userMsg) {
+                    if (this.form) {
+                        this.form.dispatchEvent(new Event('submit'));
+                    }
+                } else {
+                    alert('Please do not leave input blank');
+                }
+            });
+        }
 
         //------------------------------------
         // Delete chat messages
         //------------------------------------//
-        $('body').on('click', 'i.deletemsg', function() {
-            let thisBtn = this;
-            let $li = $(thisBtn).closest('li.chatmsg');
-            $li.fadeOut('fast');
-            sharedObject.dbMessages.get($li.attr('id')).put(null);
+        document.addEventListener('click', function(event) {
+            if (event.target.classList.contains('deletemsg') || event.target.closest('i.deletemsg')) {
+                let deletemsgBtn = event.target.classList.contains('deletemsg') ? event.target : event.target.closest('i.deletemsg');
+                let li = deletemsgBtn.closest('li.chatmsg');
+                if (li) {
+                    fadeOut(li, 200, () => {
+                        let id = li.getAttribute('id');
+                        if (id && sharedObject.dbMessages) {
+                            sharedObject.dbMessages.get(id).put(null);
+                        }
+                    });
+                }
+            }
         });
 	}
 
@@ -96,15 +116,15 @@ export default class Chat {
         let element = formatter.render();
         element.style['backgroundColor'] = '#1E1E1E';	//dark theme (background color)
         element.style['border'] = '1px solid lightgray';
-        element.style['border-radius'] = '5px';
+        element.style['borderRadius'] = '5px';
         element.style['padding'] = '10px';
         return element;
     }
 
     scrollToButton() {
-        this.$chatBox.stop().animate({
-            scrollTop: this.$chatBox[0].scrollHeight
-        });
+        if (this.chatBox) {
+            scrollToBottom(this.chatBox);
+        }
     }
 
 
@@ -113,14 +133,23 @@ export default class Chat {
         //(cant use dbMessages.map().once anymore because vue.js consume it when updating his model)
         if (message && message.who)
         {
-            let $li = $(
-                $('#' + id).get(0) ||
-                $('.model').find('li').clone(true).attr({
-                    id: id,
-                    class: 'collection-item chatmsg',
-                    name: message.who,
-                }).appendTo('.chatmessage')
-            );
+            let li = document.getElementById(id);
+            if (!li) {
+                let model = document.querySelector('.model li');
+                if (model) {
+                    li = model.cloneNode(true);
+                    li.id = id;
+                    li.className = 'collection-item chatmsg';
+                    li.setAttribute('name', message.who);
+                    let chatMessage = document.querySelector('.chatmessage');
+                    if (chatMessage) {
+                        chatMessage.appendChild(li);
+                    }
+                } else {
+                    console.error('[CHAT.JS] Model not found');
+                    return;
+                }
+            }
 
             let content = '';
             if(message.type === 'text'){
@@ -140,9 +169,24 @@ export default class Chat {
                 content = Chat.jsonDisplay(message);
             }
 
-            $li.find('.what').html(content);
-            $li.find('.who').text(message.who);
-            $li.find('.when').text(moment(message.when).fromNow());
+            let whatEl = li.querySelector('.what');
+            let whoEl = li.querySelector('.who');
+            let whenEl = li.querySelector('.when');
+            
+            if (whatEl) {
+                if (typeof content === 'string') {
+                    whatEl.innerHTML = content;
+                } else {
+                    whatEl.innerHTML = '';
+                    whatEl.appendChild(content);
+                }
+            }
+            if (whoEl) {
+                whoEl.textContent = message.who;
+            }
+            if (whenEl) {
+                whenEl.textContent = formatRelativeTime(message.when);
+            }
             this.scrollToButton();
         }
     }

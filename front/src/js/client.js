@@ -134,18 +134,24 @@ export default class Client {
             });
         }
 
-        let btnPluginSubmits = $$(".btn-plugin-submit");
-        btnPluginSubmits.forEach(btn => {
-            btn.addEventListener('click', function() {
-                self.sendRequest(this);
-            });
+        document.addEventListener('click', function(event) {
+            let target = event.target;
+            // Vérifier si le clic est sur un bouton .btn-plugin-submit ou un élément à l'intérieur
+            let btn = target.closest('.btn-plugin-submit');
+            if (btn) {
+                self.sendRequest(btn);
+            }
         });
     }
 
     //OTHERS METHODS :
     sendRequest(btn){
+        console.log("[CLIENT.JS] sendRequest called with button:", btn);
         let pc = btn.closest(".pcElem");
-        if (!pc) return;
+        if (!pc) {
+            console.warn("[CLIENT.JS] No .pcElem found for button");
+            return;
+        }
         
         let btnPluginValue = pc.querySelector('.btn-plugin-value');
         let lanMAC = pc.querySelector(".lanMAC");
@@ -156,8 +162,8 @@ export default class Client {
             eventResult: '',
             eventSendedAt: new Date().toISOString(),
             eventReceivedAt: null,
-            pcTargetLanMAC: lanMAC ? lanMAC.innerHTML : '',
-            pcTargetMachineID: machineID ? machineID.innerHTML : '',
+            pcTargetLanMAC: lanMAC ? lanMAC.textContent : '',
+            pcTargetMachineID: machineID ? machineID.textContent : '',
             //-- chat.js --
             type: 'event', //(not text)
             who: localStorage.getItem('userName'), //uname

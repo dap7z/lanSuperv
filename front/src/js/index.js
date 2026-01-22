@@ -49,13 +49,15 @@ clearLocalStorage().then(async () => {
         // Fonction pour envoyer des messages
         function dbSendMessage(message) {
             try {
+                if(!message.eventSendedAt){
+                    message.eventSendedAt = new Date().toISOString();
+                }
                 // Générer un ID unique pour le message
                 const messageId = message.eventSendedAt + '_' + Math.random().toString(36).substr(2, 9);
                 // Utiliser .get(id).put() au lieu de .set() pour sauvegarder correctement toutes les propriétés
                 sharedObject.dbMessages.get(messageId).put(message);
-                //console.log("[CLIENT] Message sent to database:", message);
             } catch (error) {
-                console.error("[CLIENT] ERROR sending message to database:", error);
+                console.error("[INDEX.JS] ERROR sending message to database:", error, message);
             }
         }
 

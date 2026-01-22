@@ -31,8 +31,8 @@ function clearLocalStorage() {
 // Clear localStorage and wait for it to complete before app initialization
 clearLocalStorage().then(async () => {
     // Initialiser WebRTC Client
-    const webrtcClient = new WebRTCClient(Config);
-    await webrtcClient.init();
+    const webRtcClient = new WebRTCClient(Config);
+    await webRtcClient.init();
     console.log("[INDEX.JS] WebRTC client initialized");
 
     // Créer le StateManager pour remplacer Vue.js
@@ -41,29 +41,28 @@ clearLocalStorage().then(async () => {
 
     // Initialiser l'application
     function initApp() {
-        //update sharedObject avec WebRTC (compatible API Gun.js) :
-        sharedObject.gun = webrtcClient; // Pour compatibilité
-        sharedObject.dbComputers = webrtcClient.get(Config.val('TABLE_COMPUTERS'));
-        sharedObject.dbMessages = webrtcClient.get(Config.val('TABLE_MESSAGES'));
+        sharedObject.webRtcClient = webRtcClient;
+        sharedObject.dbComputers = webRtcClient.get(Config.val('TABLE_COMPUTERS'));
+        sharedObject.dbMessages = webRtcClient.get(Config.val('TABLE_MESSAGES'));
         console.log("[INDEX.JS] WebRTC objects initialized - dbComputers:", sharedObject.dbComputers, "dbMessages:", sharedObject.dbMessages);
 
         // Fonction pour envoyer des messages
-        function gunSendMessage(message) {
+        function dbSendMessage(message) {
             try {
                 // Générer un ID unique pour le message
                 const messageId = message.eventSendedAt + '_' + Math.random().toString(36).substr(2, 9);
                 // Utiliser .get(id).put() au lieu de .set() pour sauvegarder correctement toutes les propriétés
                 sharedObject.dbMessages.get(messageId).put(message);
-                //console.log("[CLIENT] Message sent to Gun.js:", message);
+                //console.log("[CLIENT] Message sent to database:", message);
             } catch (error) {
-                console.error("[CLIENT] ERROR sending message to Gun.js:", error);
+                console.error("[CLIENT] ERROR sending message to database:", error);
             }
         }
 
         //execute client.js and chat.js :
-        let clientJS = new Client(gunSendMessage);
+        let clientJS = new Client(dbSendMessage);
         clientJS.init();
-        let chatJS = new Chat(gunSendMessage);
+        let chatJS = new Chat(dbSendMessage);
         chatJS.init();
 
         //listen on dbComputers database updates
@@ -71,7 +70,7 @@ clearLocalStorage().then(async () => {
         sharedObject.dbComputers.map().on((pc, id) => {
             console.log("[INDEX.JS] WebRTC dbComputers event triggered - id:", id, "pc:", pc);
             if(pc !== null){ //null si exec dbComputersClearData()
-                clientJS.gunOnChangeDbComputers(pc, id);
+                clientJS.dbOnChangeComputers(pc, id);
                 stateManager.updateComputer(id, pc);
             } else {
                 console.log("[INDEX.JS] Ignoring null/invalid pc for id:", id);
@@ -79,41 +78,41 @@ clearLocalStorage().then(async () => {
         });
 
         sharedObject.dbMessages.map().on((message, id) => {
-            clientJS.gunOnChangeDbMessages(message, id);
-            chatJS.gunOnChangeDbMessages(message, id);
+            clientJS.dbOnChangeMessages(message, id);
+            chatJS.dbOnChangeMessages(message, id);
             stateManager.updateMessage(id, message);
         });
         
-        // Setup button to show Gun.js database content
-        const gunDbShowBtn = document.getElementById('gunDbShowBtn');
-        const btnRefreshGunDb = document.getElementById('btnRefreshGunDb');
-        if (gunDbShowBtn) {
-            gunDbShowBtn.addEventListener('click', () => {
-                showGunDbContent();
+        // Setup button to show database content
+        const dbShowBtn = document.getElementById('dbShowBtn');
+        const btnRefreshDb = document.getElementById('btnRefreshDb');
+        if (dbShowBtn) {
+            dbShowBtn.addEventListener('click', () => {
+                showDbContent();
             });
         }
-        if (btnRefreshGunDb) {
-            btnRefreshGunDb.addEventListener('click', () => {
-                showGunDbContent();
+        if (btnRefreshDb) {
+            btnRefreshDb.addEventListener('click', () => {
+                showDbContent();
             });
         }
 
         // Setup button to delete all messages
-        const btnDeleteGunMessages = document.getElementById('btnDeleteGunMessages');
-        if (btnDeleteGunMessages) {
-            btnDeleteGunMessages.addEventListener('click', () => {
+        const btnDeleteDbMessages = document.getElementById('btnDeleteDbMessages');
+        if (btnDeleteDbMessages) {
+            btnDeleteDbMessages.addEventListener('click', () => {
                 const clearAllBtn = document.getElementById('clearAllMessages');
                 if (clearAllBtn) {
                     clearAllBtn.click();
                     // Refresh after a short delay to allow the clear action to propagate
                     setTimeout(() => {
-                        showGunDbContent();
+                        showDbContent();
                     }, 1000);
                 }
             });
         }
 
-        function showGunDbContent() {
+        function showDbContent() {
             const dbContent = {
                 computers: {},
                 messages: {}
@@ -124,13 +123,13 @@ clearLocalStorage().then(async () => {
             const rootTableMessages = Config.val('TABLE_MESSAGES');
             
             // Afficher un message de chargement
-            const gunDbJson = document.getElementById('gunDbJson');
-            const gunDbStatus = document.getElementById('gunDbStatus');
-            if (gunDbJson) {
-                gunDbJson.textContent = 'Chargement des données...';
+            const dbJson = document.getElementById('dbJson');
+            const dbStatus = document.getElementById('dbStatus');
+            if (dbJson) {
+                dbJson.textContent = 'Chargement des données...';
             }
-            if (gunDbStatus) {
-                gunDbStatus.textContent = 'Chargement en cours...';
+            if (dbStatus) {
+                dbStatus.textContent = 'Chargement en cours...';
             }
             
             // Récupérer tous les PCs de dbComputers
@@ -164,21 +163,21 @@ clearLocalStorage().then(async () => {
             setTimeout(() => {
                 try {
                     const jsonContent = JSON.stringify(dbContent, null, 2);
-                    if (gunDbJson) {
-                        gunDbJson.textContent = jsonContent;
+                    if (dbJson) {
+                        dbJson.textContent = jsonContent;
                     }
                     const totalCount = Object.keys(dbContent.computers).length + Object.keys(dbContent.messages).length;
-                    if (gunDbStatus) {
-                        gunDbStatus.textContent = 
+                    if (dbStatus) {
+                        dbStatus.textContent = 
                             `${Object.keys(dbContent.computers).length} PC(s), ${Object.keys(dbContent.messages).length} message(s) - Total: ${totalCount}`;
                     }
                 } catch (error) {
-                    console.error("[INDEX.JS] Error displaying Gun.js content:", error);
-                    if (gunDbJson) {
-                        gunDbJson.textContent = 'Erreur lors de la sérialisation des données: ' + error.message;
+                    console.error("[INDEX.JS] Error displaying database content:", error);
+                    if (dbJson) {
+                        dbJson.textContent = 'Erreur lors de la sérialisation des données: ' + error.message;
                     }
-                    if (gunDbStatus) {
-                        gunDbStatus.textContent = 'Erreur';
+                    if (dbStatus) {
+                        dbStatus.textContent = 'Erreur';
                     }
                 }
             }, 2000); // Attendre 2 secondes pour que toutes les données soient chargées

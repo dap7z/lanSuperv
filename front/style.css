@@ -105,14 +105,14 @@
 }
 
 
-/* Gun.js DB Modal */
-#gunDbContent {
+/* Database Modal */
+#dbContent {
     font-family: 'Courier New', monospace;
     font-size: 12px;
     line-height: 1.4;
 }
 
-#gunDbJson {
+#dbJson {
     color: #333;
     background-color: #fff;
     padding: 10px;
@@ -120,7 +120,7 @@
     border-radius: 3px;
 }
 
-#gunDbShowBtn {
+#dbShowBtn {
     margin-left: auto;
 }
 

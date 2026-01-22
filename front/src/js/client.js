@@ -17,7 +17,7 @@ export default class Client {
     constructor(functionSendMessage) {
         //CLASS ATTRIBUTS :
         this.functionSendMessage = functionSendMessage;
-        //events notifications (before gunOnChangeDbMessages first call)
+        //events notifications (before dbOnChangeMessages first call)
         this.pageLoadedAt = new Date().toISOString();
         this.lastNotification = '';
     }
@@ -164,12 +164,12 @@ export default class Client {
             when: new Date().toISOString(), //only for display time from now
             //-------------
         };
-        //(gun.js cant handle JS multiple dimensions objects, only key:value)
+        //(database cant handle JS multiple dimensions objects, only key:value)
         this.functionSendMessage(reqData);
     }
 
     //==START=ON=CHANGE=DB=COMPUTERS=====================================================================================
-    gunOnChangeDbComputers(pc, id){
+    dbOnChangeComputers(pc, id){
         //.once exec one time | .on exec at every change
         console.log("[CLIENT.JS] dbComputers has been updated, we have to update the view. function called with - id:", id, "pc:", pc);
 
@@ -229,7 +229,7 @@ export default class Client {
         Object.entries(pc).forEach(([key, value]) => {
             //console.log(key +' => '+ value);
             
-            //cast "boolean" value from gun.js db
+            //cast "boolean" value from database
             const valueIsTrue = value === true || value === "true" || value === 1 || value === "1";
 
             //determine online status
@@ -310,12 +310,12 @@ export default class Client {
 
 
     //==START=ON=CHANGE=DB=MESSAGES=====================================================================================
-    gunOnChangeDbMessages(message, id){
+    dbOnChangeMessages(message, id){
         if(message && message.eventSendedAt){
             if(this.pageLoadedAt < message.eventSendedAt && this.lastNotification !== message.eventResult)
             {
                 this.lastNotification = message.eventResult; //fix double notification
-                //caused by two gun.js 0.8 database update separated by few ms (.eventReceivedAt and then .eventResult)
+                //caused by two database updates separated by few ms (.eventReceivedAt and then .eventResult)
                 //... make .on() function called twice with filled .eventResult
 
                 let response = null;

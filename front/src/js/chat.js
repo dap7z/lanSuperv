@@ -129,7 +129,7 @@ export default class Chat {
 
 
     //==START=ON=CHANGE=DB=MESSAGES=====================================================================================
-    gunOnChangeDbMessages(message, id){
+    dbOnChangeMessages(message, id){
         //(cant use dbMessages.map().once anymore because vue.js consume it when updating his model)
         if (message && message.who)
         {

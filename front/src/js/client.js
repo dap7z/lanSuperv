@@ -1,4 +1,4 @@
-﻿//=========== polyfill for IE compatibility ============
+//=========== polyfill for IE compatibility ============
 //String.startsWith()
 if (!String.prototype.startsWith) {
     String.prototype.startsWith = function(searchString, position){

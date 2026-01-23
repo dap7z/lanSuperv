@@ -1,4 +1,4 @@
-﻿# lanSuperv
+# lanSuperv
 ## nodejs lan supervision
 
 ![](docs/demo.gif)

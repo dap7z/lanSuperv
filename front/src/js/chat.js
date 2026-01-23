@@ -1,4 +1,4 @@
-﻿import JSONFormatter from 'json-formatter-js';
+import JSONFormatter from 'json-formatter-js';
 import { $, $$ } from './utils/dom.js';
 import { scrollToBottom, fadeOut } from './utils/dom.js';
 import { formatRelativeTime } from './utils/date.js';

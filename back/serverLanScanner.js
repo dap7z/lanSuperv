@@ -57,6 +57,14 @@ class ServerLanScanner extends EventEmitter {
             // EVENT_DEVICES_INFOS : we got IP+MAC of all devices
             .on(LanDiscovery.EVENT_DEVICES_INFOS, (data) => {
 
+                console.log(`[SCAN] EVENT_DEVICES_INFOS received with ${data ? data.length : 0} devices`);
+
+                // Clear broadcast scan timeout if it exists
+                if (G.SCAN_TIMEOUT) {
+                    clearTimeout(G.SCAN_TIMEOUT);
+                    G.SCAN_TIMEOUT = null;
+                }
+
                 // Inutile de lancer un QuickScan ici, on a deja demandé un onePcScan asyunchrone à chaque PC dectecé (EVENT_DEVICE_INFOS)
                 // Donc on affiche simplement un log de fin du broadcast scan et on retire le lock SCAN_IN_PROGRESS ...même si il reste des onePcScan en cours :
                 console.log('--> event '+ LanDiscovery.EVENT_DEVICES_INFOS + 'received, ALL ' + data.length + ' DEVICES FOUND :', data.map(device => device.name).join(', '));
@@ -81,6 +89,15 @@ class ServerLanScanner extends EventEmitter {
             .on(LanDiscovery.EVENT_SCAN_COMPLETE, (data) => {
                 //console.log('--> event '+ LanDiscovery.EVENT_SCAN_COMPLETE +' :\n', data);
                 console.log('OK! network scan completed in ' + data.scanTimeMS / 1000 + ' sec');
+                
+                // Clear broadcast scan timeout if it exists
+                if (G.SCAN_TIMEOUT) {
+                    clearTimeout(G.SCAN_TIMEOUT);
+                    G.SCAN_TIMEOUT = null;
+                }
+                
+                // Free lock
+                G.SCAN_IN_PROGRESS = false;
             });
     }
 
@@ -432,7 +449,25 @@ class ServerLanScanner extends EventEmitter {
             let tabIP = F.cidrRange(networkToScan);
             
             // Les listeners sont déjà configurés dans setupScanListeners(), on lance juste le scan
-            G.LAN_DISCOVERY.startScan({ ipArrayToScan: tabIP });
+            G.LAN_DISCOVERY.getDefaultInterface().then(() => {
+                G.LAN_DISCOVERY.startScan({ ipArrayToScan: tabIP });
+                
+                // Set timeout for broadcast scan (60 seconds)
+                G.SCAN_TIMEOUT = setTimeout(() => {
+                    console.warn(`[SCAN] ERROR! Broadcast scan timeout reached`);
+                    console.warn(`[SCAN] ERROR! No EVENT_DEVICES_INFOS received, scan may have hung or failed`);
+                    
+                    // Free lock
+                    G.SCAN_IN_PROGRESS = false;
+                    
+                    // Clear timeout reference
+                    G.SCAN_TIMEOUT = null;
+                }, G.CONFIG.val('SCAN_TIMEOUT_MS'));
+            }).catch((err) => {
+                console.error('[SCAN] Failed to get default interface for scan:', err.message);
+                console.error('[SCAN] Stack:', err.stack);
+                G.SCAN_IN_PROGRESS = false;
+            });
         }
     }
 

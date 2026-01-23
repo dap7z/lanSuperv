@@ -1,4 +1,4 @@
-﻿/*************************************************************************************
+/*************************************************************************************
  lanSuperv :
  - affiche les pc connectés et deconnectés du reseau local du serveur.
  - permet d'envoyer des packets WakeOnLan
@@ -362,15 +362,12 @@ class Server {
         G.webrtcManager = new ServerWebRTCManager(G);
         G.webrtcManager.init();
         
-        // Configurer les listeners d'événements après l'initialisation de WebRTC
+        // Configure event listeners after WebRTC initialization
         G.eventHandler.setupSocketEventsListeners();
+        // (required for processing ping broadcast scan results and launching onePcScan on newly detected PCs)
         
-        //we need a way to determine if one computer is in the lan of the server (to declare him offline).
-
-        //-> Reload G.VISIBLE_COMPUTERS map on server restart
+        // Reload G.VISIBLE_COMPUTERS map on server restart
         G.database.dbVisibleComputersLoad();
-        ///!\ here G.VISIBLE_COMPUTERS is not yet loaded /!\
-        //but no need await function (only used at the end of lan scan to mark pc as offline)
 
         //----- LAUNCH FIRST SCAN -----
         const ServerLanScanner = require('./serverLanScanner');
@@ -380,6 +377,7 @@ class Server {
         // Setup listener one time only, just after instanciation
         lanScanner.setupScanListeners();
         
+        // ---- DEBUT WEBRTC
         // Écouter les découvertes de PC via Bonjour/WebRTC
         G.webrtcManager.on('pcDiscovered', (pcInfo) => {
             console.log(`[SCAN] PC discovered via Bonjour: ${pcInfo.hostname} (${pcInfo.lanIP}, idPC: ${pcInfo.idPC})`);
@@ -457,6 +455,8 @@ class Server {
             G.webrtcManager.handleIceCandidate(from, candidate);
             res.json({ status: 'ok' });
         });
+        // ---- FIN WEBRTC
+
 
         //----- HANDLE HOMEPAGE REQUEST (HTTP/HTTPS) -----
         G.WEB_SERVER.get('/', function (homePageRequest, homePageResponse) {
@@ -495,10 +495,6 @@ class Server {
                 */
             }
         });
-
-
-        // NOTE: G.eventHandler est déjà initialisé plus haut dans onWebServerReady()
-
 
 
 

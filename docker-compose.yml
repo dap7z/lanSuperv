@@ -9,6 +9,7 @@
       - SERVER_PORT=8421
       - SOCKET_PORT=8421
       - SERVER_ADDRESS=http://lansuperv-1
+      - ENABLE_SCAN=true
       - NODE_ENV=development
       - CONFIG_FILE=/tmp/lansuperv-config/config.js
     volumes:

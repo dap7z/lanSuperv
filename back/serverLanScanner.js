@@ -1,4 +1,4 @@
-﻿let F = require('./functions.js'); //FONCTIONS
+let F = require('./functions.js'); //FONCTIONS
 let G = null; //GLOBALS
 
 //LIBRARIES:
@@ -218,7 +218,6 @@ class ServerLanScanner extends EventEmitter {
 
     // onePcScan: checks ping/http/socket sur UN SEUL PC
     // Retourne une promesse qui se résout quand tous les checks sont terminés
-    // Note: La découverte initiale se fait via Bonjour, mais on vérifie toujours le ping dans onePcScan
     onePcScan(pcObject, idPC) {
         // RESET seulement les propriétés respondsTo-* en les mettant à false
         G.database.dbComputersSaveData(idPC, {
@@ -331,10 +330,12 @@ class ServerLanScanner extends EventEmitter {
     }
 
 
+    // fonction processBonjourDiscovery à simplifier
     /**
      * Traite une découverte de PC via Bonjour/mDNS
      */
     processBonjourDiscovery(pcInfo) {
+        console.log(`[SCAN] processBonjourDiscovery for ${pcInfo.hostname} (${pcInfo.lanIP}, idPC: ${pcInfo.idPC})`);
         let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
         
         // Si on n'a pas la MAC, essayer de la récupérer depuis VISIBLE_COMPUTERS si le PC était déjà connu
@@ -424,11 +425,14 @@ class ServerLanScanner extends EventEmitter {
             this.processScanResult(params, remotePlugins);
         }
         else {
-            // Utiliser Bonjour/mDNS au lieu du broadcast scan ARP
-            console.log("OK! Using Bonjour/mDNS for network discovery at", new Date().toISOString());
-            console.log("[SCAN] Bonjour will automatically discover other LanSuperv instances");
-            // Bonjour découvrira automatiquement les autres instances via serverWebRTCManager
-            // Les PC seront traités via processBonjourDiscovery()
+            G.SCAN_IN_PROGRESS = true;
+            console.log("OK! launchLanScan at", new Date().toISOString());
+
+            let networkToScan = G.THIS_PC.lanInterface.network + '/' + G.THIS_PC.lanInterface.bitmask; //cdir notation
+            let tabIP = F.cidrRange(networkToScan);
+            
+            // Les listeners sont déjà configurés dans setupScanListeners(), on lance juste le scan
+            G.LAN_DISCOVERY.startScan({ ipArrayToScan: tabIP });
         }
     }
 

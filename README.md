@@ -19,6 +19,12 @@ $ npm install -g node-gyp #(node-gyp have to be installed globaly)
 5) Build assets with the command: "npm run dev"
 6) Copy "config.js.sample" to "config.js" and edit the file
 7) Launch application with the command: "npm start"
+7.1) If you want, docker can help you to run 2 instance on virtual network ;)
+```sh 
+docker-compose build
+docker compose up -d
+docker compose logs --tail=50
+```
 
 ### On the target machine(s), how to enable WOL and PING ?
 #### WOL :

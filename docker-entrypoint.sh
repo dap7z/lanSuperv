@@ -13,10 +13,10 @@ applyEnvVar() {
     fi
     
     # Déterminer le format de la valeur (avec ou sans guillemets)
-    # Si la valeur est numérique, pas de guillemets. Sinon, avec guillemets simples.
+    # Si la valeur est numérique ou booléenne (true/false), pas de guillemets. Sinon, avec guillemets simples.
     local formatted_value
-    if [[ "$var_value" =~ ^[0-9]+$ ]]; then
-        # Valeur numérique : pas de guillemets
+    if [[ "$var_value" =~ ^[0-9]+$ ]] || [[ "$var_value" == "true" ]] || [[ "$var_value" == "false" ]]; then
+        # Valeur numérique ou booléenne : pas de guillemets
         formatted_value="$var_value"
     else
         # Valeur non-numérique : avec guillemets simples (échapper les guillemets dans la valeur)
@@ -71,6 +71,11 @@ if [ -f "/app/config.js.sample" ]; then
         # Appliquer SERVER_ADDRESS si défini (peut être une chaîne vide)
         if [ -n "${SERVER_ADDRESS+x}" ]; then
             applyEnvVar "SERVER_ADDRESS" "$SERVER_ADDRESS" "$CONFIG_FILE"
+        fi
+        
+        # Appliquer ENABLE_SCAN si défini (true ou false)
+        if [ -n "$ENABLE_SCAN" ]; then
+            applyEnvVar "ENABLE_SCAN" "$ENABLE_SCAN" "$CONFIG_FILE"
         fi
     fi
     

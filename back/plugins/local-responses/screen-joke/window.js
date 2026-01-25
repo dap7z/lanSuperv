@@ -1,4 +1,4 @@
-﻿// Run this function after the page has loaded
+// Run this function after the page has loaded
 $(() => {
   const electron = require('electron')
 

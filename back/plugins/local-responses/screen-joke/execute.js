@@ -1,4 +1,4 @@
-﻿const PluginName = 'scrennjoke';
+const PluginName = 'scrennjoke';
 const ChildProcess = require('child_process');
 
 const Spawn = require('cross-spawn'); //or shellJS

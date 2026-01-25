@@ -177,7 +177,7 @@ export default class Client {
     //==START=ON=CHANGE=DB=COMPUTERS=====================================================================================
     dbOnChangeComputers(pc, id){
         //.once exec one time | .on exec at every change
-        console.log("[CLIENT.JS] dbComputers has been updated, we have to update the view. function called with - id:", id, "pc:", pc);
+        //console.log("[CLIENT.JS] dbComputers has been updated, we have to update the view. function called with - id:", id, "pc:", pc);
 
         let wolPlugin = 'wol';
         let powerOffPlugin = 'power-off';
@@ -232,6 +232,12 @@ export default class Client {
         }
 
         let pcIsOnline = false;
+
+        // on actualise des le debut le fait que le serveur qui renvoie la page web est en ligne
+        if(pc.isCurrentWebServer === true){
+            pcIsOnline = true;
+        }
+        
         Object.entries(pc).forEach(([key, value]) => {
             //console.log(key +' => '+ value);
             
@@ -273,11 +279,19 @@ export default class Client {
                     addClass(dataContainer, "bg-secondary");
                 }
             }
-            //lastResponse
+            //Last response
             else if(key === "lastResponse"){
                 let time = dataContainer.querySelector("time");
                 if (time) {
                     updateTimeElement(time, value);
+                }
+            }
+            //Current web server
+            else if(key === "isCurrentWebServer"){
+                dataContainer.textContent = (value === true) ? "Yes" : "No";
+                // Afficher la ligne si c'est le serveur :
+                if (value === true) {
+                    removeClass(dataContainer.closest('.row'), 'hidden');
                 }
             }
             //pc description

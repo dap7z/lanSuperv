@@ -13,7 +13,7 @@ import { StateManager } from './utils/stateManager.js';
 function clearLocalStorage() {
     return new Promise((resolve) => {
         try {
-            console.log("[INDEX.JS] localStorage cleanning...");
+            //console.log("[INDEX.JS] localStorage cleanning...");
             localStorage.clear(); //remove old database saved into browser
             // Use setTimeout to ensure clear is fully processed
             setTimeout(() => {
@@ -70,7 +70,7 @@ clearLocalStorage().then(async () => {
         //listen on dbComputers database updates
         //.on() automatically loads existing data like .once() AND listens for future changes
         sharedObject.dbComputers.map().on((pc, id) => {
-            console.log("[INDEX.JS] WebRTC dbComputers event triggered - id:", id, "pc:", pc);
+            //console.log("[INDEX.JS] WebRTC dbComputers event triggered - id:", id, "pc:", pc);
             if(pc !== null){ //null si exec dbComputersClearData()
                 clientJS.dbOnChangeComputers(pc, id);
                 stateManager.updateComputer(id, pc);
@@ -186,11 +186,9 @@ clearLocalStorage().then(async () => {
         }
     }
 
-    // Initialiser l'application
-    console.log("[INDEX.JS] Initializing app (Vanilla JS, no Vue.js)");
+    // Initialize the vanilla js application
     try {
         initApp();
-        console.log("[INDEX.JS] App initialized successfully");
     } catch (error) {
         console.error("[INDEX.JS] ERROR initializing app:", error);
     }

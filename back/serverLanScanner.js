@@ -323,8 +323,11 @@ class ServerLanScanner extends EventEmitter {
             console.log("FIXED! correct lanMAC field for server (was: '" + wasEmpty + "')");
             pc.machineID = G.THIS_PC.machineID;
             console.log("FIXED! add machineID field for server");
+            pc.isCurrentWebServer = true;
             plugins = F.simplePluginsList('all', G.PLUGINS_INFOS);
             console.log("FIXED! add local-responses plugins for server");
+        } else {
+            pc.isCurrentWebServer = false;
         }
 
         let idPC = F.getPcIdentifier(pc);

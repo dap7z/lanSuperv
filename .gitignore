@@ -96,3 +96,8 @@ package-lock\.json
 data\.json
 
 *.GIT_IGNORE
+
+# Cypress test results
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/

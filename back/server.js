@@ -212,13 +212,20 @@ class Server {
                         }
                         
                         function setupServerDataChannel(dataChannel) {
-                            dataChannel.onopen = () => {
-                                console.log('[WebRTC Signaling] Data channel opened with client');
+                            // Fonction pour envoyer les données initiales
+                            const sendInitialData = () => {
+                                // Vérifier que idPC est défini avant d'envoyer
+                                if (!G.THIS_PC.idPC) {
+                                    console.log('[WebRTC Signaling] Waiting for idPC to be defined before sending initial data...');
+                                    // Réessayer après un court délai
+                                    setTimeout(sendInitialData, 100);
+                                    return;
+                                }
                                 
-                                // Envoyer les données initiales
                                 const initialData = {
                                     computers: {},
-                                    messages: {}
+                                    messages: {},
+                                    serverIdPC: G.THIS_PC.idPC
                                 };
                                 
                                 // Récupérer toutes les données computers depuis WebRTCManager
@@ -234,10 +241,16 @@ class Server {
                                     });
                                 }
                                 
+                                console.log('[WebRTC Signaling] Sending initial data with serverIdPC:', G.THIS_PC.idPC, 'initialData:', JSON.stringify(initialData));
                                 dataChannel.send(JSON.stringify({
                                     type: 'initial-data',
                                     data: initialData
                                 }));
+                            };
+                            
+                            dataChannel.onopen = () => {
+                                // Envoyer les données initiales (avec vérification de idPC)
+                                sendInitialData();
                             };
                             
                             dataChannel.onmessage = (event) => {

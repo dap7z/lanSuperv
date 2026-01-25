@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WebRTCClient : Gère les connexions WebRTC côté client
  * Remplace Gun.js pour la synchronisation de données avec le serveur
  */
@@ -18,6 +18,7 @@ export default class WebRTCClient {
         };
         this.isConnected = false;
         this.serverUrl = this._getServerUrl();
+        this.serverIdPC = null; // idPC du serveur web actuel (pour déterminer isCurrentWebServer)
     }
 
     _getServerUrl() {
@@ -35,8 +36,6 @@ export default class WebRTCClient {
      * Initialise la connexion WebRTC
      */
     async init() {
-        console.log("[WebRTC Client] Initializing WebRTC connection...");
-        
         // Établir la connexion WebSocket pour la signalisation
         await this._connectSignaling();
     }
@@ -186,7 +185,6 @@ export default class WebRTCClient {
         console.log("[WebRTC Client] Data channel received:", dataChannel.label);
         
         dataChannel.onopen = () => {
-            console.log("[WebRTC Client] Data channel opened");
             this.dataChannel = dataChannel;
             this.isConnected = true;
             // Demander les données initiales
@@ -268,9 +266,19 @@ export default class WebRTCClient {
      * Gère les données initiales
      */
     _handleInitialData(data) {
+        // Stocker l'idPC du serveur (pour déterminer isCurrentWebServer)
+        // console.log("[WebRTC Client] _handleInitialData called with data:", data); // OK :)
+        if (data.serverIdPC) {
+            this.serverIdPC = data.serverIdPC;
+        }
+        
+        // Charger les computers AVANT de les notifier, pour que serverIdPC soit disponible
         if (data.computers) {
             Object.entries(data.computers).forEach(([id, pc]) => {
                 this.localData.computers.set(id, pc);
+            });
+            // Notifier après avoir stocké serverIdPC
+            Object.entries(data.computers).forEach(([id, pc]) => {
                 this._notifyListeners('computers', id, pc);
             });
         }
@@ -280,6 +288,13 @@ export default class WebRTCClient {
                 this._notifyListeners('messages', id, msg);
             });
         }
+    }
+    
+    /**
+     * Retourne l'idPC du serveur web actuel
+     */
+    getServerIdPC() {
+        return this.serverIdPC;
     }
 
     /**
@@ -337,7 +352,7 @@ export default class WebRTCClient {
                 tableName = 'computers';
             }
         }
-        console.log(`[WebRTC Client] get(${table}) -> tableName: ${tableName}`);
+        //console.log(`[WebRTC Client] get(${table}) -> tableName: ${tableName}`);
         return new WebRTCNode(this, tableName);
     }
 

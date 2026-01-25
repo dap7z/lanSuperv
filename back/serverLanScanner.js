@@ -72,6 +72,11 @@ class ServerLanScanner extends EventEmitter {
                 //[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
                 G.SCAN_IN_PROGRESS = false;
 
+                // Sauvegarder l'état des ordinateurs visibles après le scan
+                if (G.database) {
+                    G.database.dbVisibleComputersSave();
+                }
+
                 // Si INTERVAL_SCAN est défini dans le config.js, on programme le prochain broadcast scan :
                 // Sinon il interviendra lors du prochain chargement de la page web
                 let intervalMinutes = G.CONFIG.val('INTERVAL_SCAN');
@@ -323,11 +328,8 @@ class ServerLanScanner extends EventEmitter {
             console.log("FIXED! correct lanMAC field for server (was: '" + wasEmpty + "')");
             pc.machineID = G.THIS_PC.machineID;
             console.log("FIXED! add machineID field for server");
-            pc.isCurrentWebServer = true;
             plugins = F.simplePluginsList('all', G.PLUGINS_INFOS);
             console.log("FIXED! add local-responses plugins for server");
-        } else {
-            pc.isCurrentWebServer = false;
         }
 
         let idPC = F.getPcIdentifier(pc);

@@ -33,7 +33,6 @@ clearLocalStorage().then(async () => {
     // Initialiser WebRTC Client
     const webRtcClient = new WebRTCClient(Config);
     await webRtcClient.init();
-    console.log("[INDEX.JS] WebRTC client initialized");
 
     // Créer le StateManager pour remplacer Vue.js
     const stateManager = new StateManager();
@@ -44,7 +43,6 @@ clearLocalStorage().then(async () => {
         sharedObject.webRtcClient = webRtcClient;
         sharedObject.dbComputers = webRtcClient.get(Config.val('TABLE_COMPUTERS'));
         sharedObject.dbMessages = webRtcClient.get(Config.val('TABLE_MESSAGES'));
-        console.log("[INDEX.JS] WebRTC objects initialized - dbComputers:", sharedObject.dbComputers, "dbMessages:", sharedObject.dbMessages);
 
         // Fonction pour envoyer des messages
         function dbSendMessage(message) {

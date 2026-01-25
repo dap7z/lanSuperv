@@ -246,8 +246,19 @@ export default class Client {
 
         let pcIsOnline = false;
 
+        // Check if isCurrentWebServer localy on front (should not be synchronized in the database !)
+        // (compare the iterated pc.idPC with the web server idPC) 
+        const serverIdPC = sharedObject && sharedObject.webRtcClient ? sharedObject.webRtcClient.getServerIdPC() : null;
+        const isCurrentWebServer = id && serverIdPC && id === serverIdPC;
+        
+        // Debug logs
+        if (!serverIdPC) {
+            console.warn("[CLIENT.JS] ERROR - serverIdPC is null/undefined. sharedObject:", sharedObject);
+        }
+        
         // on actualise des le debut le fait que le serveur qui renvoie la page web est en ligne
-        if(pc.isCurrentWebServer === true){
+        if(isCurrentWebServer){
+            //console.log("[CLIENT.JS] DEBUG - isCurrentWebServer is TRUE for id:", id);
             pcIsOnline = true;
         }
         
@@ -299,20 +310,22 @@ export default class Client {
                     updateTimeElement(time, value);
                 }
             }
-            //Current web server
-            else if(key === "isCurrentWebServer"){
-                dataContainer.textContent = (value === true) ? "Yes" : "No";
-                // Afficher la ligne si c'est le serveur :
-                if (value === true) {
-                    removeClass(dataContainer.closest('.row'), 'hidden');
-                }
-            }
             //pc description
             else {
                 //update html (.hostname/.lanIP/.lanMAC/...)
                 dataContainer.textContent = value;
             }
         });
+
+        // Update the view with isCurrentWebServer value : 
+        let isCurrentWebServerField = elem.querySelector('.isCurrentWebServer');
+        if (isCurrentWebServerField) {
+            isCurrentWebServerField.textContent = isCurrentWebServer ? "Yes" : "No";
+            // Show isCurrentWebServer row if it's the server :
+            if (isCurrentWebServer) {
+                removeClass(isCurrentWebServerField.closest('.row'), 'hidden');
+            }
+        }
 
         //update web ui with online status :
         let cardHeader = elem.querySelector(".card-header");

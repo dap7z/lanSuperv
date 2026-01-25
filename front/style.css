@@ -51,7 +51,10 @@
     background-color: #e6e6e6;
 }
 .card-header{
-	background-color: #e6e6e6;
+    min-height: 50px;
+    background-color: #e6e6e6;
+    display: flex;
+    align-items: center;
 }
 .card-header.onlinePc{
     background-color: rgba(56, 183, 138, 0.8);

@@ -1,4 +1,4 @@
-﻿# Installation de lanSuperv sur Ubuntu et Raspberry Pi
+# Installation de lanSuperv sur Ubuntu et Raspberry Pi
 
 Ce guide vous permettra d'installer lanSuperv sur un linux type debian fraîchement installé, en étant connecté en SSH.
 

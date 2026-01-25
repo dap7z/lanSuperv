@@ -135,14 +135,19 @@ class ServerEventHandler {
         });
     }
 
-
-    //same process (and parameters) on socket or http :
+    /**
+     * Router before event processing
+     * used globals: G.PLUGINS_INFOS G.THIS_PC.lanInterface
+     * @param {*} p : eventParameters object
+     * @param {*} f : eventFrom (socket or http)
+     * @returns 
+     */
     async eventDispatcher(p, f) {
         let eventResult = null;
-
-        //used globals: G.PLUGINS_INFOS G.THIS_PC.lanInterface
-        //fonctions args: p(eventParameters), f(eventFrom)
-        console.log("LOG! eventDispatcher receive " + p.eventName + " event from " + f + ", for pcTargetIdPC : " + (p.pcTargetIdPC || 'N/A') );
+        console.log("LOG! eventDispatcher receive " + p.eventName + " event from " + f 
+            + ", for pcTargetLanMAC : " + (p.pcTargetLanMAC || 'N/A') 
+            + " and pcTargetMachineID : " + (p.pcTargetMachineID || 'N/A') 
+        );
 
         //add some event parameters :
         p.lanInterface = G.THIS_PC.lanInterface;
@@ -235,10 +240,9 @@ class ServerEventHandler {
             if (eventData && eventData.eventReceivedAt == null) {
 
                 // log des evénements reçus pas encore traités
-                if (eventData.eventName) {
-                    //console.log(`[EVENT-RECEPTION] Received event: ${eventData.eventName}, id: ${id}, pcTargetLanMAC: ${eventData.pcTargetLanMAC || 'N/A'}, pcTargetMachineID: ${eventData.pcTargetMachineID || 'N/A'}`);
-                } else {
-                    console.log(`[EVENT-RECEPTION] Received data without eventName:`, eventData);
+                if (!eventData.eventName) {
+                    console.log("[EVENT-RECEPTION] Received data without eventName, ignoring it. Might be a chat message :", eventData);
+                    return; // don't process this undefined eventName (chat, bug, hack)
                 }
 
                 //calculate idPC of target
@@ -250,8 +254,7 @@ class ServerEventHandler {
                 //If eventData.type == remote-request && eventData.target in G.VISIBLE_COMPUTERS -> read and process event
                 if(typeof G.PLUGINS_INFOS[eventData.eventName] === 'undefined')
                 {
-                    console.log("WARNING! undefined event '"+ eventData.eventName +"' in G.PLUGINS_INFOS");
-                    //DIAG: undefined event 'undefined' in G.PLUGINS_INFOS
+                    console.log("[EVENT-RECEPTION] Event '"+ eventData.eventName + "' does not correspond to a plugin name, ignoring it");
                 }
                 else if(G.PLUGINS_INFOS[eventData.eventName].isRemote)
                 {

@@ -156,9 +156,24 @@ export default class Client {
         let btnPluginValue = pc.querySelector('.btn-plugin-value');
         let lanMAC = pc.querySelector(".lanMAC");
         let machineID = pc.querySelector(".machineID");
+        let isCurrentWebServerElement = pc.querySelector(".isCurrentWebServer");
+        let isCurrentWebServer = isCurrentWebServerElement && isCurrentWebServerElement.textContent.trim() === "Yes";
+        
+        // Confirmation si power-off sur le serveur web actuel
+        let eventName = btnPluginValue ? btnPluginValue.textContent : '';
+        if (eventName === 'power-off' && isCurrentWebServer) {
+            const confirmed = window.confirm(
+                "⚠️ WARNING ⚠️\n\n" +
+                "You are about to power off the current web server.\n\n" +
+                "Are you sure you want to continue?"
+            );
+            if (!confirmed) {
+                return; // canceled by user
+            }
+        }
         
         let reqData = {
-            eventName: btnPluginValue ? btnPluginValue.textContent : '',
+            eventName: eventName,
             eventResult: '',
             eventSendedAt: new Date().toISOString(),
             eventReceivedAt: null,
@@ -188,17 +203,12 @@ export default class Client {
             return true; //ignore root element
         }
         
-        // Si on n'a ni hostname ni lanIP, on ignore cet événement (données incomplètes) et on n'affiche pas la carte..
-        const hasHostname = pc.hostname && pc.hostname !== '';
-        const hasLanIP = pc.lanIP && pc.lanIP !== '';
-        if(!hasHostname && !hasLanIP){
-            // Pas assez de données pour afficher, on attend un événement avec plus de données
-            console.log("[CLIENT.JS] Ignoring event - no hostname and no lanIP for id:", id, "pc keys:", Object.keys(pc));
-            return true;
-        }
+        // Vérifier si l'élément DOM existe déjà
+        let elem = document.getElementById(id);
+        const elementExists = !!elem;
+        
 
         //retrieve element or clone the model if not found
-        let elem = document.getElementById(id);
         if(!elem){
             let pcModel = document.querySelector('#pcModel .pcElem');
             if (pcModel) {
@@ -207,6 +217,9 @@ export default class Client {
                 let pcList = document.querySelector('#pcList');
                 if (pcList) {
                     pcList.appendChild(elem);
+                } else {
+                    console.error("[CLIENT.JS] pcList not found");
+                    return;
                 }
             } else {
                 console.error("[CLIENT.JS] pcModel not found");

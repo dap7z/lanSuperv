@@ -182,7 +182,7 @@ Alors autoriser Node à binder sans root (necessaire au moins sur Raspberry, mai
 
 ```bash
 sudo apt update && sudo apt install libcap2-bin
-sudo setcap 'cap_net_bind_service=+ep' $(which node)
+sudo setcap 'cap_net_bind_service,cap_net_raw,cap_net_admin+eip' $(which node)
 ```
 
 

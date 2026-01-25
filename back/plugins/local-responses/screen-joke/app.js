@@ -9,18 +9,6 @@ const {app, BrowserWindow} = require('electron')
 const path = require('path')
 const url = require('url')
 
-
-//== START ADD ==
-const {ipcMain} = require('electron')
-ipcMain.on('asynchronous-message', (event, arg) => {
-	//console.log('ipcMain: close event received from browser window');
-	//mainWindow.preventClose = false;
-	//mainWindow.close();
-	console.log('prevented execution of close event');
-})
-//== END ADD ==
-
-
 let mainWindow = null
 
 // Wait until the app is ready
@@ -33,19 +21,34 @@ app.once('ready', () => {
     transparent: true,
     // Remove the frame from the window
     frame: false,
-	//== START ADD ==
 	resizable: false,
     movable: false,
     titleBarStyle: 'hidden-inset',
-	//== END ADD ==
+    alwaysOnTop: true,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      //devTools: true
+    }
   })
+  
+  // Vider le cache avant de charger la page
+  mainWindow.webContents.session.clearCache(() => {
+    console.log('Cache vidé')
+  })
+  
+  // Open devtools for diag
+  // mainWindow.webContents.openDevTools()
 
   // Load a URL in the window to the local index.html path
-  mainWindow.loadURL(url.format({
+  const htmlPath = url.format({
     pathname: path.join(__dirname, 'index.html'),
     protocol: 'file:',
     slashes: true
-  }))
+  })
+  
+  // Add timestamp to prevent caching
+  mainWindow.loadURL(htmlPath + '?t=' + Date.now())
 
   // Show window when page is ready
   mainWindow.once('ready-to-show', () => {
@@ -53,16 +56,16 @@ app.once('ready', () => {
     mainWindow.show()
   })
   
-  //== START ADD ==
-  mainWindow.preventClose = true;
-    //The event 'close' is called when a close button is clicked.
+  // Let the user close the window, or not.
+  mainWindow.preventClose = false;
+  // The event 'close' is called when a close button is clicked.
   mainWindow.on('close', function(e){
     if(mainWindow.preventClose){
     	e.preventDefault()
     	console.log('prevented execution of mainWindow close event');
     }
   });
-  //Events 'before-quit' and 'close' are called when the OS is shutdown.
+  // Events 'before-quit' and 'close' are called when the OS is shutdown.
   app.on('before-quit', function (e) {
     if(mainWindow.preventClose){
     	e.preventDefault()
@@ -75,6 +78,5 @@ app.once('ready', () => {
 	console.log('prevented execution of mainWindow minimize event');
 	mainWindow.show(); //required on windows10
   });
-  //== END ADD ==
   
 })

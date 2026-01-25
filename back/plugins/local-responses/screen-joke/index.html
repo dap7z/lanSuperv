@@ -3,11 +3,11 @@
 
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: file:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:;">
 
-  <title>...</title>
+  <title></title>
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./filters.css">
 
@@ -15,15 +15,14 @@
   <script>
     delete module.exports
   </script>
-  <script src="https://code.jquery.com/jquery-3.2.1.js"></script>
   <script src="./window.js" charset="utf-8"></script>
 
 </head>
 
 <body>
 
-  <!-- Video that displays the camera feed -->
-  <video autoplay></video>
+  <!-- Video that displays the camera feed or local video -->
+  <video autoplay playsinline></video>
 
   <!-- Rainbow filter overlay -->
   <div class="rainbow-filter"></div>

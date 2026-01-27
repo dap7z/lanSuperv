@@ -47,7 +47,7 @@
     "gun": "^0.2020.1241",
     "is-port-available": "^0.1.5",
     "json-formatter-js": "^2.3.4",
-    "lan-discovery": "^1.0.5",
+    "lan-discovery": "^1.0.6",
     "node-machine-id": "^1.1.12",
     "node-pre-gyp": "^0.17.0",
     "notyf": "^3.10.0",

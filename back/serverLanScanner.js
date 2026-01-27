@@ -6,6 +6,7 @@ const Ping = require('ping-bluebird');  //ping with better promise
 const LanDiscovery = require('lan-discovery');
 const Net = require('net');
 const EventEmitter = require('events');
+const { networkInterfaces } = require('os');
 
 class ServerLanScanner extends EventEmitter {
 
@@ -450,12 +451,10 @@ class ServerLanScanner extends EventEmitter {
             G.SCAN_IN_PROGRESS = true;
             console.log("OK! launchLanScan at", new Date().toISOString());
 
-            let networkToScan = G.THIS_PC.lanInterface.network + '/' + G.THIS_PC.lanInterface.bitmask; //cdir notation
-            let tabIP = F.cidrRange(networkToScan);
-            
             // Les listeners sont déjà configurés dans setupScanListeners(), on lance juste le scan
             G.LAN_DISCOVERY.getDefaultInterface().then(() => {
-                G.LAN_DISCOVERY.startScan({ ipArrayToScan: tabIP });
+                // Launch arp scan then ping discovered IP
+                G.LAN_DISCOVERY.startHybridScan({ networkInterface: G.THIS_PC.lanInterface, interval: 150 });
                 
                 // Set timeout for broadcast scan (60 seconds)
                 G.SCAN_TIMEOUT = setTimeout(() => {

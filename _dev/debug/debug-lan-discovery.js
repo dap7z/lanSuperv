@@ -84,7 +84,7 @@ discovery.getDefaultInterface().then(interface => {
             console.log(`    Temps total: ${(data.scanTimeMS / 1000).toFixed(2)} secondes`);
             console.log(`    Appareils trouvés: ${deviceCount}`);
         })
-        .startScan({ ipArrayToScan: tabIP });
+        .startHybridScan({ networkInterface: defaultInterface, interval: 150 });
         
     console.log('  Scan en cours... (attendez la fin du scan)');
     

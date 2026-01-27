@@ -101,3 +101,4 @@ data\.json
 cypress/videos/
 cypress/screenshots/
 cypress/downloads/
+_dev/scripts/ping_history*.csv

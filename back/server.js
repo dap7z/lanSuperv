@@ -302,7 +302,7 @@ class Server {
                             });
                             
                             ws.on('close', () => {
-                                console.log('[WebRTC Signaling] Client disconnected');
+                                console.log('[WebRTC Signaling] Client disconnected');   // on passe bien ici lors fermeture onglet navigateur.
                                 if (clientState.pc) {
                                     clientState.pc.close();
                                 }

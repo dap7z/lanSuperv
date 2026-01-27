@@ -71,6 +71,11 @@ class ServerWebRTCManager extends EventEmitter {
             this._onServiceDiscovered(service);
         });
 
+        // Monitoring périodique des connexions 
+        this.monitoringInterval = setInterval(() => {
+            this._logConnectionStats();
+        }, 60000); // toutes les 60 secondes
+
         this.isInitialized = true;
         console.log("[WebRTC] WebRTC manager initialized");
     }
@@ -419,6 +424,87 @@ class ServerWebRTCManager extends EventEmitter {
     }
 
     /**
+     * Affiche les statistiques des connexions qui pourraient être nettoyées
+     */
+    _logConnectionStats() {
+        const stats = {
+            total: this.peers.size,
+            connected: 0,
+            connecting: 0,
+            disconnected: 0,
+            failed: 0,
+            closed: 0,
+            new: 0,
+            iceFailed: 0,
+            withoutDataChannel: 0,
+            stalePendingOffers: 0
+        };
+
+        for (const [peerId, pc] of this.peers.entries()) {
+            // Compter par état de connexion
+            const state = pc.connectionState;
+            if (state === 'connected') stats.connected++;
+            else if (state === 'connecting') stats.connecting++;
+            else if (state === 'disconnected') stats.disconnected++;
+            else if (state === 'failed') stats.failed++;
+            else if (state === 'closed') stats.closed++;
+            else if (state === 'new') stats.new++;
+
+            // Compter les échecs ICE
+            if (pc.iceConnectionState === 'failed') {
+                stats.iceFailed++;
+            }
+
+            // Compter les connexions sans data channel
+            if (!this.dataChannels.has(peerId) && state !== 'new') {
+                stats.withoutDataChannel++;
+            }
+        }
+
+        // Compter les offres en attente sans connexion correspondante
+        for (const [peerId] of this.pendingOffers.entries()) {
+            if (!this.peers.has(peerId)) {
+                stats.stalePendingOffers++;
+            }
+        }
+
+        // Afficher seulement s'il y a des connexions problématiques
+        const problematicCount = stats.failed + stats.disconnected + stats.iceFailed + 
+                                stats.withoutDataChannel + stats.stalePendingOffers + 
+                                (stats.connecting > 0 && stats.connecting > 5 ? stats.connecting : 0);
+
+        if (problematicCount > 0 || stats.total > 0) {
+            console.log(`[WebRTC] Statistiques des connexions:`);
+            console.log(`  Total: ${stats.total} | Connectées: ${stats.connected}`);
+            if (stats.failed > 0) {
+                console.log(`  ⚠️  État 'failed': ${stats.failed} connexion(s) à nettoyer`);
+            }
+            if (stats.disconnected > 0) {
+                console.log(`  ⚠️  État 'disconnected': ${stats.disconnected} connexion(s) à nettoyer`);
+            }
+            if (stats.iceFailed > 0) {
+                console.log(`  ⚠️  ICE 'failed': ${stats.iceFailed} connexion(s) à nettoyer`);
+            }
+            if (stats.withoutDataChannel > 0) {
+                console.log(`  ⚠️  Sans data channel: ${stats.withoutDataChannel} connexion(s) à nettoyer`);
+            }
+            if (stats.stalePendingOffers > 0) {
+                console.log(`  ⚠️  Offres en attente orphelines: ${stats.stalePendingOffers} à nettoyer`);
+            }
+            if (stats.connecting > 5) {
+                console.log(`  ⚠️  En cours de connexion (>5): ${stats.connecting} connexion(s) (possible surcharge)`);
+            }
+            if (stats.new > 0) {
+                console.log(`  ℹ️  État 'new': ${stats.new} connexion(s) en attente`);
+            }
+        }else{
+			// TMP on console log meme si tout est ok :
+			console.log(`[WebRTC] Statistiques des connexions:`);
+			console.log(`  Total: ${stats.total} | Connectées: ${stats.connected}`);
+		}
+    }
+
+    /**
      * Sauvegarde des données dans la "base de données" locale et synchronise avec les peers
      */
     saveData(table, id, data) {
@@ -591,6 +677,12 @@ class ServerWebRTCManager extends EventEmitter {
      * Nettoie les ressources
      */
     destroy() {
+        // Arrêter le monitoring
+        if (this.monitoringInterval) {
+            clearInterval(this.monitoringInterval);
+            this.monitoringInterval = null;
+        }
+
         if (this.service) {
             this.bonjour.unpublishAll(() => {});
         }

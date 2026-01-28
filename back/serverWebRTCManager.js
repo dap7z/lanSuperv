@@ -497,11 +497,7 @@ class ServerWebRTCManager extends EventEmitter {
             if (stats.new > 0) {
                 console.log(`  ℹ️  État 'new': ${stats.new} connexion(s) en attente`);
             }
-        }else{
-			// TMP on console log meme si tout est ok :
-			console.log(`[WebRTC] Statistiques des connexions:`);
-			console.log(`  Total: ${stats.total} | Connectées: ${stats.connected}`);
-		}
+        }
     }
 
     /**

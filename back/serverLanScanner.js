@@ -31,7 +31,8 @@ class ServerLanScanner extends EventEmitter {
                     lastCheck: new Date().toISOString(),
                     hostname: device.name || '',  // Utiliser device.name si disponible
                     lanIP: device.ip,
-                    lanMAC: device.mac
+                    lanMAC: device.mac,
+                    'respondsTo-arp': true  // Détection via ARP scan
                     //machineID: scan cant return that :(
                 };
                 
@@ -49,7 +50,7 @@ class ServerLanScanner extends EventEmitter {
                     if (pcObject.QuickScanExecutedAt && G.QUICKSCAN_EXECUTED_AT && pcObject.QuickScanExecutedAt === G.QUICKSCAN_EXECUTED_AT) {
                         console.log(`[SCAN] Skipping onePcScan for ${idPC} (Already executed, just before, in last QuickScan)`);
                     } else {
-                        this.onePcScan(pcObject, idPC);
+                        this.onePcScan(pcObject, idPC, false);
                     }
                 });
                 
@@ -241,41 +242,70 @@ class ServerLanScanner extends EventEmitter {
 
     // onePcScan: checks ping/http/socket sur UN SEUL PC
     // Retourne une promesse qui se résout quand tous les checks sont terminés
-    onePcScan(pcObject, idPC) {
+    // doPingCheck: si false, skip le ping check (utile après hybridScan qui a déjà fait un scan réseau)
+    onePcScan(pcObject, idPC, doPingCheck = true) {
+        let preservedRespondsToArp = pcObject && pcObject['respondsTo-arp'] === true;
+        
         // RESET seulement les propriétés respondsTo-* en les mettant à false
-        G.database.dbComputersSaveData(idPC, {
-            'respondsTo-ping': false,
+        // Mais on préserve respondsTo-arp pour garder le header vert pendant le scan
+        let resetData = {
             'respondsTo-http': false,
-            'respondsTo-socket': false
-        });
+            'respondsTo-socket': false,
+            'respondsTo-arp': preservedRespondsToArp
+        };
+        if (doPingCheck === true) {
+            resetData['respondsTo-ping'] = false;
+        }
+        G.database.dbComputersSaveData(idPC, resetData);
 
-        // Lancer les 3 checks en parallèle
-        const pingPromise = this.pingCheck(pcObject, idPC).catch((reason) => {
-            console.log("##ERROR## [pingCheck] Error:", reason);
-            return { 'respondsTo-ping': false, idPC: idPC, lanIP: pcObject.lanIP };
-        });
+        // Lancer les checks en parallèle (ping conditionnel)
+        const promises = [];
+        
+        if (doPingCheck) {
+            const pingPromise = this.pingCheck(pcObject, idPC).catch((reason) => {
+                console.log("##ERROR## [pingCheck] Error:", reason);
+                return { 'respondsTo-ping': false, idPC: idPC, lanIP: pcObject.lanIP };
+            });
+            promises.push(pingPromise);
+        }
 
         const httpPromise = this.httpCheck(pcObject, idPC).catch((reason) => {
             console.log("##ERROR## [httpCheck] Error:", reason);
             return { 'respondsTo-http': false, idPC: idPC, lanIP: pcObject.lanIP };
         });
+        promises.push(httpPromise);
 
         const socketPromise = this.socketCheck(pcObject, idPC, true).catch((reason) => {
             console.log("##ERROR## [socketCheck] Error:", reason);
             return { 'respondsTo-socket': false, idPC: idPC, lanIP: pcObject.lanIP };
         });
+        promises.push(socketPromise);
 
         // Retourner une promesse qui attend tous les checks relatifs à un PC pour faire une seule mise à jour
-        return Promise.all([pingPromise, httpPromise, socketPromise]).then(([pingResult, httpResult, socketResult]) => {
+        return Promise.all(promises).then((results) => {
+            // Extraire les résultats selon si le ping a été exécuté
+            let pingResult = {};
+            let httpResult, socketResult;
+            
+            if (doPingCheck) {
+                [pingResult, httpResult, socketResult] = results;
+            } else {
+                [httpResult, socketResult] = results;
+            }
+            
             // Fusionner tous les résultats en un seul objet
             const mergedResult = {
                 ...pingResult,
                 ...httpResult,
                 ...socketResult
             };
-
+            
+            // Préserver respondsTo-arp pour garder le card header vert "online" pendant les autres scan
+            mergedResult['respondsTo-arp'] = preservedRespondsToArp;
             // Logs de warning si nécessaire
-            F.logCheckWarning("ping", pingResult);
+            if (doPingCheck) {
+                F.logCheckWarning("ping", pingResult);
+            }
             F.logCheckWarning("http", httpResult);
             F.logCheckWarning("socket", socketResult);
 
@@ -334,12 +364,24 @@ class ServerLanScanner extends EventEmitter {
         }
 
         let idPC = F.getPcIdentifier(pc);
+        // Récupérer l'ancienne valeur de respondsTo-arp AVANT de mettre à jour VISIBLE_COMPUTERS
+        const existingPC = G.VISIBLE_COMPUTERS.get(idPC);
+        const existingRespondsToArp = existingPC && existingPC['respondsTo-arp'];
+        
         //for compare that scan to the others:
         G.VISIBLE_COMPUTERS.set(idPC, pc);
         G.SCANNED_COMPUTERS.set(idPC, pc.lastCheck);
         //each plugins as a key of pc object:
         for (let key in plugins) {
             pc[key] = plugins[key];
+        }
+        
+        // Préserver respondsTo-arp si défini dans params (détection ARP)
+        // Sinon, préserver la valeur existante depuis VISIBLE_COMPUTERS si elle existe
+        if (params['respondsTo-arp'] !== undefined) {
+            pc['respondsTo-arp'] = params['respondsTo-arp'];
+        } else if (existingRespondsToArp !== undefined) {
+            pc['respondsTo-arp'] = existingRespondsToArp;
         }
         
         console.log(`[SCAN] Saving PC - idPC: ${idPC}, hostname: ${pc.hostname || 'N/A'}, lanIP: ${pc.lanIP || 'N/A'}, lanMAC: ${pc.lanMAC || 'N/A'}`);

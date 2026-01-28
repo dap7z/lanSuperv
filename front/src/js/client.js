@@ -336,6 +336,11 @@ export default class Client {
             }
         }
 
+        // count the number of availables options in dropdown 
+        let dropdownItems = pluginList ? pluginList.querySelectorAll('.dropdown-item') : [];
+        let availableOptions = Array.from(dropdownItems).filter(item => item.textContent && item.textContent.trim() !== '');
+        //console.log("[DEBUG CLIENT.JS] pc " + pc.idPC + " availableOptions.length:", availableOptions.length);
+
         //selected plugin
         let defaultPlugin = wolPlugin;
         if(pcIsOnline && powerOffAvailable){
@@ -344,6 +349,18 @@ export default class Client {
         let btnPluginValue = elem.querySelector('.btn-plugin-value');
         if (btnPluginValue) {
             btnPluginValue.textContent = defaultPlugin;
+        }
+        
+        // if only one option, disable opening of empty dropdown
+        let dropdownToggle = elem.querySelector('.btn-plugin-link');
+        if (dropdownToggle) {
+            if (availableOptions.length === 1 || availableOptions.length === 0) {
+                // Add disabled to prevent oppening of empty dropdown
+                dropdownToggle.setAttribute('disabled', 'disabled');
+            } else {
+                // Remove disabled if more than 1 option available
+                dropdownToggle.removeAttribute('disabled');
+            }
         }
 
         //console.log("[CLIENT.JS] Hiding loader for computer:", id);

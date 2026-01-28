@@ -17,10 +17,12 @@
 .respondsTo .badge-container{
     padding: 0!important;
 }
+/*
 .respondsTo .badge{
-    margin-left: 4px!important;
-    margin-right: 4px!important;
+    margin-left: 2px !important;
+    margin-right: 2px !important;
 }
+*/
 
 
 .initial-box-sizing, .initial-box-sizing:before{
@@ -58,6 +60,16 @@
 }
 .card-header.onlinePc{
     background-color: rgba(56, 183, 138, 0.8);
+}
+.badge{
+    font-weight: normal;
+}
+.badge-container{
+    margin-left:4px;
+}
+.lastResponse{
+    width:196px;
+    margin-left:4px;
 }
 
 

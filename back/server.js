@@ -1,12 +1,6 @@
 /*************************************************************************************
- lanSuperv :
- - affiche les pc connectés et deconnectés du reseau local du serveur.
- - permet d'envoyer des packets WakeOnLan
- prochaines versions :
- - server.js installable sur toutes les machines permettant :
- poweroff / messanger / filetransfert / netsharing / remotecontrole / ...
+ lanSuperv/back/server.js : entry point for the server application
  *************************************************************************************/
-
 
 //LIBRARIES:
 const Os = require('os');
@@ -19,7 +13,6 @@ const BodyParser = require('body-parser'); //to get POST data
 const WebSocket = require('ws'); //WebSocket pour signalisation WebRTC
 
 const Crypto = require('crypto');  //hash machineID
-
 
 const LanDiscovery = require('lan-discovery');
 
@@ -347,8 +340,7 @@ class Server {
             G.WEB_SERVER.use('/', appRouter);
 
         }).catch(function(err){
-            //ERROR CATCHED IN MAIN
-            console.log("main got error => restart ?");
+            console.log("main got unknown error, print error and exit...");
             console.log(err);
 
             process.exit();
@@ -405,33 +397,15 @@ class Server {
             G.SCANNED_COMPUTERS = new Map();
         }
         
-        // Launch initial scan (Bonjour or broadcast according to config)
-        if (G.CONFIG.val('ENABLE_SCAN') === false) {
-            // If scan is disabled, use Bonjour only
-            console.log("[SCAN] Broadcast scan disabled, using Bonjour discovery only");
-            // Add this PC to the list
-            let params = {
-                lastCheck: new Date().toISOString(),
-                lanIP: G.THIS_PC.lanInterface.ip_address,
-                lanMAC: G.THIS_PC.lanInterface.mac_address,
-                hostname: G.THIS_PC.hostnameLocal || "SELF",
-            };
-            let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
-            lanScanner.processScanResult(params, remotePlugins);
-        } else {
-            // Use Bonjour instead of broadcast scan
-            console.log("[SCAN] Using Bonjour/mDNS for network discovery");
-            // Bonjour will automatically discover other instances
-            // Still add this PC to the list
-            let params = {
-                lastCheck: new Date().toISOString(),
-                lanIP: G.THIS_PC.lanInterface.ip_address,
-                lanMAC: G.THIS_PC.lanInterface.mac_address,
-                hostname: G.THIS_PC.hostnameLocal || "SELF",
-            };
-            let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
-            lanScanner.processScanResult(params, remotePlugins);
-        }
+        // Add this PC to the list (common for both cases)
+        let params = {
+            lastCheck: new Date().toISOString(),
+            lanIP: G.THIS_PC.lanInterface.ip_address,
+            lanMAC: G.THIS_PC.lanInterface.mac_address,
+            hostname: G.THIS_PC.hostnameLocal || "SELF",
+        };
+        let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
+        lanScanner.processScanResult(params, remotePlugins);
 
 
         //----- HANDLE WebRTC ROUTES (for Node.js to Node.js compatibility) -----
@@ -473,7 +447,6 @@ class Server {
         });
         // ---- END WEBRTC
 
-
         //----- HANDLE HOMEPAGE REQUEST (HTTP/HTTPS) -----
         G.WEB_SERVER.get('/', function (homePageRequest, homePageResponse) {
             // Set cache-control headers for HTML page to force reload
@@ -482,16 +455,7 @@ class Server {
             homePageResponse.setHeader('Expires', '0');
             homePageResponse.sendFile(Path.join(__dirname, '../front/view.html'));
             console.log("~~~~ SEND HTML PAGE AND START QUICK SCAN (ping/http/socket) ~~~~");
-
-            //console.log("G.VISIBLE_COMPUTERS");
-            //console.log(G.VISIBLE_COMPUTERS);
-            //TODO: periodicaly remove old G.VISIBLE_COMPUTERS entry by lastCheckTimeStamp
-
             if (G.VISIBLE_COMPUTERS.size > 0) {
-                //OK
-                // Par contre lance LanScan avant fin QuickScan
-                // ... aussi bien sinon obliger d'attendre fin timeout ???
-                // ... seulement si QuickScan est limite a quelque address IP
                 lanScanner.startQuickScan()
                     .then(function (v) {
                         console.log('°°°°°°°°°°°°° PROMISES (PENDINGS)  °°°°°°°°°°°°°°');
@@ -501,23 +465,11 @@ class Server {
                     .catch(function (err) {
                         console.error(err);
                     });
-
-                /* //NOK erreur undefined pingPromises au bout dun moment
-                //https://stackoverflow.com/questions/31424561/wait-until-all-es6-promises-complete-even-rejected-promises
-                let pingPromises = lanScanner.startQuickScan();
-                Promise.all(pingPromises.map(p => p.catch(e => e)))
-                    .then(results => console.log(results)) // 1,Error: 2,3
-                    .catch(e => console.log(e));
-                */
             }
         });
 
-
-
     }
 
-
 }
-
 
 module.exports = Server;

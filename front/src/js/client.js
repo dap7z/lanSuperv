@@ -260,6 +260,8 @@ export default class Client {
         if(isCurrentWebServer){
             //console.log("[CLIENT.JS] DEBUG - isCurrentWebServer is TRUE for id:", id);
             pcIsOnline = true;
+            pc['respondsTo-arp'] = true;
+            // on ne force pas respondsTo-ping car pas forcement actif sur le serveur web (firewall, etc.)
         }
         
         Object.entries(pc).forEach(([key, value]) => {

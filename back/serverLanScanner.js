@@ -32,8 +32,8 @@ class ServerLanScanner extends EventEmitter {
                     hostname: device.name || '',  // Utiliser device.name si disponible
                     lanIP: device.ip,
                     lanMAC: device.mac,
-                    'respondsTo-arp': true  // Détection via ARP scan
-                    //machineID: scan cant return that :(
+                    respondsToArp: true,   // Already cetermined by hybrid scan
+                    respondsToPing: device.respondsToPing  // Already cetermined by hybrid scan
                 };
                 
                 // Calculer idPC avant processScanResult pour pouvoir écouter l'événement
@@ -50,6 +50,7 @@ class ServerLanScanner extends EventEmitter {
                     if (pcObject.QuickScanExecutedAt && G.QUICKSCAN_EXECUTED_AT && pcObject.QuickScanExecutedAt === G.QUICKSCAN_EXECUTED_AT) {
                         console.log(`[SCAN] Skipping onePcScan for ${idPC} (Already executed, just before, in last QuickScan)`);
                     } else {
+                        // Execute ping check even after ARP scan to get ping status
                         this.onePcScan(pcObject, idPC, false);
                     }
                 });
@@ -134,7 +135,7 @@ class ServerLanScanner extends EventEmitter {
             const res = await Ping(hostAddress, {timeout: 4});
             respondsToPing = res.alive;
         } catch (res) {
-            //required to resolve(finalResult) after ping fail
+            //required to resolve(finalResult) after ping timeout
         }
         return this._generateCheckResponse({
             idPC: idPC,
@@ -364,9 +365,6 @@ class ServerLanScanner extends EventEmitter {
         }
 
         let idPC = F.getPcIdentifier(pc);
-        // Récupérer l'ancienne valeur de respondsTo-arp AVANT de mettre à jour VISIBLE_COMPUTERS
-        const existingPC = G.VISIBLE_COMPUTERS.get(idPC);
-        const existingRespondsToArp = existingPC && existingPC['respondsTo-arp'];
         
         //for compare that scan to the others:
         G.VISIBLE_COMPUTERS.set(idPC, pc);
@@ -376,14 +374,20 @@ class ServerLanScanner extends EventEmitter {
             pc[key] = plugins[key];
         }
         
-        // Préserver respondsTo-arp si défini dans params (détection ARP)
-        // Sinon, préserver la valeur existante depuis VISIBLE_COMPUTERS si elle existe
-        if (params['respondsTo-arp'] !== undefined) {
-            pc['respondsTo-arp'] = params['respondsTo-arp'];
-        } else if (existingRespondsToArp !== undefined) {
-            pc['respondsTo-arp'] = existingRespondsToArp;
+        // Préserver respondsToArp si passé dans parametres fonction (suite hybrid scan)
+        if (params['respondsToArp'] !== undefined) {
+            pc['respondsTo-arp'] = params['respondsToArp'];
+        } else {
+            pc['respondsTo-arp'] = false;
         }
-        
+
+        // Préserver respondsToPing si passé dans parametres fonction (suite hybrid scan)
+        if (params['respondsToPing'] !== undefined) {
+            pc['respondsTo-ping'] = params['respondsToPing'];
+        } else {
+            pc['respondsTo-ping'] = false;
+        }
+
         console.log(`[SCAN] Saving PC - idPC: ${idPC}, hostname: ${pc.hostname || 'N/A'}, lanIP: ${pc.lanIP || 'N/A'}, lanMAC: ${pc.lanMAC || 'N/A'}`);
         G.database.dbComputersSaveData(idPC, pc);
         

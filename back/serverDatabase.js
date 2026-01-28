@@ -13,13 +13,14 @@ class ServerDatabase {
 
     constructor(G_ref) {
         G = G_ref;
-        G.VISIBLE_COMPUTERS_FILE = __dirname+'/visibleComputers.json';
+        const F = require('./functions');
+        G.VISIBLE_COMPUTERS_FILE = Path.join(F.getAppDirectory(), 'visibleComputers.json');
         G.VISIBLE_COMPUTERS = new Map();
     }
 
     initConnection(){
-        // WebRTC remplace Gun.js pour la synchronisation de données
-        // L'initialisation de WebRTC se fait dans server.js via ServerWebRTCManager
+        // WebRTC replaces Gun.js for data synchronization
+        // WebRTC initialization is done in server.js via ServerWebRTCManager
         console.log("[DATABASE] Database initialized (using WebRTC for synchronization)");
     }
 
@@ -31,16 +32,16 @@ class ServerDatabase {
             return;
         }
         
-        // Vérifier si value est un objet vide
+        // Check if value is an empty object
         if (value && typeof value === 'object' && Object.keys(value).length === 0) {
-            // Objet vide : réinitialiser les données
+            // Empty object: reset data
             if (G.webrtcManager) {
                 G.webrtcManager.deleteData('computers', idPC);
             }
             return;
         }
         
-        // Sauvegarder via WebRTC (synchronisation P2P)
+        // Save via WebRTC (P2P synchronization)
         if (G.webrtcManager) {
             G.webrtcManager.saveData('computers', idPC, value);
         }
@@ -51,7 +52,7 @@ class ServerDatabase {
     }
 
     dbComputersClearData(){
-        // Supprimer via WebRTC
+        // Delete via WebRTC
         if (G.webrtcManager) {
             const allComputers = G.webrtcManager.getAllData('computers');
             allComputers.forEach((pc, id) => {
@@ -61,10 +62,10 @@ class ServerDatabase {
     }
 
     /**
-     * Sauvegarde un message dans la base de données (WebRTC)
+     * Saves a message to the database (WebRTC)
      */
     dbMessagesSaveData(messageId, messageData) {
-        // Sauvegarder via WebRTC (synchronisation P2P)
+        // Save via WebRTC (P2P synchronization)
         if (G.webrtcManager) {
             G.webrtcManager.saveData('messages', messageId, messageData);
         }

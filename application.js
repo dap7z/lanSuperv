@@ -1,7 +1,8 @@
-﻿//=============//
+//=============//
 // ENTRY POINT //
 //=============//
 
+//const path = require('path');
 
 //GET COMMAND PARAMETERS
 let argv = require('yargs').argv;

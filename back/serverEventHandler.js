@@ -8,21 +8,21 @@ class ServerEventHandler {
 
     constructor(G_ref) {
         G = G_ref;
-        // Set pour tracker les événements en cours de traitement (évite les doubles traitements)
+        // Set to track events being processed (avoids double processing)
         this.processingEvents = new Set();
     }
 
-    // Fonction pour obtenir l'idPC de la cible à partir de eventData
+    // Function to get the target idPC from eventData
     targetIdPC(eventData){
         return F.getPcIdentifier({lanMAC: eventData.pcTargetLanMAC});
     }
 
     eventTargetIsThisPC(eventData){
-        // Si aucune cible spécifiée (undefined pour pcTargetLanMAC), alors evenement broadcasté vers tous les PC y compris celui-ci.
+        // If no target specified (undefined for pcTargetLanMAC), then event is broadcast to all PCs including this one.
         if (!eventData.pcTargetLanMAC) {
             return true;
         }
-        // Vérifier si l'idPC de la cible correspond à ce PC
+        // Check if the target idPC matches this PC
         let pcTargetIdPC = this.targetIdPC(eventData);
         let myIdPC = G.THIS_PC.idPC;
         return pcTargetIdPC === myIdPC;
@@ -37,7 +37,7 @@ class ServerEventHandler {
         //Retrieve pc info from database :
         let idTargetPC = this.targetIdPC(eventData);
         
-        // Récupérer les informations du PC depuis WebRTC
+        // Get PC information from WebRTC
         if (!G.webrtcManager) {
             console.log('[eventRedirection] ERROR! G.webrtcManager is not defined');
             return;
@@ -115,7 +115,19 @@ class ServerEventHandler {
             let execPath = eventParams.execPath;
 
             let lastObjectMsg = {};
-            let compute = fork(execPath);
+            // In SEA mode, use node explicitly to prevent the child process from inheriting the SEA environment (and try to get the port 842 too).
+            const F = require('./functions');
+            let compute;
+            if (F.isAppCompiled()) {
+                // In executable mode, use node from node_modules or system
+                const nodePath = process.execPath.includes('node.exe') ? process.execPath : 'node';
+                compute = fork(execPath, [], {
+                    execPath: nodePath,
+                    env: { ...process.env, NODE_OPTIONS: '' }
+                });
+            } else {
+                compute = fork(execPath);
+            }
             compute.send(eventParams);
             compute.on('message', (msg) => {
                 let text = '[PLUGIN ' + eventName + '] message: ';
@@ -165,15 +177,15 @@ class ServerEventHandler {
         if (p.dirPath.indexOf('local-responses') >= 0) //if local-response
         {
             if (pcTargetIsThisPC) {
-                // Événement destiné à ce PC, on le traite
+                // Event intended for this PC, process it
                 p.thisPC = G.THIS_PC;
             }
             else {
-                // Événement destiné à un autre PC, on le redirige
+                // Event intended for another PC, redirect it
                 if (f !== 'socket') {
                     this.eventRedirection(p);
                 }
-                //event transmited, nothing more to do.
+                //event transmitted, nothing more to do.
                 //(and not even need eventRedirection if it comes from WebRTC)
                 processEvent = false;
             }
@@ -230,7 +242,7 @@ class ServerEventHandler {
             return;
         }
         
-        // Écouter les mises à jour de messages depuis WebRTC
+        // Listen for message updates from WebRTC
         G.webrtcManager.on('dataUpdate', ({ table, id, data }) => {
             if (table !== 'messages') {
                 return;
@@ -239,7 +251,7 @@ class ServerEventHandler {
             const eventData = data;
             if (eventData && eventData.eventReceivedAt == null) {
 
-                // log des evénements reçus pas encore traités
+                // log of received events not yet processed
                 if (!eventData.eventName) {
                     console.log("[EVENT-RECEPTION] Received data without eventName, ignoring it. Might be a chat message :", eventData);
                     return; // don't process this undefined eventName (chat, bug, hack)
@@ -269,17 +281,17 @@ class ServerEventHandler {
 
                 if(!readMessage)
                 {
-                    // Log de débogage pour comprendre pourquoi l'événement n'est pas pris en compte pour etre traité ou transmis
+                    // Debug log to understand why the event is not being considered for processing or transmission
                     let myIdPC = G.THIS_PC.idPC;
                     console.log(`[EVENT-RECEPTION] Event ${eventData.eventName} NOT processed - pcTargetIdPC: ${pcTargetIdPC}, THIS_PC.idPC: ${myIdPC}`);
-                    // Ne pas acquitter l'événement s'il n'est pas destiné à ce PC (sauf si on le transfère à un autre PC)
+                    // Do not acknowledge the event if it's not intended for this PC (unless we transfer it to another PC)
                     return;
                 }
                 else
                 {
 
-                    // --- Traitement specifique aux événements qui arrêtent le PC (power-off/sleep-mode) :
-                    //   - si l'événement date de plus de 2 minutes, on l'ignore et on l'aquitte pour éviter re-traitement au redémarrage
+                    // --- Specific handling for events that stop the PC (power-off/sleep-mode) :
+                    //   - if the event is older than 2 minutes, ignore it and acknowledge it to avoid re-processing on restart
                     let shouldIgnoreEvent = false;
                     if (isSelfShutdownEvent)
                     {
@@ -287,7 +299,7 @@ class ServerEventHandler {
                         if(! eventData.eventSendedAt){
                             shouldIgnoreEvent = true;
                         }else{
-                            // Vérifier si l'événement date de plus de 2 minutes
+                            // Check if the event is older than 2 minutes
                             const eventDate = new Date(eventData.eventSendedAt);
                             const now = new Date();
                             ageInMinutes = (now - eventDate) / (1000 * 60);
@@ -298,23 +310,23 @@ class ServerEventHandler {
                         if(shouldIgnoreEvent){
                             let message = `Event ${eventData.eventName} ignored (too old: ${ageInMinutes.toFixed(2)} minutes)`;
                             console.log('[EVENT] ' + message);
-                            // Acquitter l'événement comme si on l'avait traité
+                            // Acknowledge the event as if we had processed it
                             eventData.eventResult = JSON.stringify({ msg: message });
                             eventData.eventReceivedAt = new Date().toISOString();
                             G.webrtcManager.saveData('messages', id, eventData);
-                            // L'événement doit être ignoré, ne pas continuer le traitement
+                            // The event should be ignored, do not continue processing
                             return;
                             }
                         }
                      // ---
 
-                    // Marquer l'événement comme "en cours de traitement" immédiatement pour éviter les doubles traitements
+                    // Mark the event as "being processed" immediately to avoid double processing
                     let eventReceivedAt = new Date().toISOString();
                     eventData.eventReceivedAt = eventReceivedAt;
                     G.webrtcManager.saveData('messages', id, eventData);
                     console.log(`[EVENT-RECEPTION] Event ${eventData.eventName} (id: ${id}) marked as received at ${eventReceivedAt}`);
                     
-                    // Maintenant traiter l'événement
+                    // Now process the event
                     if(eventData.eventName === 'check')
                     {
                         if(this.eventTargetIsThisPC(eventData))
@@ -324,7 +336,7 @@ class ServerEventHandler {
                             finalResult['idPC'] = pcTargetIdPC;
                             G.database.dbComputersSaveData(finalResult.idPC, finalResult, "socket"); //NEW
                             
-                            // Mettre à jour eventResult pour les événements check
+                            // Update eventResult for check events
                             eventData.eventResult = JSON.stringify({ msg: 'check completed' });
                             G.webrtcManager.saveData('messages', id, eventData);
                         }
@@ -338,7 +350,7 @@ class ServerEventHandler {
                             pcTargetMachineID: eventData.pcTargetMachineID,
                         };
                         
-                        // Utiliser await pour attendre la fin du traitement
+                        // Use await to wait for processing to complete
                         this.eventDispatcher(p, 'socket').then((responseData) => {
                             let evtResult = {};
                             if (responseData) {

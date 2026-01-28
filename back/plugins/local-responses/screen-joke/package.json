@@ -1,14 +1,20 @@
 {
-  "name": "mirror",
+  "name": "lanSuperv-screen-joke",
   "version": "1.0.0",
-  "description": "Like looking into a mirror",
-  "repository": "electron/simple-samples",
+  "description": "Fullscreen webcam or video",
+  "repository": "",
   "main": "app.js",
   "scripts": {
     "start": "electron app.js"
   },
-  "license": "ISC",
-  "devDependencies": {
+  "license": "MIT",
+  "private": true,
+  "peerDependencies": {
     "electron": "^9.1.0"
+  },
+  "peerDependenciesMeta": {
+    "electron": {
+      "optional": true
+    }
   }
 }

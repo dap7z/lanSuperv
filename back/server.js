@@ -61,9 +61,11 @@ class Server {
 
     constructor(configFileAbsolutePath) {
         if(! configFileAbsolutePath){
-            // Utiliser CONFIG_FILE de l'environnement si défini (Docker), sinon config.js local
+            // Use CONFIG_FILE from environment if defined (Docker), otherwise local config.js
             const path = require('path');
-            configFileAbsolutePath = process.env.CONFIG_FILE || path.join(process.cwd(), 'config.js');
+            const F = require('./functions');
+            let configDir = F.getAppDirectory();
+            configFileAbsolutePath = process.env.CONFIG_FILE || path.join(configDir, 'config.js');
             console.log('no config file path specified, assume :', configFileAbsolutePath);
         }
         G.CONFIG_FILE = configFileAbsolutePath;
@@ -143,7 +145,7 @@ class Server {
                     console.log('Reason : ' + IsPortAvailable.lastError);
                 }
                 else {
-                    // Écouter sur toutes les interfaces (0.0.0.0) pour accepter les connexions depuis le réseau
+                    // Listen on all interfaces (0.0.0.0) to accept connections from the network
                     G.WEB_SERVER_INSTANCE = G.WEB_SERVER.listen(G.WEB_SERVER.get('port'), '0.0.0.0', () => {
                         //get listening port
                         let port = G.WEB_SERVER_INSTANCE.address().port;
@@ -154,13 +156,13 @@ class Server {
                             path: '/webrtc-signaling'
                         });
                         
-                        // Définir handleWebRTCSignaling dans la portée de start()
+                        // Define handleWebRTCSignaling in the scope of start()
                         const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = require('wrtc');
                         
                         async function handleWebRTCSignaling(ws, message, clientState) {
                             switch (message.type) {
                                 case 'request-offer':
-                                    // Le client demande une offre, créer une connexion WebRTC
+                                    // Client requests an offer, create a WebRTC connection
                                     if (!clientState.pc) {
                                         clientState.pc = new RTCPeerConnection({
                                             iceServers: [
@@ -168,7 +170,7 @@ class Server {
                                             ]
                                         });
                                         
-                                        // Créer un data channel pour échanger des données
+                                        // Create a data channel to exchange data
                                         const dataChannel = clientState.pc.createDataChannel('lansuperv', {
                                             ordered: true
                                         });
@@ -176,7 +178,7 @@ class Server {
                                         clientState.dataChannel = dataChannel;
                                         setupServerDataChannel(dataChannel);
                                         
-                                        // Gérer les candidats ICE
+                                        // Handle ICE candidates
                                         clientState.pc.onicecandidate = (event) => {
                                             if (event.candidate && ws.readyState === WebSocket.OPEN) {
                                                 ws.send(JSON.stringify({
@@ -186,7 +188,7 @@ class Server {
                                             }
                                         };
                                         
-                                        // Créer une offre
+                                        // Create an offer
                                         const offer = await clientState.pc.createOffer();
                                         await clientState.pc.setLocalDescription(offer);
                                         
@@ -212,12 +214,12 @@ class Server {
                         }
                         
                         function setupServerDataChannel(dataChannel) {
-                            // Fonction pour envoyer les données initiales
+                            // Function to send initial data
                             const sendInitialData = () => {
-                                // Vérifier que idPC est défini avant d'envoyer
+                                // Check that idPC is defined before sending
                                 if (!G.THIS_PC.idPC) {
                                     console.log('[WebRTC Signaling] Waiting for idPC to be defined before sending initial data...');
-                                    // Réessayer après un court délai
+                                    // Retry after a short delay
                                     setTimeout(sendInitialData, 100);
                                     return;
                                 }
@@ -228,7 +230,7 @@ class Server {
                                     serverIdPC: G.THIS_PC.idPC
                                 };
                                 
-                                // Récupérer toutes les données computers depuis WebRTCManager
+                                // Retrieve all computers data from WebRTCManager
                                 if (G.webrtcManager) {
                                     const computers = G.webrtcManager.getAllData('computers');
                                     computers.forEach((pc, id) => {
@@ -249,7 +251,7 @@ class Server {
                             };
                             
                             dataChannel.onopen = () => {
-                                // Envoyer les données initiales (avec vérification de idPC)
+                                // Send initial data (with idPC check)
                                 sendInitialData();
                             };
                             
@@ -257,7 +259,7 @@ class Server {
                                 try {
                                     const message = JSON.parse(event.data);
                                     if (message.type === 'update') {
-                                        // Sauvegarder via WebRTCManager
+                                        // Save via WebRTCManager
                                         if (G.webrtcManager) {
                                             G.webrtcManager.saveData(message.table, message.id, message.data);
                                         }
@@ -267,7 +269,7 @@ class Server {
                                 }
                             };
                             
-                            // Écouter les mises à jour depuis WebRTCManager pour les envoyer au client
+                            // Listen for updates from WebRTCManager to send to client
                             if (G.webrtcManager) {
                                 const updateListener = ({ table, id, data }) => {
                                     if (dataChannel.readyState === 'open') {
@@ -281,7 +283,7 @@ class Server {
                                 };
                                 G.webrtcManager.on('dataUpdate', updateListener);
                                 
-                                // Nettoyer le listener quand le data channel se ferme
+                                // Clean up listener when data channel closes
                                 dataChannel.onclose = () => {
                                     G.webrtcManager.removeListener('dataUpdate', updateListener);
                                 };
@@ -302,7 +304,7 @@ class Server {
                             });
                             
                             ws.on('close', () => {
-                                console.log('[WebRTC Signaling] Client disconnected');   // on passe bien ici lors fermeture onglet navigateur.
+                                console.log('[WebRTC Signaling] Client disconnected');   // we do pass here when browser tab closes
                                 if (clientState.pc) {
                                     clientState.pc.close();
                                 }
@@ -366,7 +368,7 @@ class Server {
         const ServerPluginsInfos = require('./serverPluginsInfos');
         G.PLUGINS_INFOS = ServerPluginsInfos.build();
 
-        //----- INITIALIZE EVENT HANDLER (avant WebRTC pour éviter les erreurs) -----
+        //----- INITIALIZE EVENT HANDLER (before WebRTC to avoid errors) -----
         const ServerEventHandler = require('./serverEventHandler');
         G.eventHandler = new ServerEventHandler(G);
         G.eventHandler.setupHttpEventsLiteners();
@@ -388,26 +390,26 @@ class Server {
         let lanScanner = new ServerLanScanner(G);
         // Store lanScanner reference for event emit in ServerLanScanner class
         G.lanScanner = lanScanner;
-        // Setup listener one time only, just after instanciation
+        // Setup listener one time only, just after instantiation
         lanScanner.setupScanListeners();
         
-        // ---- DEBUT WEBRTC
-        // Écouter les découvertes de PC via Bonjour/WebRTC
+        // ---- START WEBRTC
+        // Listen for PC discoveries via Bonjour/WebRTC
         G.webrtcManager.on('pcDiscovered', (pcInfo) => {
             console.log(`[SCAN] PC discovered via Bonjour: ${pcInfo.hostname} (${pcInfo.lanIP}, idPC: ${pcInfo.idPC})`);
             lanScanner.processBonjourDiscovery(pcInfo);
         });
         
-        // Initialiser SCANNED_COMPUTERS (nécessaire pour processScanResult)
+        // Initialize SCANNED_COMPUTERS (required for processScanResult)
         if (!G.SCANNED_COMPUTERS) {
             G.SCANNED_COMPUTERS = new Map();
         }
         
-        // Lancer le scan initial (Bonjour ou broadcast selon config)
+        // Launch initial scan (Bonjour or broadcast according to config)
         if (G.CONFIG.val('ENABLE_SCAN') === false) {
-            // Si le scan est désactivé, on utilise uniquement Bonjour
+            // If scan is disabled, use Bonjour only
             console.log("[SCAN] Broadcast scan disabled, using Bonjour discovery only");
-            // Ajouter ce PC à la liste
+            // Add this PC to the list
             let params = {
                 lastCheck: new Date().toISOString(),
                 lanIP: G.THIS_PC.lanInterface.ip_address,
@@ -417,10 +419,10 @@ class Server {
             let remotePlugins = F.simplePluginsList('remote', G.PLUGINS_INFOS);
             lanScanner.processScanResult(params, remotePlugins);
         } else {
-            // Utiliser Bonjour au lieu du broadcast scan
+            // Use Bonjour instead of broadcast scan
             console.log("[SCAN] Using Bonjour/mDNS for network discovery");
-            // Bonjour découvrira automatiquement les autres instances
-            // On ajoute quand même ce PC à la liste
+            // Bonjour will automatically discover other instances
+            // Still add this PC to the list
             let params = {
                 lastCheck: new Date().toISOString(),
                 lanIP: G.THIS_PC.lanInterface.ip_address,
@@ -432,7 +434,7 @@ class Server {
         }
 
 
-        //----- HANDLE WebRTC ROUTES (pour compatibilité Node.js à Node.js) -----
+        //----- HANDLE WebRTC ROUTES (for Node.js to Node.js compatibility) -----
         G.WEB_SERVER.post('/webrtc/offer', BodyParser.json(), function (req, res) {
             const { from, offer } = req.body;
             console.log(`[WebRTC] Received offer - from: ${from}, THIS_PC.idPC: ${G.THIS_PC.idPC}, offer present: ${!!offer}`);
@@ -442,7 +444,7 @@ class Server {
                 return res.status(400).json({ error: 'Missing from or offer' });
             }
 
-            // Ignorer notre propre offre
+            // Ignore our own offer
             if (from === G.THIS_PC.idPC) {
                 console.log(`[WebRTC] Ignoring offer from self - from: ${from}, THIS_PC.idPC: ${G.THIS_PC.idPC}`);
                 return res.status(400).json({ error: 'Cannot connect to self' });
@@ -469,7 +471,7 @@ class Server {
             G.webrtcManager.handleIceCandidate(from, candidate);
             res.json({ status: 'ok' });
         });
-        // ---- FIN WEBRTC
+        // ---- END WEBRTC
 
 
         //----- HANDLE HOMEPAGE REQUEST (HTTP/HTTPS) -----

@@ -15,30 +15,48 @@ class ServerPluginsInfos {
 
 
     static getDirectories(p){
-        let dirs =  Fs.readdirSync(p).filter(function (file) {
-            return Fs.statSync(p+'/'+file).isDirectory();
-        });
-        let dirsPaths = [];
-        dirs.map(function (dir) {
-            dirsPaths.push(Path.join(p, dir));
-        });
-        return dirsPaths;
+        try {
+            let dirs =  Fs.readdirSync(p).filter(function (file) {
+                return Fs.statSync(Path.join(p, file)).isDirectory();
+            });
+            let dirsPaths = [];
+            dirs.map(function (dir) {
+                dirsPaths.push(Path.join(p, dir));
+            });
+            return dirsPaths;
+        } catch (error) {
+            console.error(`[PLUGINS] Error reading directory ${p}:`, error.message);
+            return [];
+        }
     }
 
 
     static getPluginsDirPath(type='all'){
         let pluginsDirPath;
+        
+        // Detect if we are in an executable and adjust the path
+        let pluginsBasePath;
+        const F = require('./functions');
+        
+        if (F.isAppCompiled()) {
+            // In an executable (SEA), use the executable directory + back/plugins/
+            pluginsBasePath = Path.join(Path.dirname(process.execPath), 'back', 'plugins');
+        } else {
+            // In development, __dirname already points to back/, so plugins/ directly
+            pluginsBasePath = Path.join(__dirname, 'plugins');
+        }
+        
         switch(type){
             case 'all':
-                let remoteRequestsPlugins = this.getDirectories(__dirname+'/plugins/remote-requests/');
-                let localResponsesPlugins = this.getDirectories(__dirname+'/plugins/local-responses/');
+                let remoteRequestsPlugins = this.getDirectories(Path.join(pluginsBasePath, 'remote-requests'));
+                let localResponsesPlugins = this.getDirectories(Path.join(pluginsBasePath, 'local-responses'));
                 pluginsDirPath = remoteRequestsPlugins.concat(localResponsesPlugins);
                 break;
             case 'remote':
-                pluginsDirPath = this.getDirectories(__dirname+'/plugins/remote-requests/');
+                pluginsDirPath = this.getDirectories(Path.join(pluginsBasePath, 'remote-requests'));
                 break;
             case 'local':
-                pluginsDirPath = this.getDirectories(__dirname+'/plugins/local-responses/');
+                pluginsDirPath = this.getDirectories(Path.join(pluginsBasePath, 'local-responses'));
                 break;
             default:
                 pluginsDirPath = '';
@@ -51,7 +69,7 @@ class ServerPluginsInfos {
         let tabResult = [];
         let plugins = ServerPluginsInfos.getPluginsDirPath('all');
         plugins.map(function (dirPath) {
-            let execPath = '';  //used diagPluginDetection too
+            let execPath = '';
             let eventName = Path.basename(dirPath);	//pluginDirName
             let isRemote = (dirPath.indexOf('remote') > -1);
             tabResult[eventName] = {
@@ -70,7 +88,7 @@ class ServerPluginsInfos {
                 tabResult[eventName].isEnabled = true;
             }
 
-            let diagPluginDetection = true;
+            let diagPluginDetection = false;
             if (diagPluginDetection) {
                 let logMsg = '[PLUGIN ' + eventName + '] file: ';
                 if (execPath !== '') {

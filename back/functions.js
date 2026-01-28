@@ -137,6 +137,25 @@ class F {
     }
 
 
+    /**
+     * Detects if the application is running in compiled executable mode (SEA) or development mode
+     * @returns {boolean} true if compiled executable, false if development mode
+     */
+    static isAppCompiled() {
+        return process.execPath.endsWith('.exe') && !process.execPath.includes('node.exe');
+    }
+
+    /**
+     * Returns the base directory according to the execution mode
+     * - In executable mode: executable directory
+     * - In development mode: current working directory
+     * @returns {string} Base directory path
+     */
+    static getAppDirectory() {
+        const path = require('path');
+        return this.isAppCompiled() ? path.dirname(process.execPath) : process.cwd();
+    }
+
     // CIDR range function (replaces cidr-range package to avoid vulnerable ip dependency)
     // Used in serverLanScanner.js and debug-lan-discovery.js
     static cidrRange(cidr) {

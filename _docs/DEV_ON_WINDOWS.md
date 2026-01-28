@@ -1,9 +1,9 @@
-﻿# Installation de lanSuperv sur Ubuntu et Raspberry Pi
+﻿# Installation de lanSuperv sur Windows
 
-Ce guide vous permettra d'installer lanSuperv sur un linux type debian fraîchement installé, en étant connecté en SSH.
+Ce guide vous permettra d'installer lanSuperv en mode développement sur un windows fraîchement installé.
 
 ## Étape 1 ~windows~ : Installation de Cmder 
-Pour avoir accès à certaines l'equivalent de certaines commandes linux sur windows, vous pouvez installer Cmder
+Pour avoir accès à l'equivalent de certaines commandes linux sur windows, vous pouvez installer Cmder
 https://cmder.app/
 
 ## Étape 2 ~windows~ : Installation de Node.js 24

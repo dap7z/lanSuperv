@@ -142,7 +142,22 @@ class F {
      * @returns {boolean} true if compiled executable, false if development mode
      */
     static isAppCompiled() {
-        return process.execPath.endsWith('.exe') && !process.execPath.includes('node.exe');
+        const execPath = process.execPath;
+        const path = require('path');
+        const execName = path.basename(execPath);
+        
+        // Windows: check for .exe extension (but not node.exe)
+        if (execPath.endsWith('.exe') && !execPath.includes('node.exe')) {
+            return true;
+        }
+        
+        // Linux: check if executable name contains 'linux'
+        if (execName.includes('linux')) {
+            return true;
+        }
+        
+        // Default: not compiled (development mode)
+        return false;
     }
 
     /**

@@ -119,8 +119,9 @@ class ServerEventHandler {
             const F = require('./functions');
             let compute;
             if (F.isAppCompiled()) {
-                // In executable mode, use node from node_modules or system
-                const nodePath = process.execPath.includes('node.exe') ? process.execPath : 'node';
+                // If compiled, use node from system PATH
+                // On Windows, node might be in the same directory, but on Linux we rely on system node
+                const nodePath = 'node'; // Use system node to avoid inheriting SEA environment
                 compute = fork(execPath, [], {
                     execPath: nodePath,
                     env: { ...process.env, NODE_OPTIONS: '' }

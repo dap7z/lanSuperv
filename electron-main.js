@@ -75,7 +75,20 @@ let debugWindow = null;
 
 // Load Electron configuration
 function loadElectronConfig() {
-    const configPath = path.join(__dirname, 'config', 'electron-config.json');
+    // Use the same directory as the executable (portable mode)
+    // This ensures the config is persistent and writable
+    let configDir;
+    try {
+        // This function is called in app.whenReady(), so app is available
+        const exePath = app.getPath('exe');
+        configDir = path.dirname(exePath);
+    } catch (error) {
+        // Fallback if app.getPath fails (shouldn't happen, but just in case)
+        configDir = path.dirname(process.execPath);
+        writeLogToFile('[ELECTRON] Using process.execPath fallback for config dir: ' + error.message);
+    }
+    
+    const configPath = path.join(configDir, 'electron-config.json');
     const defaultConfig = {
         autoStart: false,
         autoUpdate: true,
@@ -86,19 +99,20 @@ function loadElectronConfig() {
     if (fs.existsSync(configPath)) {
         try {
             electronConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            // Merge with defaults to ensure all properties exist
+            electronConfig = { ...defaultConfig, ...electronConfig };
         } catch (error) {
             writeLogToFile('[ELECTRON] Error loading electron-config.json, using defaults: ' + error.message);
             electronConfig = defaultConfig;
         }
     } else {
         electronConfig = defaultConfig;
-        // Create config directory if it doesn't exist
-        const configDir = path.dirname(configPath);
-        if (!fs.existsSync(configDir)) {
-            fs.mkdirSync(configDir, { recursive: true });
-        }
         // Save default config
-        fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+        try {
+            fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+        } catch (error) {
+            writeLogToFile('[ELECTRON] Error saving default electron-config.json: ' + error.message);
+        }
     }
     
     return electronConfig;
@@ -533,16 +547,29 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Save Electron configuration
 function saveElectronConfig() {
-    const configPath = path.join(__dirname, 'config', 'electron-config.json');
-    const configDir = path.dirname(configPath);
-    
-    if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir, { recursive: true });
+    // Use the same directory as the executable (portable mode)
+    // This ensures the config is persistent and writable
+    let configDir;
+    try {
+        // This function is called after app.whenReady(), so app is available
+        const exePath = app.getPath('exe');
+        configDir = path.dirname(exePath);
+    } catch (error) {
+        writeLogToFile('[ELECTRON] Error getting config dir for save: ' + error.message);
+        return; // Can't save if we can't determine the directory
     }
     
-    fs.writeFileSync(configPath, JSON.stringify({
-        autoStart: config.autoStart,
-        autoUpdate: config.autoUpdate,
-        minimizeOnStartup: config.minimizeOnStartup || false
-    }, null, 2));
+    const configPath = path.join(configDir, 'electron-config.json');
+    
+    try {
+        fs.writeFileSync(configPath, JSON.stringify({
+            autoStart: config.autoStart || false,
+            autoUpdate: config.autoUpdate !== false, // Default to true
+            minimizeOnStartup: config.minimizeOnStartup || false
+        }, null, 2));
+        writeLogToFile('[ELECTRON] Electron config saved to: ' + configPath);
+    } catch (error) {
+        writeLogToFile('[ELECTRON] Error saving electron-config.json: ' + error.message);
+        console.error('[ELECTRON] Error saving electron-config.json:', error);
+    }
 }

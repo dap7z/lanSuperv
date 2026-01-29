@@ -7,7 +7,7 @@ PARAMS['APP_AUTO_START'] = true;        //NEXTS RELEASES
 PARAMS['DATABASE_NAME'] = 'db-lansuperv';  // /!\ NAME HAVE TO BE THE SAME BETWEEN ALL INTANCES OF THE APP OTHERWISE EVENTS CANT BE READ /!\
 
 PARAMS['INTERVAL_SCAN'] = 0;                         //number of minutes between each scan, set 0 to disable it
-PARAMS['ENABLE_SCAN'] = false; //<-{ENABLE_SCAN}     //set true on main server for allowing him to ping the lan, others clients on the same lan doesnt need to scan too 
+PARAMS['ENABLE_SCAN'] = true; //<-{ENABLE_SCAN}      //set true on main server for allowing him to ping the lan, others clients on the same lan doesnt need to scan too 
 PARAMS['SERVER_ADDRESS'] = ''; //<-{SERVER_ADDRESS}
 //'' AS DEFAULT (localhost, create database for each installed application)
 //'https://main-server-domain.com' AS SHARED DATABASE

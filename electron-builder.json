@@ -75,11 +75,15 @@
   "publish": {
     "provider": "github",
     "owner": "dap7z",
-    "repo": "lanSuperv"
+    "repo": "lanSuperv",
+    "releaseType": "release"
   },
+  "generateUpdatesFilesForAllChannels": true,
   "npmRebuild": false,
   "nodeGypRebuild": false,
   "buildDependenciesFromSource": false,
   "beforeBuild": "./build-electron-hooks.js",
-  "afterPack": "./build-electron-hooks.js"
+  "afterPack": "./build-electron-hooks.js",
+  "afterAllArtifactBuild": "./build-electron-hooks.js",
+  "artifactBuildCompleted": "./build-electron-hooks.js"
 }

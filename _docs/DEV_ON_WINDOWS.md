@@ -127,6 +127,18 @@ Alors il faut generer les fichiers dist du front web via :
 npm run dev
 ```
 
+Si erreur suivante :
+	npm start
+    Error: Cannot find module './build/Release/raw.node'
+Alors il faut recompilé le module dans node_modules/raw-socket (@justjam2013/raw-socket) : 
+```bash
+#npm rebuild
+Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+npm rebuild @justjam2013/raw-socket
+cd node_modules\raw-socket
+npm run build
+```
+
 ### Logs de l'application
 
 Si l'application est lancée manuellement, les logs s'affichent directement dans le terminal.

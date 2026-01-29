@@ -125,12 +125,14 @@ $env:GH_TOKEN="votre_token_github"
 export GH_TOKEN="votre_token_github"
 ```
 
-### 3. Build et publication automatique
+### 3. Build et publication automatique (avec GH_TOKEN defini au dessus)
 
 ```bash
-npm run build:electron -- --publish always
+npm run build:electron:publish
 # or windows zip only :
-npm run build:electron -- --win zip --x64 --publish always
+npm run build:electron:win
+npm run build:electron -- --publish always
+node build-electron-upload-latest-yml.js
 ```
 
 Cela va :

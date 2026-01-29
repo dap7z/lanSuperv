@@ -11,6 +11,7 @@ class ElectronTray {
         this.config = config;
         this.callbacks = callbacks;
         this.tray = null;
+        this.debugWindow = null;
         this.init();
     }
     
@@ -40,8 +41,23 @@ class ElectronTray {
             
             // Handle click events
             this.tray.on('click', () => {
-                // Open browser on click (optional, can be removed if you prefer menu only)
-                this.openBrowser();
+                // If debug window exists, focus/restore it
+                if (this.debugWindow) {
+                    if (this.debugWindow.isDestroyed()) {
+                        // Recreate if destroyed
+                        if (this.callbacks.onRecreateDebugWindow) {
+                            this.callbacks.onRecreateDebugWindow();
+                        }
+                    } else {
+                        if (this.debugWindow.isMinimized()) {
+                            this.debugWindow.restore();
+                        }
+                        this.debugWindow.focus();
+                    }
+                } else {
+                    // Open browser if no debug window
+                    this.openBrowser();
+                }
             });
             
             console.log('[ELECTRON-TRAY] Tray icon initialized successfully');
@@ -101,6 +117,19 @@ class ElectronTray {
                 },
                 toolTip: 'Active les mises à jour automatiques (fonctionne aussi en mode portable)'
             },
+            {
+                label: 'Minimiser au démarrage',
+                type: 'checkbox',
+                checked: this.config.minimizeOnStartup || false,
+                click: (menuItem) => {
+                    if (this.callbacks.onMinimizeOnStartupToggle) {
+                        this.callbacks.onMinimizeOnStartupToggle(menuItem.checked);
+                    }
+                    this.config.minimizeOnStartup = menuItem.checked;
+                    this.updateMenu(); // Refresh menu to update checkbox state
+                },
+                toolTip: 'Minimise la fenêtre de debug au démarrage de l\'application'
+            },
             { type: 'separator' },
             {
                 label: 'À propos',
@@ -156,11 +185,16 @@ class ElectronTray {
         });
     }
     
+    setDebugWindow(debugWindow) {
+        this.debugWindow = debugWindow;
+    }
+    
     destroy() {
         if (this.tray) {
             this.tray.destroy();
             this.tray = null;
         }
+        this.debugWindow = null;
     }
 }
 

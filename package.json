@@ -73,6 +73,7 @@
     "build:electron:linux:arm64": "electron-builder --linux AppImage --arm64",
     "build:electron:mac": "electron-builder --mac zip",
     "build:electron:all": "electron-builder --win portable --linux AppImage --mac zip",
+    "build:electron:publish": "electron-builder --publish always && node build-electron-upload-latest-yml.js",
     "test:cypress": "cypress run",
     "test:cypress:open": "cypress open",
     "test:docker:up": "docker-compose -f docker-compose.test.yml up -d",

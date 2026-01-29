@@ -27,7 +27,7 @@ class LanSuperv {
         // Check if config.js exists, if not, copy config.js.sample to config.js
         if (!fs.existsSync(ConfigFile)) {
             fs.copyFileSync(ConfigFile+'.sample', ConfigFile);
-            const warningMsg = 'WARNING! Fichier config.js non trouvé, initialisation avec ENABLE_SCAN=false et SERVER_ADDRESS=\'\'';
+            const warningMsg = 'WARNING! Fichier config.js non trouvé, initialisation avec ENABLE_SCAN=true et SERVER_ADDRESS=\'\'';
             console.log(warningMsg);
         }
 

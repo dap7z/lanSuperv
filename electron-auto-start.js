@@ -71,7 +71,6 @@ class ElectronAutoStart {
             childProcess.on('close', (code) => {
                 if (code === 0) {
                     console.log(`[ELECTRON-AUTO-START] Windows task created successfully (path: ${execPath})`);
-                    console.log(`[ELECTRON-AUTO-START] Task will run with highest privileges at logon`);
                 } else {
                     console.error(`[ELECTRON-AUTO-START] Failed to create Windows task (exit code: ${code})`);
                     if (stderr) {

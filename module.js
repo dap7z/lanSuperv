@@ -7,6 +7,9 @@ const {fork} = require('child_process');
      const LanSuperv = require('./module.js');
      const app = new LanSuperv();
      app.startApplication();
+
+ En compilation SEA, package.json a "main": "module.js"
+ En compilation Electron package.json doit avoir "main": "electron-main.js"
  *****************************************************/
 
 class LanSuperv {
@@ -16,13 +19,18 @@ class LanSuperv {
     }
 
     startApplication(ConfigFile){
-        console.log("== START APPLICAITON == (ConfigFile:"+ ConfigFile +")");
+        console.log("== START APPLICATION == (ConfigFile:"+ ConfigFile +")");
 
-        //OLD NOK WITH PKG
-        //this.childProcess = fork(__dirname+'/application.js', ['--config='+ConfigFile]);
-
-        //NEW (https://github.com/zeit/pkg/issues/251)
+        const fs = require('fs');
         const path = require('path');
+
+        // Check if config.js exists, if not, copy config.js.sample to config.js
+        if (!fs.existsSync(ConfigFile)) {
+            fs.copyFileSync(ConfigFile+'.sample', ConfigFile);
+            const warningMsg = 'WARNING! Fichier config.js non trouvé, initialisation avec ENABLE_SCAN=false et SERVER_ADDRESS=\'\'';
+            console.log(warningMsg);
+        }
+
         let modulePath = path.join(__dirname,'application.js');
         this.childProcess = fork(modulePath, ['--config='+ConfigFile]);
 

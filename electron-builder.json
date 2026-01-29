@@ -1,0 +1,85 @@
+{
+  "appId": "com.lansuperv.app",
+  "productName": "lanSuperv",
+  "directories": {
+    "output": "dist-electron"
+  },
+  "files": [
+    "electron-main.js",
+    "electron-tray.js",
+    "electron-updater-config.js",
+    "electron-notifications.js",
+    "electron-auto-start.js",
+    "application.js",
+    "start.js",
+    "module.js",
+    "back/**/*",
+    "front/**/*",
+    "config/**/*",
+    "node_modules/**/*",
+    "!node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}",
+    "!node_modules/**/{test,__tests__,tests,powered-test,example,examples}",
+    "!node_modules/**/*.d.ts",
+    "!node_modules/**/.{eslintrc,prettierrc,prettierignore}",
+    "!node_modules/**/{.nyc_output,coverage,.nyc_output}",
+    "package.json"
+  ],
+  "extraResources": [
+    {
+      "from": "config.js.sample",
+      "to": "config.js.sample"
+    }
+  ],
+  "asar": true,
+  "asarUnpack": [
+    "start.js",
+    "application.js",
+    "module.js",
+    "back/**/*",
+    "front/**/*",
+    "node_modules/**/*"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "dir",
+        "arch": ["x64"]
+      },
+      {
+        "target": "zip",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "assets/icon.ico"
+  },
+  "linux": {
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": ["x64", "arm64"]
+      }
+    ],
+    "category": "Network",
+    "icon": "assets/icon.png"
+  },
+  "mac": {
+    "target": [
+      {
+        "target": "zip",
+        "arch": ["x64", "arm64"]
+      }
+    ],
+    "category": "public.app-category.networking",
+    "icon": "assets/icon.icns"
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "dap7z",
+    "repo": "lanSuperv"
+  },
+  "npmRebuild": false,
+  "nodeGypRebuild": false,
+  "buildDependenciesFromSource": false,
+  "beforeBuild": "./build-electron-hooks.js",
+  "afterPack": "./build-electron-hooks.js"
+}

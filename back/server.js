@@ -56,10 +56,30 @@ class Server {
         if(! configFileAbsolutePath){
             // Use CONFIG_FILE from environment if defined (Docker), otherwise local config.js
             const path = require('path');
-            const F = require('./functions');
-            let configDir = F.getAppDirectory();
+            const fs = require('fs');
+            let configDir;
+            
+            // Debug: log environment variables
+            console.log('[SERVER] LANSUPERV_CONFIG_DIR: ' + (process.env.LANSUPERV_CONFIG_DIR || 'NOT SET'));
+            console.log('[SERVER] CONFIG_FILE: ' + (process.env.CONFIG_FILE || 'NOT SET'));
+            console.log('[SERVER] process.execPath: ' + process.execPath);
+            
+            // Use LANSUPERV_CONFIG_DIR if provided (from Electron), otherwise use process.execPath
+            if (process.env.LANSUPERV_CONFIG_DIR) {
+                configDir = process.env.LANSUPERV_CONFIG_DIR;
+                console.log('[SERVER] Using LANSUPERV_CONFIG_DIR: ' + configDir);
+            } else {
+                // Use process.execPath to get the executable directory
+                // NOTE: In Node.js child process, this points to node.exe, not Electron exe!
+                const exePath = process.execPath;
+                configDir = path.dirname(exePath);
+                console.log('[SERVER] Using process.execPath (WARNING: points to node.exe): ' + configDir);
+            }
+            
             configFileAbsolutePath = process.env.CONFIG_FILE || path.join(configDir, 'config.js');
-            console.log('no config file path specified, assume :', configFileAbsolutePath);
+            if (!fs.existsSync(configFileAbsolutePath)) {
+                console.error('[SERVER] ERROR: config.js not found at: ' + configFileAbsolutePath);
+            }
         }
         G.CONFIG_FILE = configFileAbsolutePath;
         G.CONFIG = require(configFileAbsolutePath);

@@ -1,29 +1,29 @@
-﻿# lanSuperv
+# lanSuperv
 ## nodejs lan supervision
 
-![](demo.gif)
+![](_docs/demo.gif)
 
 ### How to install ?
-1) Run executable, by example in windows console : "lan-superv.exe --config=D:\SRV_WEB\lanSuperv\config.js"
-note : if no --config is specified, it's looks for a "config.js" file in the executable directory
-2) Go to http://localhost:842
+[Installation Linux](_docs/INSTALL_ON_LINUX.md
+[Installation Windows]_docs/INSTALL_ON_WINDOWS.md
 
 ### How to dev ?
 1) Download and install last stable version of node js for windows : 
 <br /> https://nodejs.org/en/download
-2) Download the application zip and extract it
-3) Setup node-gyp requirements (if needed for native modules)
+2) Git clone or download the application zip and extract it
+<br /> https://github.com/dap7z/lanSuperv/archive/refs/heads/master.zip
+3) Setup node-gyp requirements (for WebRTC and native modules)
 > Node.js 24 LTS is required
-> For native modules compilation, install Visual Studio Build Tools or Visual Studio Community
-```sh
-$ npm config set msvs_version 2015 --global
-$ npm install -g node-gyp-install
-$ npm install -g node-gyp #(node-gyp have to be installed globaly)
-```
 4) Install dependencies with the command: "npm install" 
-5) Build assets with the command: "npm run dev" (no minified javascript for debug purposes)
+5) Build assets with the command: "npm run dev"
 6) Copy "config.js.sample" to "config.js" and edit the file
 7) Launch application with the command: "npm start"
+7.1) If you want, docker can help you to run 2 instance on virtual network ;)
+```sh 
+docker-compose build
+docker compose up -d
+docker compose logs --tail=50
+```
 
 ### On the target machine(s), how to enable WOL and PING ?
 #### WOL :
@@ -38,3 +38,12 @@ In the OS, properties of the ethernet card, power management :
 By default computer responds to PING but not on windows 11, even in a private network, you might have to allow it explicitly in the firewall with theses command for ipv4 and ipv6 :
 netsh advfirewall firewall add rule name="ICMP Allow incoming V4 echo request" protocol=icmpv4:8,any dir=in action=allow
 netsh advfirewall firewall add rule name="ICMPv6 Allow" protocol=icmpv6:8,any dir=in action=allow
+
+### Scans workflow
+User loads the web page.
+1) This triggers a Quick Scan (lanScanner.startQuickScan()):
+This iterates over previously known devices (G.VISIBLE_COMPUTERS).
+For each device, check current status (Ping, HTTP, TCP Socket with onePcScan function).
+2) Then triggers a Full network Scan (lanScanner.startBroadcastScan()):
+It scans the entire IP range to discover new devices.
+Finally, onePcScans are triggered for newly found devices (EVENT_DEVICE_INFOS)

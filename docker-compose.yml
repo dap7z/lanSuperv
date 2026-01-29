@@ -1,0 +1,56 @@
+﻿services:
+  lansuperv-1:
+    build: .
+    container_name: lansuperv-instance-1
+    hostname: lansuperv-1
+    ports:
+      - "8421:8421"
+    environment:
+      - SERVER_PORT=8421
+      - SOCKET_PORT=8421
+      - SERVER_ADDRESS=http://lansuperv-1
+      - ENABLE_SCAN=true
+      - NODE_ENV=development
+      - CONFIG_FILE=/tmp/lansuperv-config/config.js
+    volumes:
+      # Monter le code source (exclure node_modules qui reste dans l'image)
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
+    # Permissions réseau nécessaires pour le scan LAN
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    networks:
+      - lansuperv-network
+
+  lansuperv-2:
+    build: .
+    container_name: lansuperv-instance-2
+    hostname: lansuperv-2
+    ports:
+      - "8422:8422"
+    environment:
+      - SERVER_PORT=8422
+      - SOCKET_PORT=8422
+      - SERVER_ADDRESS=http://lansuperv-2
+      - NODE_ENV=development
+    volumes:
+      # Monter le code source (exclure node_modules qui reste dans l'image)
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
+    # Permissions réseau nécessaires pour le scan LAN
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    networks:
+      - lansuperv-network
+
+networks:
+  lansuperv-network:
+    driver: bridge
+
+volumes:
+  lansuperv-data-1:
+  lansuperv-data-2:

@@ -1,0 +1,13 @@
+﻿install python 2.7
+install visual studio community 2015
+create new c++ project from visual studio community 2015
+install requirement when popup appear (Microsoft Visual C++ Build Tools)
+
+And finaly you can :
+  npm config set msvs_version 2015 --global
+  npm install --global node-gyp
+  npm install --global --production windows-build-tools
+  npm install
+
+
+https://github.com/nodejs/node-gyp

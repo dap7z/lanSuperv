@@ -1,0 +1,53 @@
+﻿<html>
+	<head>
+	</head>
+	<body>
+
+		<script>
+			let module = {};
+		</script>
+		<script src="assets/json-formatter.js"></script>
+		<script>
+			//let JSONFormatter = require('../dist/json-formatter.js').default;
+			let JSONFormatter = module.exports.default;
+			function dump(jsonOrObject){
+				let renderConfig = {
+					theme: 'dark',		//dark theme (font colors)
+					sortPropertiesBy: function(a,b){ return a>b; } 
+				};
+				let formatter = new JSONFormatter(jsonOrObject, 1, renderConfig);
+				let element = formatter.render();
+				element.style['backgroundColor'] = '#1E1E1E';	//dark theme (background color)
+				element.style['border'] = '1px solid lightgray';
+				element.style['border-radius'] = '5px';
+				element.style['padding'] = '10px';
+				return element;
+			}
+		</script>
+		<script>
+		
+			let jsonOrObject = {
+				numbers: [
+					1,
+					2,
+					3
+				],
+				boolean: true,
+				'null': null,
+				number: 123,
+				anObject: {
+					a: 'b',
+					e: 'd',
+					c: 'f\"'
+				},
+				string: 'Hello World',
+				url: 'https://github.com/mohsen1/json-formatter-js',
+				date: new Date(),
+				func: function add(a, b) { return a + b; }
+			};
+			
+			document.body.appendChild( dump(jsonOrObject) );
+		</script>
+
+	</body>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+</html>

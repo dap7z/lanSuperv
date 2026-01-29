@@ -1,4 +1,4 @@
-/* Execution :
+﻿/* Execution :
 *  -> npm run build
 *  -> npm run dev //for non-minified
 */
@@ -6,9 +6,9 @@
 const path = require('path');
 
 module.exports = {
-    entry: './web/src/js/index.js',
+    entry: './front/src/js/index.js',
     output: {
-        path: path.resolve(__dirname + '/web/dist'),
+        path: path.resolve(__dirname + '/front/dist'),
         filename: 'bundle.js',
     },
     node: {

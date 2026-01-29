@@ -1,0 +1,48 @@
+services:
+  instance1:
+    build: .
+    container_name: lansuperv-test-instance1
+    hostname: lansuperv-test-instance1
+    ports:
+      - "8421:8421"
+    environment:
+      - ENABLE_SCAN=true
+      - SERVER_PORT=8421
+      - SOCKET_PORT=8421
+      - SERVER_ADDRESS=http://lansuperv-test-instance1
+      - NODE_ENV=test
+      - CONFIG_FILE=/tmp/lansuperv-config/config.js
+    volumes:
+      - .:/app
+      - /app/node_modules
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    networks:
+      - test-network
+
+  instance2:
+    build: .
+    container_name: lansuperv-test-instance2
+    hostname: lansuperv-test-instance2
+    ports:
+      - "8422:8422"
+    environment:
+      - ENABLE_SCAN=true
+      - SERVER_PORT=8422
+      - SOCKET_PORT=8422
+      - SERVER_ADDRESS=http://lansuperv-test-instance2
+      - NODE_ENV=test
+      - CONFIG_FILE=/tmp/lansuperv-config/config.js
+    volumes:
+      - .:/app
+      - /app/node_modules
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge

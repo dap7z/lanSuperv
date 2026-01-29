@@ -6,23 +6,18 @@ PARAMS['APP_AUTO_START'] = true;        //NEXTS RELEASES
 
 PARAMS['DATABASE_NAME'] = 'db-lansuperv';  // /!\ NAME HAVE TO BE THE SAME BETWEEN ALL INTANCES OF THE APP OTHERWISE EVENTS CANT BE READ /!\
 
-PARAMS['INTERVAL_SCAN'] = 0;                      //number of minutes between each scan, set 0 to disable it
-PARAMS['ENABLE_SCAN'] = false;                    //set true on main server for allowing him to ping the lan, others clients on the same lan doesnt need to scan too 
-PARAMS['SERVER_ADDRESS'] = '';
+PARAMS['INTERVAL_SCAN'] = 0;                         //number of minutes between each scan, set 0 to disable it
+PARAMS['ENABLE_SCAN'] = true; //<-{ENABLE_SCAN}      //set true on main server for allowing him to ping the lan, others clients on the same lan doesnt need to scan too 
+PARAMS['SERVER_ADDRESS'] = ''; //<-{SERVER_ADDRESS}
 //'' AS DEFAULT (localhost, create database for each installed application)
-//'https://main-server-domain.com' AS SHARED GUN.JS DATABASE
+//'https://main-server-domain.com' AS SHARED DATABASE
 // /!\ LET IT EMPTY IF THIS MACHINE IS THE MAIN SERVER /!\
 
-PARAMS['SERVER_PORT'] = 842;
-PARAMS['SOCKET_PORT'] = 842;
+PARAMS['SERVER_PORT'] = 842 ; //<-{SERVER_PORT}   //-> 842 will be replace by docker-compose build
+PARAMS['SOCKET_PORT']=842;// <-{SOCKET_PORT}      //-> 842 will be replace by docker-compose build
 
 PARAMS['PATH_HTTP_EVENTS'] = '/cmd';              //example: http://localhost:842/cmd/power-off
-PARAMS['PATH_DATABASE'] = '/gun';                 //default: '/gun'   //20170901 gun.js does not allow custom path
 
-PARAMS['GUN_ADDITIONAL_PEERS'] = [];  //empty by default: no link between servers
-//PARAMS['GUN_ADDITIONAL_PEERS'] = ['https://main-server-domain.com/gun']; 
-//You can hosts and add one or some urls in this table, example:
-//['https://main-server-domain.com/gun', 'http://2nd-without-reverse-proxy.fr:842/gun']
 
 
 //======================================================================================================================
@@ -45,8 +40,6 @@ else
     PARAMS['CLIENT_SIDE'] = true;
 
     if(PARAMS['LOCAL_DATABASE']){
-        //(gun.js web client have address the MAIN_SERVER_ADDRESS)
-
         //get server address from browser and update SERVER_ADDRESS :
         let hostname = window.location.hostname;
         if(hostname=='') host = 'localhost';
@@ -91,32 +84,12 @@ let config_object = {
                         result += ':'+ this.val('SOCKET_PORT'); 
                     }
                     break;
-                case 'SERVER_URL_EVENTS':
-                    result = this.val('SERVER_URL') + this.val('PATH_HTTP_EVENTS');
-                    break;
-                case 'SOCKET_URL_DATABASE':
-                    result = this.val('SOCKET_URL') + this.val('PATH_DATABASE');
-                    break;
                 case 'TABLE_COMPUTERS':
                     result = this.val('DATABASE_NAME') +'/computers';
                     break;
                 case 'TABLE_MESSAGES':
                     result = this.val('DATABASE_NAME') +'/messages';
                     break;
-                case 'FILE_SHARED_DB':
-                    result = this.val('DATABASE_NAME') +'-shared.json';
-                    break;
-                case 'FILE_LOCAL_DB':
-                    result = this.val('DATABASE_NAME') +'-local.json';
-                    break;
-				case 'GUN_PEERS':
-					result = [this.val('SOCKET_URL_DATABASE')]; //array
-					PARAMS['GUN_ADDITIONAL_PEERS'].forEach(function(url) {
-						if(url !== result[0]){
-							result.push(url);
-						}
-					});
-					break;
 
                 default:
                     error = '[ERROR] ';

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8">
+    <title>lanSuperv</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+
+    <!-- STYLES -->
+    <link rel="stylesheet" href="assets/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/pace.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="chat.css">
+    <!-- Notyf CSS (remplace Toastr) -->
+    <link rel="stylesheet" href="assets/notyf.min.css">
+
+    <!-- JAVASCRIPS -->
+    <script src="assets/bootstrap.min.js"></script>
+</head>
+
+<body>
+
+    <div id="loader" class="pace pace-active initial-box-sizing">
+        <div class="pace-progress initial-box-sizing" data-progress="50" data-progress-text="50%">
+            <div class="pace-progress-inner initial-box-sizing"></div>
+        </div>
+        <div class="pace-activity initial-box-sizing"></div>
+    </div>
+
+
+    <div class="container-fluid">
+        <div class="row">
+            <div id="app" class="col-12">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h1 class="mb-0">Lan Superv</h1>
+                    <button type="button" class="btn btn-info hidden" id="dbShowBtn" data-bs-toggle="modal"
+                        data-bs-target="#dbModal">
+                        <!-- class="... hidden" if no decentralized database diagnostic needed -->
+                        <span>🗄️</span> Database 
+                    </button>
+                </div>
+
+                <div id="pcModel" style="display: none;">
+                    <div class="pcElem col-12 col-sm-6 col-md-6 col-lg-4 col-xl-2">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="nickname"></span>
+                                <span class="hostname"></span>
+                            </div>
+                            <div class="card-body">
+
+                                <div class="btn-group btn-plugin-container" role="group">
+                                    <div class="btn-group btn-plugin-choice" role="group">
+                                        <a class="btn btn-plugins dropdown-toggle btn-plugin-link"
+                                            data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
+                                            <span class='btn-plugin-value'></span>
+                                        </a>
+                                        <ul class="dropdown-menu">
+                                            <li class="dropdown-item"></li>
+                                        </ul>
+                                    </div>
+                                    <button type="button" class="btn btn-primary btn-plugin-submit">Send</button>
+                                </div>
+
+
+                                <div class="row">
+                                    <span class="col-3 nowrap">IP :</span><span class="lanIP col-9 breakword"></span>
+                                </div>
+                                <div class="row">
+                                    <span class="col-3 nowrap">MAC :</span><span class="lanMAC col-9 breakword"></span>
+                                </div>
+                                <div class="row">
+                                    <span class="col-4 nowrap">MachineID :</span><span class="machineID col-8 cutword"
+                                        alt=""></span>
+                                </div>
+
+                                <div class="row">
+                                    <span class="col-12">
+                                        <div class="d-flex flex-wrap respondsTo">
+                                            <div class="nowrap">Responds to :</div>
+                                            <div class="badge-container">
+                                                <span class="badge bg-secondary respondsTo-arp">arp</span>
+                                                <span class="badge bg-secondary respondsTo-ping">ping</span>
+                                                <span class="badge bg-secondary respondsTo-http requireApp">http</span>
+                                                <span class="badge bg-secondary respondsTo-socket requireApp">socket</span>
+                                            </div>
+                                        </div>
+                                    </span>
+                                </div>
+
+                                <div class="row">
+                                    <span class="col-4 nowrap">Last response :</span>
+                                    <span class="lastResponse col-8 breakword">
+                                        <time class="timeago" datetime=""></time>
+                                    </span>
+                                </div>
+
+                                <div class="row hidden">
+                                    <span class="col-5 nowrap">currentWebServer :</span><span class="col-7 breakword isCurrentWebServer">-</span>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="pcList" class="row"></div>
+
+            </div>
+        </div>
+
+        <!-- CHAT START -->
+        <div class="chat-container">
+            <div class="model" style="display: none;">
+                <li>
+                    <b class="who"></b>
+                    <span class="when-style">(</span><span class="when"></span><span class="when-style">)</span>
+                    : <span class="what"></span>
+                    <i class="deletemsg"></i>
+                </li>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <hr>
+                </div>
+                <div class="col-12">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h4 class="mb-0">Console</h4>
+                        <img id="clearAllMessages" class="clickable" src="img/clear-messages.png" />
+                    </div>
+                    <div class="clearfix"></div>
+                    <div class="chatbox">
+                        <ul class="collection chatmessage"></ul>
+                    </div>
+                    <form id="chat" class="d-flex gap-2">
+                        <input name="message" placeholder="Message" class="msg msgTextBox form-control" required>
+                        <button class="btn btn-primary msgSubmitBtn">send</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <!-- CHAT END -->
+
+    </div>
+
+    <!-- Modal to show database content -->
+    <div class="modal fade" id="dbModal" tabindex="-1" aria-labelledby="dbModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="dbModalLabel">Decentralized database content</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <button type="button" class="btn btn-primary btn-sm" id="btnRefreshDb">Refresh</button>
+                        <button type="button" class="btn btn-danger btn-sm" id="btnDeleteDbMessages"
+                            style="margin-left: 10px;">Delete messages</button>
+                        <span id="dbStatus" class="text-muted"></span>
+                    </div>
+                    <div id="dbContent"
+                        style="max-height: 70vh; overflow-y: auto; background-color: #f5f5f5; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+                        <pre id="dbJson"
+                            style="margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', monospace; font-size: 12px;"></pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- INIT APP -->
+    <script src="config.js"></script>
+    <script>
+        let sharedObject = {
+            webRtcClient: null,
+            dbMessages: null,
+            dbComputers: null,
+        };
+    </script>
+    <script src="dist/bundle.js"></script>
+
+</body>
+
+</html>

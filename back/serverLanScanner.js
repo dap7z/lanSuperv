@@ -69,7 +69,7 @@ class ServerLanScanner extends EventEmitter {
                 }
 
                 // Inutile de lancer un QuickScan ici, on a deja demandé un onePcScan asyunchrone à chaque PC dectecé (EVENT_DEVICE_INFOS)
-                // Donc on affiche simplement un log de fin du broadcast scan et on retire le lock SCAN_IN_PROGRESS ...même si il reste des onePcScan en cours :
+                // Donc on affiche simplement un log de fin de l'hybrid scan et on retire le lock SCAN_IN_PROGRESS ...même si il reste des onePcScan en cours :
                 console.log('--> event '+ LanDiscovery.EVENT_DEVICES_INFOS + 'received, ALL ' + data.length + ' DEVICES FOUND :', data.map(device => device.name).join(', '));
 
                 //[launchLanScan] FREE LOCK AND PROGRAM NEXT CALL
@@ -80,7 +80,7 @@ class ServerLanScanner extends EventEmitter {
                     G.database.dbVisibleComputersSave();
                 }
 
-                // Si INTERVAL_SCAN est défini dans le config.js, on programme le prochain broadcast scan :
+                // Si INTERVAL_SCAN est défini dans le config.js, on programme le prochain hybrid scan :
                 // Sinon il interviendra lors du prochain chargement de la page web
                 let intervalMinutes = G.CONFIG.val('INTERVAL_SCAN');
                 if (intervalMinutes > 0) {
@@ -450,8 +450,8 @@ class ServerLanScanner extends EventEmitter {
         }
         
         // Écouter l'événement de détection complète pour ce PC et déclencher onePcScan
-        // Utiliser 'on' au lieu de 'once' pour permettre de déclencher un scan à chaque nouvelle détection
-        this.on(`pcDetected:${idPC}`, () => {
+        // Utiliser 'once' pour que le listener soit automatiquement supprimé après le premier déclenchement
+        this.once(`pcDetected:${idPC}`, () => {
             console.log(`[SCAN] PC detected via Bonjour - idPC: ${idPC}, launching onePcScan`);
             let pcObject = G.VISIBLE_COMPUTERS.get(idPC);
             if (!pcObject) {
@@ -500,9 +500,9 @@ class ServerLanScanner extends EventEmitter {
             // Les listeners sont déjà configurés dans setupScanListeners(), on lance juste le scan
             G.LAN_DISCOVERY.getDefaultInterface().then(() => {
                 // Launch arp scan then ping discovered IP
-                G.LAN_DISCOVERY.startHybridScan({ networkInterface: G.THIS_PC.lanInterface, interval: 150 });
+                G.LAN_DISCOVERY.startHybridScan({ networkInterface: G.THIS_PC.lanInterface, interval: G.CONFIG.val('MINIMUM_PING_INTERVAL_MS') });
                 
-                // Set timeout for broadcast scan (60 seconds)
+                // Set timeout for broadcast scan
                 G.SCAN_TIMEOUT = setTimeout(() => {
                     console.warn(`[SCAN] ERROR! Broadcast scan timeout reached`);
                     console.warn(`[SCAN] ERROR! No EVENT_DEVICES_INFOS received, scan may have hung or failed`);
@@ -512,7 +512,7 @@ class ServerLanScanner extends EventEmitter {
                     
                     // Clear timeout reference
                     G.SCAN_TIMEOUT = null;
-                }, G.CONFIG.val('SCAN_TIMEOUT_MS'));
+                }, G.CONFIG.val('TIMEOUT_SCAN') * 60 * 1000);
             }).catch((err) => {
                 console.error('[SCAN] Failed to get default interface for scan:', err.message);
                 console.error('[SCAN] Stack:', err.stack);

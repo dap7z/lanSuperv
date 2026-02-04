@@ -409,11 +409,19 @@ export default class Client {
                 if(message.pcTargetMachineID){
                     informations += '<br>[MachineID] '+ message.pcTargetMachineID;
                 }
+                
+                //determine notification type
+                let executeMessageReceived = false;
                 if(response && response.msg){
                     informations += '<br>'+ response.msg;
+                    executeMessageReceived = true;
                 }
 
-                toastr.success(informations);
+                if(executeMessageReceived){
+                    toastr.success(informations);
+                } else {
+                    toastr.info(informations);
+                }
             }
         }
     }

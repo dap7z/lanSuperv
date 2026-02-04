@@ -8,6 +8,8 @@ PARAMS['DATABASE_NAME'] = 'db-lansuperv';  // /!\ NAME HAVE TO BE THE SAME BETWE
 
 PARAMS['INTERVAL_SCAN'] = 0;                         //number of minutes between each scan, set 0 to disable it
 PARAMS['ENABLE_SCAN'] = true; //<-{ENABLE_SCAN}      //set true on main server for allowing him to ping the lan, others clients on the same lan doesnt need to scan too 
+PARAMS['MINIMUM_PING_INTERVAL_MS'] = 150;            //minimum number of micro seconds to wait before send another ping command
+
 PARAMS['SERVER_ADDRESS'] = ''; //<-{SERVER_ADDRESS}
 //'' AS DEFAULT (localhost, create database for each installed application)
 //'https://main-server-domain.com' AS SHARED DATABASE

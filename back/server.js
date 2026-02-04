@@ -37,7 +37,6 @@ let G = {
     VISIBLE_COMPUTERS: null,
     SCAN_IN_PROGRESS: false,      // State of current broadcast scan
     SCAN_TIMEOUT: null,           // Internal use, timeout reference
-    SCAN_TIMEOUT_MS: 1000*60*10,  // Timeout value for broadcast scan
     QUICKSCAN_EXECUTED_AT: null,
     SCANNED_COMPUTERS: null, //(reset before each scan)
     PLUGINS_INFOS: [],

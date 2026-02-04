@@ -101,7 +101,7 @@ class ElectronAutoStart {
             
             childProcess.on('close', (code) => {
                 if (code === 0) {
-                    console.log(`[ELECTRON-AUTO-START] Windows task deleted successfully`);
+                    //console.log(`[ELECTRON-AUTO-START] Windows task deleted successfully`);
                 } else {
                     // Task might not exist, which is fine (exit code 1 is normal in this case)
                     // Check for various "does not exist" messages in different languages

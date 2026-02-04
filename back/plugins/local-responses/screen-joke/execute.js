@@ -93,8 +93,8 @@ process.on('message', (eventParams) => {
             return;  // si une instance est en train de se lancer, on s'arrete ici.
         }
         
-        // Lancer Electron
-        launchElectron();
+        // Lancer l'application app.js via electron :
+        launchAppJS();
 
     } catch (e) {
         console.warn('Catched error on '+PluginName, eventParams.pcTargetLanMAC, e);

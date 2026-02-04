@@ -57,8 +57,8 @@ class ElectronNotifications {
         }
         
         const notification = new Notification({
-            title: 'Mise à jour effectuée',
-            body: `L'application a été mise à jour vers la version ${version}.`,
+            title: 'Mise à jour téléchargée',
+            body: `La version ${version} de l'application a été téléchargée.`,
             icon: this.iconPath,
             silent: false
         });

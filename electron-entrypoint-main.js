@@ -27,6 +27,7 @@ let tray = null;
 let config = null;
 let electronConfig = null;
 let debugWindow = null;
+let isShuttingDown = false; // Flag to prevent multiple shutdown calls
 
 // Load Electron configuration
 function loadElectronConfig() {
@@ -240,6 +241,12 @@ function launchNodeServer() {
 
 // Graceful shutdown
 function shutdown() {
+    // Prevent multiple shutdown calls
+    if (isShuttingDown) {
+        return;
+    }
+    isShuttingDown = true;
+    
     F.writeLogToFile('[ELECTRON] Shutting down...');
     console.log('[ELECTRON] Shutting down...');
     
@@ -493,9 +500,16 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', (event) => {
+    // If we're updating, allow the quit to proceed (updater will handle it)
+    if (process.env.LANSUPERV_UPDATING === 'true') {
+        return; // Allow quit for update installation
+    }
+    
     // Prevent default quit, use our graceful shutdown
-    event.preventDefault();
-    shutdown();
+    if (!isShuttingDown) {
+        event.preventDefault();
+        shutdown();
+    }
 });
 
 // Handle uncaught exceptions

@@ -1,0 +1,15 @@
+diff --git a/node_modules/electron-updater/out/BaseUpdater.js b/node_modules/electron-updater/out/BaseUpdater.js
+index 00f99bd..e7072b8 100644
+--- a/node_modules/electron-updater/out/BaseUpdater.js
++++ b/node_modules/electron-updater/out/BaseUpdater.js
+@@ -117,6 +117,10 @@ class BaseUpdater extends AppUpdater_1.AppUpdater {
+         return new Promise((resolve, reject) => {
+             try {
+                 const params = { stdio, env, detached: true };
++                // fix for Windows: use shell true for spaced path compatibility :
++                if (process.platform === 'win32') {
++                    params.shell = true; // properly handle paths like "C:\Program Files\My Program"
++                }
+                 const p = (0, child_process_1.spawn)(cmd, args, params);
+                 p.on("error", error => {
+                     reject(error);

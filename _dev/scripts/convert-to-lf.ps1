@@ -1,4 +1,4 @@
-﻿# Script PowerShell pour convertir tous les fichiers de CRLF vers LF
+# Script PowerShell pour convertir tous les fichiers de CRLF vers LF
 # Usage: .\convert-to-lf.ps1
 
 Write-Host "Conversion des fins de ligne CRLF vers LF..." -ForegroundColor Cyan

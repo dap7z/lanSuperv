@@ -1,4 +1,4 @@
-﻿# Docker Setup pour LanSuperv
+# Docker Setup pour LanSuperv
 
 Ce guide explique comment lancer deux instances de LanSuperv dans des conteneurs Docker pour tester la communication WebRTC entre instances.
 

@@ -90,7 +90,7 @@ Ajouter ces scripts dans la section `"scripts"` de `package.json` :
 ```json
 {
   "scripts": {
-    "electron": "electron electron-main.js",
+    "electron": "electron electron-entrypoint.js",
     "build:electron": "electron-builder",
     "build:electron:win": "electron-builder --win --x64 --target=portable",
     "build:electron:linux": "electron-builder --linux --x64 --target=AppImage",

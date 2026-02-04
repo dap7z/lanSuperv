@@ -1,4 +1,4 @@
-﻿let F = require('./functions.js'); //FONCTIONS
+let F = require('./functions.js'); //FONCTIONS
 let G = null; //GLOBALS
 
 //LIBRARIES:
@@ -577,16 +577,12 @@ class ServerWebRTCManager extends EventEmitter {
         });
 
         // Écouter les data channels créés par le peer distant
+        // Les data channels WebRTC sont bidirectionnels, donc l'answerer ne doit
+        // que écouter le canal créé par l'offerer, pas en créer un second
         pc.ondatachannel = (event) => {
             const dataChannel = event.channel;
             this._setupDataChannel(dataChannel, from);
         };
-
-        // Créer aussi notre propre data channel pour la communication bidirectionnelle
-        const dataChannel = pc.createDataChannel('lansuperv', {
-            ordered: true
-        });
-        this._setupDataChannel(dataChannel, from);
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {

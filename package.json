@@ -1,6 +1,6 @@
 {
   "name": "lan-superv",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Node.js app for lan supervision",
   "author": "Damien Pointier",
   "license": "MIT",
@@ -25,6 +25,8 @@
     "cypress": "^13.6.0",
     "electron": "^9.1.0",
     "electron-builder": "^24.9.1",
+    "patch-package": "^8.0.1",
+    "postinstall-postinstall": "^2.1.0",
     "postject": "^1.0.0-alpha.6",
     "tar": "^7.5.7",
     "webpack": "^5.89.0",
@@ -59,11 +61,11 @@
     "type": "git",
     "url": "https://github.com/dap7z/lanSuperv"
   },
-  "main": "electron-main.js",
+  "main": "electron-entrypoint.js",
   "scripts": {
     "start": "node start.js",
     "dev": "webpack --mode development",
-    "electron": "electron electron-main.js",
+    "electron": "electron electron-entrypoint.js",
     "build:sea:win-64": "node build-sea.js --target=win-x64",
     "build:sea:linux-64": "node build-sea.js --target=linux-x64",
     "build:sea:linux-arm64": "node build-sea.js --target=linux-arm64",
@@ -74,6 +76,7 @@
     "build:electron:mac": "electron-builder --mac zip",
     "build:electron:all": "electron-builder --win portable --linux AppImage --mac zip",
     "build:electron:publish": "electron-builder --publish always && node build-electron-upload-latest-yml.js",
+    "postinstall": "patch-package",
     "test:cypress": "cypress run",
     "test:cypress:open": "cypress open",
     "test:docker:up": "docker-compose -f docker-compose.test.yml up -d",

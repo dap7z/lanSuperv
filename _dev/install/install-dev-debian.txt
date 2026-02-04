@@ -1,4 +1,4 @@
-﻿INSTALLATION SOUS LINUX DEBIAN
+INSTALLATION SOUS LINUX DEBIAN
 
 root@debian:/home/debian/Bureau/lanSuperv/lan-discovery# node test.js
 internal/modules/cjs/loader.js:805

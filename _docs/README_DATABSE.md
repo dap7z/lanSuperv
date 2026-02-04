@@ -1,4 +1,4 @@
-﻿# Architecture des Données et Persistance
+# Architecture des Données et Persistance
 
 LanSuperv utilise principalement **Gun.js**, une base de données graphe décentralisée, pour la gestion de l'état en temps réel, couplée à quelques fichiers JSON pour la persistance locale et la configuration.
 

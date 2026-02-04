@@ -66,6 +66,11 @@ exports.afterPack = async (context) => {
   }
   
   console.log('[BUILD-HOOK] ✅ Native modules verification complete');
+  
+  // Generate app-update.yml for electron-updater
+  // This file must be in the resources directory of the packaged app
+  console.log('[BUILD-HOOK] Generating app-update.yml for electron-updater...');
+  generateAppUpdateYml(context);
 };
 
 function copyRecursiveSync(src, dest) {
@@ -86,6 +91,55 @@ function copyRecursiveSync(src, dest) {
   } else {
     fs.copyFileSync(src, dest);
   }
+}
+
+/**
+ * Generate app-update.yml file in the resources directory
+ * This file is required by electron-updater to check for updates
+ * It should point to the latest.yml file on the update server (GitHub releases)
+ */
+function generateAppUpdateYml(context) {
+  const appOutDir = context.appOutDir;
+  const resourcesDir = path.join(appOutDir, 'resources');
+  
+  // Ensure resources directory exists
+  if (!fs.existsSync(resourcesDir)) {
+    fs.mkdirSync(resourcesDir, { recursive: true });
+  }
+  
+  // Get configuration
+  const electronBuilderConfig = require('./electron-builder.json');
+  const packageJson = require('./package.json');
+  const version = packageJson.version;
+  const productName = electronBuilderConfig.productName || packageJson.productName || 'lanSuperv';
+  
+  // Get publish configuration
+  const publishConfig = electronBuilderConfig.publish || {};
+  const owner = publishConfig.owner || 'dap7z';
+  const repo = publishConfig.repo || 'lanSuperv';
+  
+  // Generate app-update.yml content
+  // This file tells electron-updater where to find the update information
+  // The URL points to latest.yml on GitHub releases
+  const updateUrl = `https://github.com/${owner}/${repo}/releases/latest/download/latest.yml`;
+  
+  // updaterCacheDirName is required by electron-updater
+  // This specifies the cache directory name for the updater
+  const updaterCacheDirName = `${productName}-updater`;
+  
+  const yamlContent = `version: ${version}
+releaseDate: '${new Date().toISOString()}'
+updateUrl: ${updateUrl}
+updaterCacheDirName: ${updaterCacheDirName}
+`;
+  
+  // Write app-update.yml to resources directory
+  const appUpdateYmlPath = path.join(resourcesDir, 'app-update.yml');
+  fs.writeFileSync(appUpdateYmlPath, yamlContent, 'utf8');
+  
+  console.log('[BUILD-HOOK] ✅ Generated app-update.yml at: ' + appUpdateYmlPath);
+  console.log('[BUILD-HOOK]   - Version: ' + version);
+  console.log('[BUILD-HOOK]   - Update URL: ' + updateUrl);
 }
 
 /**

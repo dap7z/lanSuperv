@@ -1,4 +1,4 @@
-﻿//THAT FILE IS ONLY FOR TEST PURPOSES
+//THAT FILE IS ONLY FOR TEST PURPOSES
 //INSTALL APPLICATION WITH lan-superv-launcher (npm package)
 
 const path = require('path');

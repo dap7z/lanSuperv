@@ -5,7 +5,8 @@
     "output": "dist-electron"
   },
   "files": [
-    "electron-main.js",
+    "electron-entrypoint.js",
+    "electron-entrypoint-main.js",
     "electron-tray.js",
     "electron-updater-config.js",
     "electron-notifications.js",

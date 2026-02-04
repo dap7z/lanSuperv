@@ -1,4 +1,4 @@
-﻿install python 2.7
+install python 2.7
 install visual studio community 2015
 create new c++ project from visual studio community 2015
 install requirement when popup appear (Microsoft Visual C++ Build Tools)

@@ -1,3 +1,3 @@
-﻿power-on
+power-on
 Send a Wake On Lan magic packet to the PC for starting it.
 Warning: WOL option has to be enabled in the bios and it require one installed application on the target lan.

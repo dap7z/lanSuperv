@@ -1,4 +1,4 @@
-﻿# Installation de lanSuperv sur Windows
+# Installation de lanSuperv sur Windows
 
 Ce guide vous permettra d'installer lanSuperv en mode développement sur un windows fraîchement installé.
 

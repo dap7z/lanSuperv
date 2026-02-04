@@ -1,4 +1,4 @@
-﻿Cette application permet de scan son réseau local et d'afficher les machines connectées.
+Cette application permet de scan son réseau local et d'afficher les machines connectées.
 On peut également interagir via un système de plugins avec les autres PC sur lesquels on a également installé l'application.
 
 Au final à partir d'une même interface web, vous pouvez notamment démarrer et éteindre un PC distant.

@@ -1,4 +1,4 @@
-﻿# Système de Plugins LanSuperv
+# Système de Plugins LanSuperv
 
 LanSuperv utilise un système de plugins modulaire permettant d'étendre simplement ses capacités sans modifier le cœur de l'application. Chaque plugin s'exécute dans un processus enfant (Child Process) isolé.
 

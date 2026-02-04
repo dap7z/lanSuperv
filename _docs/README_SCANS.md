@@ -1,4 +1,4 @@
-﻿## Scanner Réseau (`serverLanScanner.js`)
+## Scanner Réseau (`serverLanScanner.js`)
 
 Le scanner réseau est le cœur de la découverte des équipements. Il fonctionne en deux modes :
 

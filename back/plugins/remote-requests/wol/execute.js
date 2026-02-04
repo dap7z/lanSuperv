@@ -1,4 +1,4 @@
-﻿const PluginName = 'wol';
+const PluginName = 'wol';
 const Wol = require('wol');
 
 process.on('message', (eventParams) => {

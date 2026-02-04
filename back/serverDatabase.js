@@ -1,4 +1,4 @@
-﻿let F = require('./functions.js'); //FONCTIONS
+let F = require('./functions.js'); //FONCTIONS
 let G = null; //GLOBALS
 
 //LIBRARIES:

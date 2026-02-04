@@ -1,4 +1,4 @@
-﻿
+
 //LIBRARIES
 const Os = require('os');
 const Util = require('util');

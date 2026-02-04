@@ -20,6 +20,10 @@ export default class Client {
         //events notifications (before dbOnChangeMessages first call)
         this.pageLoadedAt = new Date().toISOString();
         this.lastNotification = '';
+        // Pour stocker le bouton en attente lors de l'ouverture de la modal event options
+        this.pendingSendButton = null;
+        this.pendingPcElement = null;
+        this.pendingEventName = null;
     }
 
     //MAIN METHOD :
@@ -110,7 +114,7 @@ export default class Client {
                     if (btnGroup) {
                         let btnPluginValue = btnGroup.querySelector('.btn-plugin-value');
                         if (btnPluginValue) {
-                            btnPluginValue.innerHTML = selText;
+                            btnPluginValue.textContent = selText;
                         }
                     }
                 }
@@ -139,13 +143,88 @@ export default class Client {
             // Vérifier si le clic est sur un bouton .btn-plugin-submit ou un élément à l'intérieur
             let btn = target.closest('.btn-plugin-submit');
             if (btn) {
-                self.sendRequest(btn);
+                let pc = btn.closest(".pcElem");
+                if (pc) {
+                    let btnPluginValue = pc.querySelector('.btn-plugin-value');
+                    let eventName = btnPluginValue ? btnPluginValue.textContent.trim() : '';
+                    
+                    // Vérifier si l'événement a des options disponibles
+                    if (eventName) {
+                        let pcId = pc.id;
+                        // Récupérer les données du PC depuis le WebRTCClient
+                        let pcData = null;
+                        if (typeof sharedObject !== 'undefined' && sharedObject && sharedObject.webRtcClient) {
+                            pcData = sharedObject.webRtcClient.localData.computers.get(pcId);
+                        }
+                        
+                        // Format attendu : {eventName}-videos (ex: screen-joke-videos)
+                        let optionsKey = eventName + '-videos';
+                        if (pcData && pcData[optionsKey]) {
+                            // L'événement a des options, ouvrir la modal
+                            self.pendingSendButton = btn;
+                            self.pendingPcElement = pc;
+                            self.pendingEventName = eventName;
+                            self.showEventOptionsModal(pc, eventName, pcData[optionsKey]);
+                        } else {
+                            // Pas d'options, envoyer directement
+                            self.sendRequest(btn);
+                        }
+                    } else {
+                        // Pas d'événement sélectionné, envoyer directement
+                        self.sendRequest(btn);
+                    }
+                }
+            }
+            
+            // Gestion du bouton de confirmation dans la modal event options
+            if (target.id === 'eventOptionsConfirmBtn') {
+                let modal = target.closest('.modal');
+                if (self.pendingSendButton) {
+                    // Construire l'objet eventOptions avec tous les champs
+                    let eventOptions = {};
+                    
+                    // Récupérer tous les champs radio
+                    let radioInputs = modal.querySelectorAll('input[type="radio"]:checked');
+                    radioInputs.forEach(radio => {
+                        let name = radio.name;
+                        // Extraire le nom du champ depuis le name (ex: "eventOptionstype" -> "type")
+                        if (name.startsWith('eventOptions')) {
+                            let fieldName = name.substring('eventOptions'.length);
+                            // Convertir en minuscules pour la première lettre
+                            fieldName = fieldName.charAt(0).toLowerCase() + fieldName.slice(1);
+                            eventOptions[fieldName] = radio.value;
+                        }
+                    });
+                    
+                    // Récupérer tous les champs text
+                    let textInputs = modal.querySelectorAll('input[type="text"][data-field-name]');
+                    textInputs.forEach(input => {
+                        let fieldName = input.getAttribute('data-field-name');
+                        let fieldValue = input.value.trim();
+                        if (fieldValue) {
+                            eventOptions[fieldName] = fieldValue;
+                        }
+                    });
+                    
+                    self.sendRequest(self.pendingSendButton, eventOptions);
+                    // Fermer la modal
+                    const Bootstrap = window.bootstrap || (typeof bootstrap !== 'undefined' ? bootstrap : null);
+                    if (Bootstrap && Bootstrap.Modal) {
+                        const modalInstance = Bootstrap.Modal.getInstance(modal);
+                        if (modalInstance) {
+                            modalInstance.hide();
+                        }
+                    }
+                    self.pendingSendButton = null;
+                    self.pendingPcElement = null;
+                    self.pendingEventName = null;
+                }
             }
         });
     }
 
     //OTHERS METHODS :
-    sendRequest(btn){
+    sendRequest(btn, eventOptions = null){
         console.log("[CLIENT.JS] sendRequest called with button:", btn);
         let pc = btn.closest(".pcElem");
         if (!pc) {
@@ -183,8 +262,14 @@ export default class Client {
             type: 'event', //(not text)
             who: localStorage.getItem('userName'), //uname
             when: new Date().toISOString(), //only for display time from now
-            //-------------
+            //------------- 
         };
+        
+        // Ajouter eventOptions si présentes
+        if (eventOptions && Object.keys(eventOptions).length > 0) {
+            reqData.eventOptions = eventOptions;
+        }
+        
         //(database cant handle JS multiple dimensions objects, only key:value)
         this.functionSendMessage(reqData);
     }
@@ -372,6 +457,134 @@ export default class Client {
         }
     }
     //==END=ON=CHANGE=DB=COMPUTERS=====================================================================================
+
+    // Afficher la modal pour choisir les options de l'événement
+    showEventOptionsModal(pcElem, eventName, eventOptionsString) {
+        // Mettre à jour le titre de la modal avec le nom de l'événement
+        let modalTitle = document.getElementById('eventOptionsModalLabel');
+        if (modalTitle) {
+            modalTitle.textContent = eventName + ' - choose options';
+        }
+        
+        // Remplir la modal avec les options disponibles
+        this.populateEventOptionsModal(eventName, eventOptionsString);
+        
+        // Ouvrir la modal
+        this.openEventOptionsModal();
+    }
+    
+    openEventOptionsModal() {
+        const Bootstrap = window.bootstrap || (typeof bootstrap !== 'undefined' ? bootstrap : null);
+        if (Bootstrap && Bootstrap.Modal) {
+            const modalElement = document.getElementById('eventOptionsModal');
+            if (modalElement) {
+                const modal = new Bootstrap.Modal(modalElement);
+                modal.show();
+            }
+        }
+    }
+    
+    populateEventOptionsModal(eventName, eventOptionsString) {
+        let fieldsContainer = document.getElementById('eventOptionsFields');
+        if (!fieldsContainer) return;
+        
+        // Vider le conteneur
+        fieldsContainer.innerHTML = '';
+        
+        // Parser les options : format peut être une chaîne simple ou JSON
+        let optionsConfig = null;
+        if (eventOptionsString) {
+            // Essayer de parser comme JSON
+            try {
+                optionsConfig = JSON.parse(eventOptionsString);
+            } catch (e) {
+                // Si ce n'est pas du JSON, traiter comme une chaîne simple (format legacy)
+                // Créer une structure par défaut avec le champ "type"
+                optionsConfig = {
+                    type: {
+                        type: 'radio',
+                        options: eventOptionsString.split(',').map(opt => opt.trim()).filter(opt => opt)
+                    }
+                };
+            }
+        }
+        
+        if (!optionsConfig) return;
+        
+        // Parcourir tous les champs définis
+        Object.entries(optionsConfig).forEach(([fieldName, fieldConfig]) => {
+            if (fieldConfig.type === 'radio' && fieldConfig.options) {
+                // Champ de type radio (ex: "type")
+                let fieldGroup = document.createElement('div');
+                fieldGroup.className = 'mb-3';
+                
+                let fieldLabel = document.createElement('label');
+                fieldLabel.className = 'form-label';
+                fieldLabel.textContent = fieldName + ':';
+                fieldGroup.appendChild(fieldLabel);
+                
+                let defaultValue = fieldConfig.defaultValue || null;
+                let firstOption = true;
+                fieldConfig.options.forEach(option => {
+                    option = option.trim();
+                    if (option) {
+                        let formCheck = document.createElement('div');
+                        formCheck.className = 'form-check';
+                        
+                        let radio = document.createElement('input');
+                        radio.className = 'form-check-input';
+                        radio.type = 'radio';
+                        radio.name = 'eventOptions' + fieldName;
+                        radio.id = 'eventOptions' + fieldName + '_' + option;
+                        radio.value = option;
+                        // Sélectionner par défaut si c'est la valeur par défaut ou la première option
+                        if (defaultValue && option === defaultValue) {
+                            radio.checked = true;
+                        } else if (!defaultValue && firstOption) {
+                            radio.checked = true;
+                            firstOption = false;
+                        }
+                        
+                        let label = document.createElement('label');
+                        label.className = 'form-check-label';
+                        label.setAttribute('for', 'eventOptions' + fieldName + '_' + option);
+                        label.textContent = option;
+                        
+                        formCheck.appendChild(radio);
+                        formCheck.appendChild(label);
+                        fieldGroup.appendChild(formCheck);
+                    }
+                });
+                
+                fieldsContainer.appendChild(fieldGroup);
+            } else if (fieldConfig.type === 'text') {
+                // Champ de type text
+                let fieldGroup = document.createElement('div');
+                fieldGroup.className = 'mb-3';
+                
+                let fieldLabel = document.createElement('label');
+                fieldLabel.className = 'form-label';
+                fieldLabel.textContent = fieldName + ':';
+                fieldLabel.setAttribute('for', 'eventOptions' + fieldName);
+                fieldGroup.appendChild(fieldLabel);
+                
+                let input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-control';
+                input.id = 'eventOptions' + fieldName;
+                input.setAttribute('data-field-name', fieldName);
+                if (fieldConfig.placeholder) {
+                    input.placeholder = fieldConfig.placeholder;
+                }
+                if (fieldConfig.defaultValue) {
+                    input.value = fieldConfig.defaultValue;
+                }
+                fieldGroup.appendChild(input);
+                
+                fieldsContainer.appendChild(fieldGroup);
+            }
+        });
+    }
 
 
     //==START=ON=CHANGE=DB=MESSAGES=====================================================================================

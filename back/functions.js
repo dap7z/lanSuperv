@@ -60,7 +60,7 @@ class F {
     }
 
 
-    static checkData(THIS_PC, respondTo){
+    static checkData(THIS_PC, respondTo, PLUGINS_INFOS){
         let params = {
             hostname: THIS_PC.hostnameLocal,
             lastCheck: new Date().toISOString(),
@@ -70,7 +70,7 @@ class F {
         };
         let pc = this.pcObject(params, THIS_PC);
         //each plugins as a key of pc object:
-        let plugins = F.simplePluginsList('all');
+        let plugins = F.simplePluginsList('all', PLUGINS_INFOS);
         for (let key in plugins) {
             pc[key] = plugins[key];
         }
@@ -206,6 +206,61 @@ class F {
         }
     
         return ips;
+    }
+
+    // GLobal file logging function
+    static writeLogToFile(message) {
+        const path = require('path');
+        const fs = require('fs');
+        let LOG_FILE = path.join(this.getAppDirectory(), 'lanSuperv-electron-main.log');
+        try {
+            const timestamp = new Date().toISOString();
+            fs.appendFileSync(LOG_FILE, `[${timestamp}] ${message}\n`);
+        } catch (error) {
+            // Last resort: try to write to current directory
+            try {
+                const localLog = path.join(__dirname, 'electron-main.log');
+                fs.appendFileSync(localLog, `[${new Date().toISOString()}] ${message}\n`);
+            } catch (e) {
+                // Ignore if all fails
+            }
+        }
+    }
+
+    // Liste les vidéos disponibles dans le dossier videos d'un plugin
+    static listAvailableVideos(pluginDirPath) {
+        const path = require('path');
+        const fs = require('fs');
+        const videosDir = path.join(pluginDirPath, 'videos');
+        const videos = [];
+        
+        try {
+            if (fs.existsSync(videosDir) && fs.statSync(videosDir).isDirectory()) {
+                const files = fs.readdirSync(videosDir);
+                files.forEach(file => {
+                    // Exclure les fichiers .txt et autres fichiers non-vidéo
+                    if (!file.endsWith('.txt') && !file.startsWith('.')) {
+                        const filePath = path.join(videosDir, file);
+                        const stat = fs.statSync(filePath);
+                        if (stat.isFile()) {
+                            // Extraire le nom de la vidéo sans extension
+                            const videoName = path.parse(file).name;
+                            // Créer l'option au format "video-xxx"
+                            const option = 'video-' + videoName;
+                            videos.push({
+                                option: option,
+                                filename: file,
+                                path: filePath
+                            });
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.warn('[listAvailableVideos] Erreur lors de la lecture du dossier videos:', error);
+        }
+        
+        return videos;
     }
 
 }

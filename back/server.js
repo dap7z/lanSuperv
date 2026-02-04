@@ -2,6 +2,21 @@
  lanSuperv/back/server.js : entry point for the server application
  *************************************************************************************/
 
+// CRITICAL: Check if we're in plugin mode BEFORE loading any modules
+if (process.env.LANSUPERV_PLUGIN_MODE === 'true') {
+    // We're in plugin mode, don't require modules.
+    module.exports = class DummyServer {
+        constructor() {
+            console.log('[SERVER] Running in plugin mode, server initialization skipped');
+        }
+        start() {
+            console.log('[SERVER] Running in plugin mode, server startup skipped');
+        }
+    };
+    // Stop here, continue by example in /plugins/local-responses/screen-joke/app.js
+} else {
+    // Normal server mode - continue loading modules, and executre the rest of the file.
+
 //LIBRARIES:
 const Os = require('os');
 const NodeMachineId = require('node-machine-id');
@@ -155,6 +170,9 @@ class Server {
                 if (!status) {
                     console.log('ERROR! Port ' + G.WEB_SERVER.get('port') + ' is not available!');
                     console.log('Reason : ' + IsPortAvailable.lastError);
+                    console.log('Please stop the process using port ' + G.WEB_SERVER.get('port') + ' or change SERVER_PORT in config.js');
+                    process.exit(1);
+                    return;
                 }
                 else {
                     // Listen on all interfaces (0.0.0.0) to accept connections from the network
@@ -492,3 +510,5 @@ class Server {
 }
 
 module.exports = Server;
+
+} // End of else block for plugin mode check

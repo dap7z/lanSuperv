@@ -63,7 +63,8 @@ class ServerEventHandler {
 
             //====[HTTP]====
             let jsonString = JSON.stringify({
-                'eventName': eventName,
+                'eventName': eventData.eventName,
+                'eventOptions': eventData.eventOptions || null,
                 'pcTargetLanMAC': eventData.pcTargetLanMAC,
                 'pcTargetMachineID': eventData.pcTargetMachineID,
                 'password' : '*not*Implemented*',
@@ -118,18 +119,59 @@ class ServerEventHandler {
             // In SEA mode, use node explicitly to prevent the child process from inheriting the SEA environment (and try to get the port 842 too).
             const F = require('./functions');
             let compute;
-            if (F.isAppCompiled()) {
-                // If compiled, use node from system PATH
-                // On Windows, node might be in the same directory, but on Linux we rely on system node
-                const nodePath = 'node'; // Use system node to avoid inheriting SEA environment
-                compute = fork(execPath, [], {
-                    execPath: nodePath,
-                    env: { ...process.env, NODE_OPTIONS: '' }
-                });
-            } else {
-                compute = fork(execPath);
+            let nodePath = process.execPath;
+
+            // CRITICAL: Set LANSUPERV_PLUGIN_MODE to prevent child process from starting their own server
+            // The environment variable will be checked by application.js at the very beginning
+            const pluginEnv = { ...process.env };
+            pluginEnv.LANSUPERV_PLUGIN_MODE = 'true'; // Signal that we're in plugin mode
+            delete pluginEnv.NODE_OPTIONS; // Clear NODE_OPTIONS to prevent environment inheritance
+            
+            const {spawn} = require('child_process');
+            // Use spawn with node/lanSuperv.exe as executable and plugin script
+            compute = spawn(nodePath, [execPath], {
+                stdio: ['pipe', 'pipe', 'pipe', 'ipc'], // Enable IPC for message passing
+                env: pluginEnv, // Use environment with plugin mode flag
+                shell: false // Don't use shell to avoid path escaping issues
+            });
+
+            // Verify that compute was created successfully
+            if (!compute) {
+                console.error(`[PLUGIN ${eventName}] Failed to create child process`);
+                resolve({});
+                return;
             }
-            compute.send(eventParams);
+            
+            // Verify that stdout and stderr are available
+            let srvErrorOutput = '';
+            if (!compute.stdout || !compute.stderr) {
+                console.error(`[PLUGIN ${eventName}] ERROR: fork() failed to create stdout/stderr streams. Path: ${execPath}`);
+                console.error(`[PLUGIN ${eventName}] This usually happens when the path contains spaces or special characters`);
+                resolve({});
+                return;
+            }else{
+                compute.stdout.on('data', (data) => {
+                    const output = data.toString().trim();
+                    if (output) {
+                        console.log(`[PLUGIN ${eventName}] stdout: ${output}`);
+                    }
+                });
+                compute.stderr.on('data', (data) => {
+                    const output = data.toString().trim();
+                    srvErrorOutput += output + '\n';
+                    if (output) {
+                        console.error(`[PLUGIN ${eventName}] stderr: ${output}`);
+                    }
+                });
+            }
+            
+            // Send eventParams using IPC (wait a bit for process to be ready)
+            setTimeout(() => {
+                if (compute && !compute.killed) {
+                    compute.send(eventParams);
+                }
+            }, 100);
+            
             compute.on('message', (msg) => {
                 let text = '[PLUGIN ' + eventName + '] message: ';
                 if (typeof msg === 'object') {
@@ -143,6 +185,33 @@ class ServerEventHandler {
                 if (msg === 'end') {
                     //promise return lastObjectMsg
                     resolve(lastObjectMsg);
+                }
+            });
+            
+            compute.on('error', (error) => {
+                console.error(`[PLUGIN ${eventName}] Failed to start process:`, error);
+                resolve({});
+            });
+            
+            // Send eventParams using IPC
+            setTimeout(() => {
+                if (compute && !compute.killed) {
+                    compute.send(eventParams);
+                }
+            }, 100);
+            
+            compute.on('exit', (code) => {
+                if (code !== 0) {
+                    console.error(`[PLUGIN ${eventName}] Process exited with code ${code}`);
+                    if (srvErrorOutput) {
+                        console.error(`[PLUGIN ${eventName}] Complete stderr output:\n${srvErrorOutput}`);
+                    }
+                }
+                // If no 'end' message was received, resolve anyway
+                if (lastObjectMsg && Object.keys(lastObjectMsg).length > 0) {
+                    resolve(lastObjectMsg);
+                } else {
+                    resolve({});
                 }
             });
         });
@@ -224,9 +293,23 @@ class ServerEventHandler {
                 p.pcTargetMachineID = request.body.pcTargetMachineID;
             }
             
+            // Recuperation des options de l'événement (depuis query string ou body)
+            if (request.query && request.query.options) {
+                try {
+                    p.eventOptions = JSON.parse(request.query.options);
+                } catch (e) {
+                    // Fallback: si ce n'est pas du JSON, traiter comme une valeur simple
+                    p.eventOptions = { type: request.query.options };
+                }
+            }
+            if (request.body && request.body.eventOptions) {
+                p.eventOptions = request.body.eventOptions;
+            }
+            
             //example:
             //http://localhost:842/cmd/check
             //http://localhost:842/cmd/power-off
+            //http://localhost:842/cmd/screen-joke?options={"type":"video-destroyed-screen"}
             let responseData = await this.eventDispatcher(p, 'http');
             response.json(responseData); //json response
         });
@@ -333,7 +416,40 @@ class ServerEventHandler {
                         if(this.eventTargetIsThisPC(eventData))
                         {
                             //check events (specific, socketCheck update database directly) :
-                            let finalResult = F.checkData(G.THIS_PC, 'socket');
+                            let finalResult = F.checkData(G.THIS_PC, 'socket', G.PLUGINS_INFOS);
+                            
+                            // Détecter les vidéos disponibles du plugin screen-joke
+                            if (G.PLUGINS_INFOS['screen-joke'] && G.PLUGINS_INFOS['screen-joke'].isEnabled) {
+                                const screenJokeDir = G.PLUGINS_INFOS['screen-joke'].dirPath;
+                                const availableVideos = F.listAvailableVideos(screenJokeDir);
+                                
+                                // Construire la liste des options : webcam-mirror par défaut + vidéos disponibles
+                                let optionsList = ['webcam-mirror']; // Option par défaut toujours disponible
+                                
+                                if (availableVideos.length > 0) {
+                                    // Ajouter les options de vidéos disponibles
+                                    const videoOptions = availableVideos.map(v => v.option);
+                                    optionsList = optionsList.concat(videoOptions);
+                                }
+                                
+                                // Format JSON pour les options : structure avec champs définis
+                                // Format: screen-joke-videos = JSON avec structure {type: {type: 'radio', options: [...]}, ...}
+                                const optionsConfig = {
+                                    type: {
+                                        type: 'radio',
+                                        options: optionsList
+                                    },
+                                    loop: {
+                                        type: 'radio',
+                                        options: ['yes', 'no'],
+                                        defaultValue: 'no'
+                                    }
+                                };
+                                
+                                // Options disponibles pour screen-joke
+                                finalResult['screen-joke-videos'] = JSON.stringify(optionsConfig);
+                            }
+                            
                             finalResult['idPC'] = pcTargetIdPC;
                             G.database.dbComputersSaveData(finalResult.idPC, finalResult, "socket"); //NEW
                             
@@ -350,6 +466,10 @@ class ServerEventHandler {
                             pcTargetLanMAC: eventData.pcTargetLanMAC,
                             pcTargetMachineID: eventData.pcTargetMachineID,
                         };
+                        //events with options :
+                        if (eventData.eventOptions) {
+                            p.eventOptions = eventData.eventOptions;
+                        }
                         
                         // Use await to wait for processing to complete
                         this.eventDispatcher(p, 'socket').then((responseData) => {

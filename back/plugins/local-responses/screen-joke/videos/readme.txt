@@ -1,0 +1,2 @@
+if video is too big, use HandBrake free software to compress it in 4k-HEVC (1,5 Go to 20 mo).  => NOK :(
+... if video doesnt launch, try encode in H.264 (most compatible codec), use handBrake with preset "Fast 1080p30".

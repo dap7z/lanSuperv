@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const {fork} = require('child_process');
 
@@ -9,7 +9,7 @@ const {fork} = require('child_process');
      app.startApplication();
 
  En compilation SEA, package.json a "main": "module.js"
- En compilation Electron package.json doit avoir "main": "electron-main.js"
+ En compilation Electron package.json doit avoir "main": "electron-entrypoint.js"
  *****************************************************/
 
 class LanSuperv {

@@ -1,5 +1,5 @@
 {
   "main": "application-sea.js",
-  "output": "dist/sea-prep.blob",
+  "output": "dist-sea/sea-prep.blob",
   "disableExperimentalSEAWarning": false
 }

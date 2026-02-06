@@ -22,7 +22,7 @@ if (!nodeVersion.startsWith('v24')) {
 }
 
 // Create build directory if it doesn't exist
-const buildDir = path.join(__dirname, 'dist');
+const buildDir = path.join(__dirname, 'dist-sea');
 if (!fs.existsSync(buildDir)) {
     fs.mkdirSync(buildDir, { recursive: true });
 }
@@ -48,7 +48,7 @@ try {
 
 // Step 2: Create SEA blob
 console.log('📦 Step 2: Creating SEA blob...');
-// The blob will be created in dist/sea-prep.blob according to sea-config.json
+// The blob will be created in dist-sea/sea-prep.blob according to sea-config.json
 const seaBlobPath = path.join(buildDir, 'sea-prep.blob');
 const applicationPath = path.join(__dirname, 'application.js');
 
@@ -277,12 +277,12 @@ try {
 // Step 5: Copy necessary files (plugins, config, node_modules, sources, etc.)
 console.log('📦 Step 5: Copying external files...');
 const filesToCopy = [
-    { src: 'back', dst: 'dist/back' },
-    { src: 'config.js.sample', dst: 'dist/config.js.sample' },
-    { src: 'front', dst: 'dist/front' },
-    { src: 'node_modules', dst: 'dist/node_modules' },
-    { src: 'application.js', dst: 'dist/application.js' },
-    { src: 'module.js', dst: 'dist/module.js' }
+    { src: 'back', dst: 'dist-sea/back' },
+    { src: 'config.js.sample', dst: 'dist-sea/config.js.sample' },
+    { src: 'front', dst: 'dist-sea/front' },
+    { src: 'node_modules', dst: 'dist-sea/node_modules' },
+    { src: 'application.js', dst: 'dist-sea/application.js' },
+    { src: 'module.js', dst: 'dist-sea/module.js' }
 ];
 
 filesToCopy.forEach(({ src, dst }) => {

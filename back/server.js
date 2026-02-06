@@ -190,153 +190,147 @@ class Server {
                         
                         // Define handleWebRTCSignaling in the scope of start()
                         const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = require('wrtc');
+                        const webRtcUtils = require('./utils/webRtc');
                         
+                        function cleanupClientState(clientState) {
+                            webRtcUtils.cleanupConnection(clientState.pc, clientState.dataChannel, clientState.connectionTimeout, clientState.pendingIceCandidates);
+                            clientState.dataChannel = null;
+                            clientState.pc = null;
+                            clientState.connectionTimeout = null;
+                        }
+
                         async function handleWebRTCSignaling(ws, message, clientState) {
                             switch (message.type) {
                                 case 'request-offer':
-                                    // Client requests an offer, create a WebRTC connection
-                                    if (!clientState.pc) {
-                                        clientState.pc = new RTCPeerConnection({
-                                            iceServers: [
-                                                { urls: 'stun:stun.l.google.com:19302' }
-                                            ]
-                                        });
-                                        
-                                        // Create a data channel to exchange data
-                                        const dataChannel = clientState.pc.createDataChannel('lansuperv', {
-                                            ordered: true
-                                        });
-                                        
-                                        clientState.dataChannel = dataChannel;
-                                        setupServerDataChannel(dataChannel);
-                                        
-                                        // Handle ICE candidates
-                                        clientState.pc.onicecandidate = (event) => {
-                                            if (event.candidate && ws.readyState === WebSocket.OPEN) {
-                                                ws.send(JSON.stringify({
-                                                    type: 'ice-candidate',
-                                                    candidate: event.candidate
-                                                }));
-                                            }
-                                        };
-                                        
-                                        // Create an offer
-                                        const offer = await clientState.pc.createOffer();
-                                        await clientState.pc.setLocalDescription(offer);
-                                        
-                                        ws.send(JSON.stringify({
-                                            type: 'offer',
-                                            offer: offer
-                                        }));
+                                    if (clientState.pc) {
+                                        const state = clientState.pc.connectionState;
+                                        if (state === 'connected' || state === 'connecting') {
+                                            console.log(`[WebRTC Signaling] Connection already ${state} - Client: ${clientState.clientId || 'unknown'}`);
+                                            return;
+                                        }
+                                        cleanupClientState(clientState);
                                     }
+                                    
+                                    clientState.pc = webRtcUtils.createPeerConnection(RTCPeerConnection);
+                                    clientState.dataChannel = clientState.pc.createDataChannel('lansuperv', { ordered: true });
+                                    setupServerDataChannel(clientState.dataChannel);
+                                    
+                                    webRtcUtils.setupPeerConnectionHandlers(
+                                        clientState.pc,
+                                        (candidate) => {
+                                            if (ws.readyState === WebSocket.OPEN) {
+                                                ws.send(JSON.stringify({ type: 'ice-candidate', candidate }));
+                                            }
+                                        },
+                                        (iceState) => {
+                                            if (iceState === 'failed') {
+                                                console.error('[WebRTC Signaling] ICE connection failed');
+                                            }
+                                        },
+                                        (connectionState) => {
+                                            if (connectionState === 'connected') {
+                                                if (clientState.connectionTimeout) {
+                                                    clearTimeout(clientState.connectionTimeout);
+                                                    clientState.connectionTimeout = null;
+                                                }
+                                            } else if (connectionState === 'disconnected' || connectionState === 'failed') {
+                                                cleanupClientState(clientState);
+                                            }
+                                        }
+                                    );
+                                    
+                                    const offer = await webRtcUtils.createOffer(clientState.pc);
+                                    ws.send(JSON.stringify({ type: 'offer', offer }));
+                                    
+                                    clientState.connectionTimeout = setTimeout(() => {
+                                        if (clientState.pc?.connectionState !== 'connected' && clientState.pc?.connectionState !== 'connecting') {
+                                            console.warn('[WebRTC Signaling] Connection timeout, cleaning up...');
+                                            cleanupClientState(clientState);
+                                        }
+                                    }, 10000);
                                     break;
                                     
                                 case 'answer':
                                     if (clientState.pc) {
                                         await clientState.pc.setRemoteDescription(new RTCSessionDescription(message.answer));
+                                        await webRtcUtils.applyPendingIceCandidates(clientState.pc, clientState.pendingIceCandidates, RTCIceCandidate, '[WebRTC Signaling]');
                                     }
                                     break;
-                                    
+                                
                                 case 'ice-candidate':
-                                    if (clientState.pc && clientState.pc.remoteDescription) {
-                                        await clientState.pc.addIceCandidate(new RTCIceCandidate(message.candidate));
-                                    }
+                                    await webRtcUtils.addIceCandidate(clientState.pc, message.candidate, RTCIceCandidate, clientState.pendingIceCandidates, '[WebRTC Signaling]');
                                     break;
                             }
                         }
                         
                         function setupServerDataChannel(dataChannel) {
-                            // Function to send initial data
                             const sendInitialData = () => {
-                                // Check that idPC is defined before sending
                                 if (!G.THIS_PC.idPC) {
-                                    console.log('[WebRTC Signaling] Waiting for idPC to be defined before sending initial data...');
-                                    // Retry after a short delay
                                     setTimeout(sendInitialData, 100);
                                     return;
                                 }
                                 
-                                const initialData = {
-                                    computers: {},
-                                    messages: {},
-                                    serverIdPC: G.THIS_PC.idPC
-                                };
-                                
-                                // Retrieve all computers data from WebRTCManager
+                                const initialData = { computers: {}, messages: {}, serverIdPC: G.THIS_PC.idPC };
                                 if (G.webrtcManager) {
-                                    const computers = G.webrtcManager.getAllData('computers');
-                                    computers.forEach((pc, id) => {
+                                    G.webrtcManager.getAllData('computers').forEach((pc, id) => {
                                         initialData.computers[id] = pc;
                                     });
-                                    
-                                    const messages = G.webrtcManager.getAllData('messages');
-                                    messages.forEach((msg, id) => {
+                                    G.webrtcManager.getAllData('messages').forEach((msg, id) => {
                                         initialData.messages[id] = msg;
                                     });
                                 }
                                 
-                                console.log('[WebRTC Signaling] Sending initial data with serverIdPC:', G.THIS_PC.idPC, 'initialData:', JSON.stringify(initialData));
-                                dataChannel.send(JSON.stringify({
-                                    type: 'initial-data',
-                                    data: initialData
-                                }));
+                                dataChannel.send(JSON.stringify({ type: 'initial-data', data: initialData }));
                             };
                             
-                            dataChannel.onopen = () => {
-                                // Send initial data (with idPC check)
-                                sendInitialData();
-                            };
-                            
+                            dataChannel.onopen = sendInitialData;
                             dataChannel.onmessage = (event) => {
                                 try {
                                     const message = JSON.parse(event.data);
-                                    if (message.type === 'update') {
-                                        // Save via WebRTCManager
-                                        if (G.webrtcManager) {
-                                            G.webrtcManager.saveData(message.table, message.id, message.data);
-                                        }
+                                    if (message.type === 'update' && G.webrtcManager) {
+                                        G.webrtcManager.saveData(message.table, message.id, message.data);
                                     }
                                 } catch (error) {
                                     console.error('[WebRTC Signaling] Error handling data channel message:', error);
                                 }
                             };
                             
-                            // Listen for updates from WebRTCManager to send to client
                             if (G.webrtcManager) {
                                 const updateListener = ({ table, id, data }) => {
                                     if (dataChannel.readyState === 'open') {
-                                        dataChannel.send(JSON.stringify({
-                                            type: 'update',
-                                            table: table,
-                                            id: id,
-                                            data: data
-                                        }));
+                                        dataChannel.send(JSON.stringify({ type: 'update', table, id, data }));
                                     }
                                 };
                                 G.webrtcManager.on('dataUpdate', updateListener);
-                                
-                                // Clean up listener when data channel closes
-                                dataChannel.onclose = () => {
-                                    G.webrtcManager.removeListener('dataUpdate', updateListener);
-                                };
+                                dataChannel.onclose = () => G.webrtcManager.removeListener('dataUpdate', updateListener);
                             }
                         }
                         
-                        G.WEBSOCKET_SERVER.on('connection', (ws) => {
-                            console.log('[WebRTC Signaling] Client connected');
-                            const clientState = { pc: null, dataChannel: null };
+                        G.WEBSOCKET_SERVER.on('connection', (ws, req) => {
+                            const clientIP = req.socket.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+                            const clientPort = req.socket.remotePort || 'unknown';
+                            const clientId = `${clientIP}:${clientPort}`;
+                            
+                            console.log(`[WebRTC Signaling] Client connected - IP: ${clientIP}, Port: ${clientPort}, User-Agent: ${(req.headers['user-agent'] || 'unknown').substring(0, 50)}`);
+                            
+                            const clientState = { 
+                                pc: null, 
+                                dataChannel: null,
+                                pendingIceCandidates: [],
+                                clientId,
+                                clientIP
+                            };
                             
                             ws.on('message', async (message) => {
                                 try {
-                                    const data = JSON.parse(message);
-                                    await handleWebRTCSignaling(ws, data, clientState);
+                                    await handleWebRTCSignaling(ws, JSON.parse(message), clientState);
                                 } catch (error) {
                                     console.error('[WebRTC Signaling] Error handling message:', error);
                                 }
                             });
                             
                             ws.on('close', () => {
-                                console.log('[WebRTC Signaling] Client disconnected');   // we do pass here when browser tab closes
+                                console.log(`[WebRTC Signaling] Client disconnected - IP: ${clientState.clientIP || 'unknown'}`);
                                 if (clientState.pc) {
                                     clientState.pc.close();
                                 }

@@ -157,14 +157,14 @@ class ServerEventHandler {
                 compute.stdout.on('data', (data) => {
                     const output = data.toString().trim();
                     if (output) {
-                        console.log(`[T PLUGIN ${eventName}] stdout: ${output}`);   //NOK ?
+                        console.log(`[PLUGIN ${eventName} standardOutput] ${output}`);   //OK
                     }
                 });
                 compute.stderr.on('data', (data) => {
                     const output = data.toString().trim();
                     srvErrorOutput += output + '\n';
                     if (output) {
-                        console.error(`[T PLUGIN ${eventName}] stderr: ${output}`);  //NOK ?
+                        console.error(`[PLUGIN ${eventName} errorOutput] ${output}`);  //OK
                     }
                 });
             }
@@ -173,7 +173,6 @@ class ServerEventHandler {
             compute.on('message', (msg) => {
                 let text = '[PLUGIN ' + eventName + '] message: ';
                 if (typeof msg === 'object') {
-                    console.log(text + JSON.stringify(msg));
                     lastObjectMsg = msg;
                 } else {
                     console.log(text + msg);

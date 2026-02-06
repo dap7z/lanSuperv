@@ -202,6 +202,7 @@ class Server {
                         async function handleWebRTCSignaling(ws, message, clientState) {
                             switch (message.type) {
                                 case 'request-offer':
+                                    console.log(`[WebRTC Signaling] Received request-offer from client ${clientState.clientId}`);
                                     if (clientState.pc) {
                                         const state = clientState.pc.connectionState;
                                         if (state === 'connected' || state === 'connecting') {
@@ -245,6 +246,7 @@ class Server {
                                     );
                                     
                                     const offer = await webRtcUtils.createOffer(clientState.pc);
+                                    console.log(`[WebRTC Signaling] Sending offer to client ${clientState.clientId}`);
                                     ws.send(JSON.stringify({ type: 'offer', offer }));
                                     
                                     clientState.connectionTimeout = setTimeout(() => {
@@ -256,6 +258,7 @@ class Server {
                                     break;
                                     
                                 case 'answer':
+                                    console.log(`[WebRTC Signaling] Received answer from client ${clientState.clientId}`);
                                     if (clientState.pc) {
                                         await clientState.pc.setRemoteDescription(new RTCSessionDescription(message.answer));
                                         await webRtcUtils.applyPendingIceCandidates(clientState.pc, clientState.pendingIceCandidates, RTCIceCandidate, '[WebRTC Signaling]');

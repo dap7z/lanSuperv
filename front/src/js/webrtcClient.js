@@ -201,7 +201,10 @@ export default class WebRTCClient {
             await applyPendingIceCandidates(this.pc, this.pendingIceCandidates, RTCIceCandidate, "[WebRTC Client]");
             
             if (this.ws?.readyState === WebSocket.OPEN) {
+                console.log("[WebRTC Client] Sending answer to server");
                 this.ws.send(JSON.stringify({ type: 'answer', answer }));
+            } else {
+                console.error("[WebRTC Client] Cannot send answer: WebSocket not open");
             }
 
             this.connectionTimeout = setTimeout(() => {

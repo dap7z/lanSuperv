@@ -88,7 +88,13 @@ export default class WebRTCClient {
             this.ws.onopen = () => {
                 console.log("[WebRTC Client] Signaling WebSocket connected");
                 this.isReconnecting = false;
-                if (!this.pc || (this.pc.connectionState !== 'connected' && this.pc.connectionState !== 'connecting')) {
+                // Nettoyer l'ancienne connexion si elle existe et n'est pas active
+                if (this.pc && this.pc.connectionState !== 'connected' && this.pc.connectionState !== 'connecting') {
+                    console.log(`[WebRTC Client] Cleaning up old connection with state: ${this.pc.connectionState}`);
+                    this._cleanupConnection();
+                }
+                // Demander une nouvelle offre si pas de connexion active
+                if (!this.pc || this.pc.connectionState === 'closed' || this.pc.connectionState === 'failed' || this.pc.connectionState === 'disconnected') {
                     this._requestOffer();
                 }
             };
@@ -119,11 +125,16 @@ export default class WebRTCClient {
      * Demande une offre WebRTC au serveur
      */
     _requestOffer() {
+        console.log(`[WebRTC Client] _requestOffer called - pc: ${this.pc ? this.pc.connectionState : 'null'}, ws: ${this.ws?.readyState}`);
         if (this.pc && (this.pc.connectionState === 'connected' || this.pc.connectionState === 'connecting')) {
+            console.log(`[WebRTC Client] Skipping request-offer: connection already ${this.pc.connectionState}`);
             return;
         }
         if (this.ws?.readyState === WebSocket.OPEN) {
+            console.log("[WebRTC Client] Sending request-offer to server");
             this.ws.send(JSON.stringify({ type: 'request-offer' }));
+        } else {
+            console.warn(`[WebRTC Client] Cannot send request-offer: WebSocket state is ${this.ws?.readyState}`);
         }
     }
 

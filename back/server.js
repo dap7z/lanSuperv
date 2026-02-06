@@ -219,21 +219,26 @@ class Server {
                                         clientState.pc,
                                         (candidate) => {
                                             if (ws.readyState === WebSocket.OPEN) {
+                                                console.log(`[WebRTC Signaling] Sending ICE candidate to client ${clientState.clientId}: ${candidate.candidate?.substring(0, 80)}...`);
                                                 ws.send(JSON.stringify({ type: 'ice-candidate', candidate }));
                                             }
                                         },
                                         (iceState) => {
+                                            console.log(`[WebRTC Signaling] ICE connection state: ${iceState} - Client: ${clientState.clientId}`);
                                             if (iceState === 'failed') {
-                                                console.error('[WebRTC Signaling] ICE connection failed');
+                                                console.error(`[WebRTC Signaling] ICE connection failed - Client: ${clientState.clientId}`);
                                             }
                                         },
                                         (connectionState) => {
+                                            console.log(`[WebRTC Signaling] Connection state: ${connectionState} - Client: ${clientState.clientId}`);
                                             if (connectionState === 'connected') {
+                                                console.log(`[WebRTC Signaling] Connection established with client ${clientState.clientId}`);
                                                 if (clientState.connectionTimeout) {
                                                     clearTimeout(clientState.connectionTimeout);
                                                     clientState.connectionTimeout = null;
                                                 }
                                             } else if (connectionState === 'disconnected' || connectionState === 'failed') {
+                                                console.log(`[WebRTC Signaling] Connection lost (state: ${connectionState}) - Client: ${clientState.clientId}`);
                                                 cleanupClientState(clientState);
                                             }
                                         }
@@ -258,6 +263,7 @@ class Server {
                                     break;
                                 
                                 case 'ice-candidate':
+                                    console.log(`[WebRTC Signaling] Received ICE candidate from client ${clientState.clientId}: ${message.candidate?.candidate?.substring(0, 80)}...`);
                                     await webRtcUtils.addIceCandidate(clientState.pc, message.candidate, RTCIceCandidate, clientState.pendingIceCandidates, '[WebRTC Signaling]');
                                     break;
                             }

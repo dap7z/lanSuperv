@@ -169,24 +169,28 @@ export default class WebRTCClient {
             this.pc,
             (candidate) => {
                 if (this.ws?.readyState === WebSocket.OPEN) {
+                    console.log(`[WebRTC Client] Sending ICE candidate: ${candidate.candidate?.substring(0, 80)}...`);
                     this.ws.send(JSON.stringify({ type: 'ice-candidate', candidate }));
                 }
             },
             (iceState) => {
+                console.log(`[WebRTC Client] ICE connection state: ${iceState}`);
                 if (iceState === 'failed') {
                     console.error("[WebRTC Client] ICE connection failed, reconnecting...");
                     this._reconnectAfterDelay();
                 }
             },
             (connectionState) => {
+                console.log(`[WebRTC Client] Connection state: ${connectionState}`);
                 this.isConnected = (connectionState === 'connected');
                 if (connectionState === 'connected') {
+                    console.log("[WebRTC Client] Connection established successfully!");
                     if (this.connectionTimeout) {
                         clearTimeout(this.connectionTimeout);
                         this.connectionTimeout = null;
                     }
                 } else if (connectionState === 'disconnected' || connectionState === 'failed') {
-                    console.log("[WebRTC Client] Connection lost, reconnecting...");
+                    console.log(`[WebRTC Client] Connection lost (state: ${connectionState}), reconnecting...`);
                     this._reconnectAfterDelay();
                 }
             }
@@ -219,6 +223,7 @@ export default class WebRTCClient {
     }
 
     async _handleIceCandidate(candidate) {
+        console.log(`[WebRTC Client] Received ICE candidate: ${candidate.candidate?.substring(0, 80)}...`);
         await addIceCandidate(this.pc, candidate, RTCIceCandidate, this.pendingIceCandidates, "[WebRTC Client]");
     }
 

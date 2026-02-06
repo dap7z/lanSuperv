@@ -169,13 +169,7 @@ class ServerEventHandler {
                 });
             }
             
-            // Send eventParams using IPC (wait a bit for process to be ready)
-            setTimeout(() => {
-                if (compute && !compute.killed) {
-                    compute.send(eventParams);
-                }
-            }, 100);
-            
+            // -- setup listener
             compute.on('message', (msg) => {
                 let text = '[PLUGIN ' + eventName + '] message: ';
                 if (typeof msg === 'object') {
@@ -190,12 +184,11 @@ class ServerEventHandler {
                     resolve(lastObjectMsg);
                 }
             });
-            
             compute.on('error', (error) => {
                 console.error(`[PLUGIN ${eventName}] Failed to start process:`, error);
                 resolve({});
             });
-            
+            // --
             // Send eventParams using IPC
             setTimeout(() => {
                 if (compute && !compute.killed) {

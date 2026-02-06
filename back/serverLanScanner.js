@@ -512,7 +512,7 @@ class ServerLanScanner extends EventEmitter {
                     
                     // Clear timeout reference
                     G.SCAN_TIMEOUT = null;
-                }, G.CONFIG.val('TIMEOUT_SCAN') * 60 * 1000);
+                }, 60 * 1000);
             }).catch((err) => {
                 console.error('[SCAN] Failed to get default interface for scan:', err.message);
                 console.error('[SCAN] Stack:', err.stack);

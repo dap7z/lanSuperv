@@ -185,6 +185,9 @@ export default class Chat {
                 whoEl.textContent = message.who;
             }
             if (whenEl) {
+                // Ajouter la classe timeago et data-timestamp pour la mise à jour automatique
+                whenEl.classList.add('timeago');
+                whenEl.setAttribute('data-timestamp', message.when);
                 whenEl.textContent = formatRelativeTime(message.when);
             }
             this.scrollToButton();

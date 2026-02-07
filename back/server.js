@@ -183,47 +183,56 @@ class Server {
                         let port = G.WEB_SERVER_INSTANCE.address().port;
                         
                         //----- INITIALIZE WEBSOCKET SERVER FOR WebRTC SIGNALING -----
-                        // Ne créer le serveur de signalisation que si c'est le serveur principal (LOCAL_DATABASE = true)
-                        if (G.CONFIG.val('LOCAL_DATABASE')) {
-                            console.log('[WebRTC Signaling] Initializing WebSocket server (main server mode)');
-                            G.WEBSOCKET_SERVER = new WebSocket.Server({ 
-                                server: G.WEB_SERVER_INSTANCE,
-                                path: '/webrtc-signaling'
-                            });
-                        } else {
-                            console.log('[WebRTC Signaling] Skipping WebSocket server initialization (client mode)');
-                            G.WEBSOCKET_SERVER = null;
+                        G.WEBSOCKET_SERVER = new WebSocket.Server({ 
+                            server: G.WEB_SERVER_INSTANCE,
+                            path: '/webrtc-signaling'
+                        });
+                        
+                        // Define handleWebRTCSignaling in the scope of start()
+                        const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = require('wrtc');
+                        const webRtcUtils = require('./utils/webRtc');
+                        
+                        // Map pour gérer les connexions par IP (permettre la réutilisation)
+                        const clientConnectionsByIP = new Map(); // Map<clientIP, { ws: WebSocket, clientState: Object, createdAt: Date }>
+                        
+                        function cleanupClientState(clientState) {
+                            webRtcUtils.cleanupConnection(clientState.pc, clientState.dataChannel, clientState.connectionTimeout, clientState.pendingIceCandidates);
+                            clientState.dataChannel = null;
+                            clientState.pc = null;
+                            clientState.connectionTimeout = null;
                         }
                         
-                        // Ne configurer le serveur WebSocket que s'il a été créé
-                        if (G.WEBSOCKET_SERVER) {
-                            // Define handleWebRTCSignaling in the scope of start()
-                            const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = require('wrtc');
-                            const webRtcUtils = require('./utils/webRtc');
+                        // Nettoyer les connexions en attente trop longtemps
+                        function cleanupStaleConnections() {
+                            const now = Date.now();
+                            const STALE_TIMEOUT = 15000; // 15 secondes
                             
-                            // Map pour gérer les connexions par IP
-                            const clientConnectionsByIP = new Map();
-                            
-                            function cleanupClientState(clientState) {
-                                webRtcUtils.cleanupConnection(clientState.pc, clientState.dataChannel, clientState.connectionTimeout, clientState.pendingIceCandidates);
-                                clientState.dataChannel = null;
-                                clientState.pc = null;
-                                clientState.connectionTimeout = null;
-                            }
-                            
-                            async function handleWebRTCSignaling(ws, message, clientState) {
+                            clientConnectionsByIP.forEach((conn, clientIP) => {
+                                if (!conn.clientState.pc) return;
+                                
+                                const state = conn.clientState.pc.connectionState;
+                                const age = now - conn.createdAt;
+                                
+                                // Si la connexion est en attente depuis trop longtemps
+                                if ((state === 'new' || state === 'connecting') && age > STALE_TIMEOUT) {
+                                    console.log(`[WebRTC Signaling] Cleaning up stale connection for IP ${clientIP} (state: ${state}, age: ${age}ms)`);
+                                    cleanupClientState(conn.clientState);
+                                    if (conn.ws && conn.ws.readyState === WebSocket.OPEN) {
+                                        conn.ws.close();
+                                    }
+                                    clientConnectionsByIP.delete(clientIP);
+                                }
+                            });
+                        }
+                        
+                        // Vérifier toutes les 5 secondes
+                        setInterval(cleanupStaleConnections, 5000);
+
+                        async function handleWebRTCSignaling(ws, message, clientState) {
                             try {
                                 switch (message.type) {
-                                    case 'ready':
-                                        // Le client est prêt, notifier qu'on est prêt aussi
-                                        console.log(`[WebRTC Signaling] Client ready - ${clientState.clientId}`);
-                                        if (ws.readyState === WebSocket.OPEN) {
-                                            ws.send(JSON.stringify({ type: 'server-ready' }));
-                                        }
-                                        break;
-                                        
-                                    case 'offer':
-                                        console.log(`[WebRTC Signaling] Received offer from ${clientState.clientId}`);
+                                    case 'request-offer':
+                                        console.log(`[WebRTC Signaling] request-offer from ${clientState.clientId}`);
                                         
                                         // Vérifier s'il existe une connexion active pour cette IP
                                         const existingConn = clientConnectionsByIP.get(clientState.clientIP);
@@ -231,6 +240,7 @@ class Server {
                                             const existingState = existingConn.clientState.pc.connectionState;
                                             if (existingState === 'connected') {
                                                 console.log(`[WebRTC Signaling] Reusing connected connection for ${clientState.clientIP}`);
+                                                // Mettre à jour la référence WebSocket
                                                 if (existingConn.ws !== ws) {
                                                     existingConn.ws.close();
                                                 }
@@ -240,8 +250,20 @@ class Server {
                                                     createdAt: existingConn.createdAt 
                                                 });
                                                 return;
+                                            } else if (existingState === 'connecting') {
+                                                const age = Date.now() - existingConn.createdAt;
+                                                if (age < 10000) {
+                                                    console.log(`[WebRTC Signaling] Connection already connecting for ${clientState.clientIP}, waiting...`);
+                                                    return;
+                                                } else {
+                                                    console.log(`[WebRTC Signaling] Cleaning stale connecting connection for ${clientState.clientIP}`);
+                                                    cleanupClientState(existingConn.clientState);
+                                                    if (existingConn.ws !== ws) {
+                                                        existingConn.ws.close();
+                                                    }
+                                                    clientConnectionsByIP.delete(clientState.clientIP);
+                                                }
                                             } else {
-                                                // Nettoyer l'ancienne connexion
                                                 cleanupClientState(existingConn.clientState);
                                                 if (existingConn.ws !== ws) {
                                                     existingConn.ws.close();
@@ -257,13 +279,8 @@ class Server {
                                         
                                         // Créer une nouvelle connexion
                                         clientState.pc = webRtcUtils.createPeerConnection(RTCPeerConnection);
-                                        
-                                        // Écouter le data channel créé par le client
-                                        clientState.pc.ondatachannel = (event) => {
-                                            console.log(`[WebRTC Signaling] Data channel received from client: ${event.channel.label}`);
-                                            clientState.dataChannel = event.channel;
-                                            setupServerDataChannel(clientState.dataChannel);
-                                        };
+                                        clientState.dataChannel = clientState.pc.createDataChannel('lansuperv', { ordered: true });
+                                        setupServerDataChannel(clientState.dataChannel);
                                         
                                         // Configurer les handlers
                                         webRtcUtils.setupPeerConnectionHandlers(
@@ -303,34 +320,24 @@ class Server {
                                             }
                                         );
                                         
-                                        // Créer et envoyer la réponse
+                                        // Créer et envoyer l'offre
                                         try {
-                                            await clientState.pc.setRemoteDescription(new RTCSessionDescription(message.offer));
+                                            const offer = await webRtcUtils.createOffer(clientState.pc);
                                             
-                                            const answer = await clientState.pc.createAnswer();
-                                            await clientState.pc.setLocalDescription(answer);
-                                            
-                                            // Enregistrer la connexion
+                                            // Enregistrer la connexion AVANT d'envoyer l'offre
                                             clientConnectionsByIP.set(clientState.clientIP, { 
                                                 ws, 
                                                 clientState, 
                                                 createdAt: Date.now() 
                                             });
                                             
-                                            // Appliquer les candidats ICE en attente
-                                            await webRtcUtils.applyPendingIceCandidates(
-                                                clientState.pc, 
-                                                clientState.pendingIceCandidates, 
-                                                RTCIceCandidate, 
-                                                '[WebRTC Signaling]'
-                                            );
-                                            
                                             if (ws.readyState === WebSocket.OPEN) {
-                                                ws.send(JSON.stringify({ type: 'answer', answer }));
+                                                ws.send(JSON.stringify({ type: 'offer', offer }));
                                             } else {
-                                                console.error(`[WebRTC Signaling] WebSocket not open, cannot send answer to ${clientState.clientId}`);
+                                                console.error(`[WebRTC Signaling] WebSocket not open, cannot send offer to ${clientState.clientId}`);
                                                 cleanupClientState(clientState);
                                                 clientConnectionsByIP.delete(clientState.clientIP);
+                                                return;
                                             }
                                             
                                             // Timeout pour nettoyer les connexions qui ne se connectent pas
@@ -345,12 +352,31 @@ class Server {
                                                 }
                                             }, 20000);
                                         } catch (error) {
-                                            console.error(`[WebRTC Signaling] Error creating answer for ${clientState.clientId}:`, error);
+                                            console.error(`[WebRTC Signaling] Error creating offer for ${clientState.clientId}:`, error);
                                             cleanupClientState(clientState);
                                             const conn = clientConnectionsByIP.get(clientState.clientIP);
                                             if (conn && conn.clientState === clientState) {
                                                 clientConnectionsByIP.delete(clientState.clientIP);
                                             }
+                                        }
+                                        break;
+                                        
+                                    case 'answer':
+                                        console.log(`[WebRTC Signaling] answer from ${clientState.clientId}`);
+                                        if (!clientState.pc) {
+                                            console.warn(`[WebRTC Signaling] Received answer but no peer connection exists for ${clientState.clientId}`);
+                                            return;
+                                        }
+                                        try {
+                                            await clientState.pc.setRemoteDescription(new RTCSessionDescription(message.answer));
+                                            await webRtcUtils.applyPendingIceCandidates(
+                                                clientState.pc, 
+                                                clientState.pendingIceCandidates, 
+                                                RTCIceCandidate, 
+                                                '[WebRTC Signaling]'
+                                            );
+                                        } catch (error) {
+                                            console.error(`[WebRTC Signaling] Error setting remote description for ${clientState.clientId}:`, error);
                                         }
                                         break;
                                     
@@ -423,51 +449,50 @@ class Server {
                             }
                         }
                         
-                            G.WEBSOCKET_SERVER.on('connection', (ws, req) => {
-                                const clientIP = req.socket.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
-                                const clientPort = req.socket.remotePort || 'unknown';
-                                const clientId = `${clientIP}:${clientPort}`;
-                                
-                                console.log(`[WebRTC Signaling] Client connected - ${clientId}`);
-                                
-                                const clientState = { 
-                                    pc: null, 
-                                    dataChannel: null,
-                                    pendingIceCandidates: [],
-                                    connectionTimeout: null,
-                                    clientId,
-                                    clientIP
-                                };
-                                
-                                ws.on('message', async (message) => {
-                                    try {
-                                        const parsed = JSON.parse(message);
-                                        await handleWebRTCSignaling(ws, parsed, clientState);
-                                    } catch (error) {
-                                        console.error(`[WebRTC Signaling] Error handling message from ${clientState.clientId}:`, error);
-                                    }
-                                });
-                                
-                                ws.on('error', (error) => {
-                                    console.error(`[WebRTC Signaling] WebSocket error for ${clientState.clientId}:`, error);
-                                });
-                                
-                                ws.on('close', () => {
-                                    console.log(`[WebRTC Signaling] Client disconnected - ${clientState.clientIP}`);
-                                    
-                                    // Nettoyer la connexion de la map si c'est la connexion enregistrée
-                                    const conn = clientConnectionsByIP.get(clientState.clientIP);
-                                    if (conn && conn.ws === ws) {
-                                        clientConnectionsByIP.delete(clientState.clientIP);
-                                    }
-                                    
-                                    // Nettoyer l'état du client
-                                    cleanupClientState(clientState);
-                                });
+                        G.WEBSOCKET_SERVER.on('connection', (ws, req) => {
+                            const clientIP = req.socket.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+                            const clientPort = req.socket.remotePort || 'unknown';
+                            const clientId = `${clientIP}:${clientPort}`;
+                            
+                            console.log(`[WebRTC Signaling] Client connected - ${clientId}`);
+                            
+                            const clientState = { 
+                                pc: null, 
+                                dataChannel: null,
+                                pendingIceCandidates: [],
+                                connectionTimeout: null,
+                                clientId,
+                                clientIP
+                            };
+                            
+                            ws.on('message', async (message) => {
+                                try {
+                                    const parsed = JSON.parse(message);
+                                    await handleWebRTCSignaling(ws, parsed, clientState);
+                                } catch (error) {
+                                    console.error(`[WebRTC Signaling] Error handling message from ${clientState.clientId}:`, error);
+                                }
                             });
                             
-                            console.log('[WebRTC Signaling] WebSocket server started on /webrtc-signaling');
-                        }
+                            ws.on('error', (error) => {
+                                console.error(`[WebRTC Signaling] WebSocket error for ${clientState.clientId}:`, error);
+                            });
+                            
+                            ws.on('close', () => {
+                                console.log(`[WebRTC Signaling] Client disconnected - ${clientState.clientIP}`);
+                                
+                                // Nettoyer la connexion de la map si c'est la connexion enregistrée
+                                const conn = clientConnectionsByIP.get(clientState.clientIP);
+                                if (conn && conn.ws === ws) {
+                                    clientConnectionsByIP.delete(clientState.clientIP);
+                                }
+                                
+                                // Nettoyer l'état du client
+                                cleanupClientState(clientState);
+                            });
+                        });
+                        
+                        console.log('[WebRTC Signaling] WebSocket server started on /webrtc-signaling');
                         
                         let url = 'http://localhost:'+port;
                         let serverUpNotification = 'Web server available on '+ url +' (lanIP: '+ G.THIS_PC.lanInterface.ip_address +', ';

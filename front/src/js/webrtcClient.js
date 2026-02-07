@@ -1,13 +1,12 @@
 /**
  * WebRTCClient : Gère les connexions WebRTC côté client
- * Pattern : Client crée l'offre et le data channel, serveur répond
  */
 import { 
     createPeerConnection, 
     setupPeerConnectionHandlers, 
     applyPendingIceCandidates, 
-    addIceCandidate,
-    createOffer,
+    addIceCandidate, 
+    createAnswer,
     cleanupConnection 
 } from './utils/webRtc.js';
 
@@ -38,6 +37,7 @@ export default class WebRTCClient {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const hostname = window.location.hostname;
         const port = window.location.port;
+        // Si pas de port dans l'URL (port par défaut), ne pas l'ajouter
         if (!port || port === '80' || port === '443') {
             return `${protocol}//${hostname}`;
         }
@@ -48,6 +48,7 @@ export default class WebRTCClient {
      * Initialise la connexion WebRTC
      */
     async init() {
+        // Établir la connexion WebSocket pour la signalisation
         await this._connectSignaling();
     }
 
@@ -91,8 +92,7 @@ export default class WebRTCClient {
             this.ws.onopen = () => {
                 console.log("[WebRTC Client] Signaling connected");
                 this.connectionAttempts = 0;
-                // Notifier le serveur qu'on est prêt
-                this.ws.send(JSON.stringify({ type: 'ready' }));
+                this._requestOffer();
                 resolve();
             };
             
@@ -118,6 +118,22 @@ export default class WebRTCClient {
         });
     }
 
+    /**
+     * Demande une offre WebRTC au serveur
+     */
+    _requestOffer() {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.warn("[WebRTC Client] Cannot request offer: WebSocket not open");
+            return;
+        }
+        if (this.pc && (this.pc.connectionState === 'connected' || this.pc.connectionState === 'connecting')) {
+            console.log(`[WebRTC Client] Connection already ${this.pc.connectionState}, skipping request-offer`);
+            return;
+        }
+        console.log("[WebRTC Client] Requesting offer from server");
+        this.ws.send(JSON.stringify({ type: 'request-offer' }));
+    }
+
     _scheduleReconnect() {
         if (this.reconnectTimer) return;
         
@@ -138,12 +154,8 @@ export default class WebRTCClient {
      */
     async _handleSignalingMessage(message) {
         switch (message.type) {
-            case 'server-ready':
-                // Le serveur est prêt, créer l'offre
-                await this._createOffer();
-                break;
-            case 'answer':
-                await this._handleAnswer(message.answer);
+            case 'offer':
+                await this._handleOffer(message.offer);
                 break;
             case 'ice-candidate':
                 await this._handleIceCandidate(message.candidate);
@@ -152,10 +164,10 @@ export default class WebRTCClient {
     }
 
     /**
-     * Crée l'offre WebRTC (pattern : client crée l'offre)
+     * Gère une offre WebRTC du serveur
      */
-    async _createOffer() {
-        console.log("[WebRTC Client] Server ready, creating offer");
+    async _handleOffer(offer) {
+        console.log("[WebRTC Client] Received offer");
         
         // Nettoyer toute connexion existante
         this._cleanupConnection();
@@ -163,9 +175,10 @@ export default class WebRTCClient {
         // Créer une nouvelle RTCPeerConnection
         this.pc = createPeerConnection(RTCPeerConnection);
         
-        // Créer le data channel (côté client)
-        this.dataChannel = this.pc.createDataChannel('lansuperv', { ordered: true });
-        this._setupDataChannel(this.dataChannel);
+        // Configurer le data channel (créé par le serveur)
+        this.pc.ondatachannel = (event) => {
+            this._setupDataChannel(event.channel);
+        };
 
         // Configurer les handlers
         setupPeerConnectionHandlers(
@@ -199,39 +212,18 @@ export default class WebRTCClient {
         );
 
         try {
-            // Créer et envoyer l'offre
-            const offer = await createOffer(this.pc);
+            // Créer et envoyer la réponse
+            const answer = await createAnswer(this.pc, offer, RTCSessionDescription);
             
+            // Appliquer les candidats ICE en attente (reçus avant setRemoteDescription)
+            await applyPendingIceCandidates(this.pc, this.pendingIceCandidates, RTCIceCandidate, "[WebRTC Client]");
+            
+            // Envoyer la réponse au serveur
             if (this.ws?.readyState === WebSocket.OPEN) {
-                this.ws.send(JSON.stringify({ type: 'offer', offer }));
-            } else {
-                console.error("[WebRTC Client] WebSocket not open, cannot send offer");
-                this._cleanupConnection();
+                this.ws.send(JSON.stringify({ type: 'answer', answer }));
             }
         } catch (error) {
-            console.error("[WebRTC Client] Error creating offer:", error);
-            this._cleanupConnection();
-            this._scheduleReconnect();
-        }
-    }
-
-    /**
-     * Gère la réponse du serveur
-     */
-    async _handleAnswer(answer) {
-        console.log("[WebRTC Client] Received answer from server");
-        
-        if (!this.pc) {
-            console.warn("[WebRTC Client] Received answer but no peer connection exists");
-            return;
-        }
-        
-        try {
-            await this.pc.setRemoteDescription(new RTCSessionDescription(answer));
-            // Appliquer les candidats ICE en attente
-            await applyPendingIceCandidates(this.pc, this.pendingIceCandidates, RTCIceCandidate, "[WebRTC Client]");
-        } catch (error) {
-            console.error("[WebRTC Client] Error setting remote description:", error);
+            console.error("[WebRTC Client] Error handling offer:", error);
             this._cleanupConnection();
             this._scheduleReconnect();
         }
@@ -242,7 +234,9 @@ export default class WebRTCClient {
     }
 
     _setupDataChannel(dataChannel) {
-        console.log(`[WebRTC Client] Data channel created: ${dataChannel.label}`);
+        console.log(`[WebRTC Client] Data channel received: ${dataChannel.label}`);
+        
+        this.dataChannel = dataChannel;
         
         dataChannel.onopen = () => {
             console.log("[WebRTC Client] Data channel open");

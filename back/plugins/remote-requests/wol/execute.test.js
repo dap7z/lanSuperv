@@ -7,8 +7,26 @@
  *    LANSUPERV_PLUGIN_MODE=true ./lan-superv-linux-arm64 back/plugins/remote-requests/wol/execute.test.js CC:28:AA:A6:C5:17
  */
 
-const { fork } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
+
+// Détecter si on est en mode SEA (binaire compilé)
+function isAppCompiled() {
+    const execPath = process.execPath;
+    const execName = path.basename(execPath);
+    
+    // Windows: check for .exe extension (but not node.exe)
+    if (execPath.endsWith('.exe') && !execPath.includes('node.exe')) {
+        return true;
+    }
+    
+    // Linux: check if executable name contains 'linux'
+    if (execName.includes('linux')) {
+        return true;
+    }
+    
+    return false;
+}
 
 // Récupérer l'adresse MAC depuis les arguments
 const macAddress = process.argv[2];
@@ -30,13 +48,39 @@ const eventParams = {
 
 // Lancer le plugin en processus enfant
 const pluginPath = path.join(__dirname, 'execute.js');
-const child = fork(pluginPath, [], {
-    silent: false, // Afficher stdout/stderr
-    env: {
-        ...process.env,
-        LANSUPERV_PLUGIN_MODE: 'true'
-    }
+const nodePath = process.execPath; // Utilise le binaire SEA si on est en mode compilé, sinon node
+
+// CRITICAL: Set LANSUPERV_PLUGIN_MODE to prevent child process from starting their own server
+const pluginEnv = { ...process.env };
+pluginEnv.LANSUPERV_PLUGIN_MODE = 'true';
+delete pluginEnv.NODE_OPTIONS; // Clear NODE_OPTIONS to prevent environment inheritance
+
+const child = spawn(nodePath, [pluginPath], {
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc'], // Enable IPC for message passing
+    env: pluginEnv,
+    shell: false
 });
+
+// Gérer la sortie stdout/stderr
+if (child.stdout) {
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (data) => {
+        const output = data.toString().trim();
+        if (output) {
+            console.log(output);
+        }
+    });
+}
+
+if (child.stderr) {
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (data) => {
+        const output = data.toString().trim();
+        if (output) {
+            console.error(output);
+        }
+    });
+}
 
 // Gérer les messages du plugin
 child.on('message', (msg) => {

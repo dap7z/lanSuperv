@@ -1,17 +1,14 @@
 /**
  * Script de test pour le plugin WOL
- * Usage: node execute.test.js [MAC_ADDRESS]
- * Exemples: 
- *    node execute.test.js CC:28:AA:A6:C5:17
- *    node back/plugins/remote-requests/wol/execute.test.js CC:28:AA:A6:C5:17
- *    LANSUPERV_PLUGIN_MODE=true ./lan-superv-linux-arm64 back/plugins/remote-requests/wol/execute.test.js CC:28:AA:A6:C5:17
- */
+ *    node back/plugins/remote-requests/wol/execute.test.js
+ *    LANSUPERV_PLUGIN_MODE=true ./lan-superv-linux-arm64 back/plugins/remote-requests/wol/execute.test.js
+*/
 
 const { spawn } = require('child_process');
 const path = require('path');
 
-// Récupérer l'adresse MAC depuis les arguments
-const macAddress = process.argv[2];
+// Adresse MAC en dur pour le test (sinon process.argv[3] si on passe par le binaire SEA alors que process.argv[2] si on passe par node)
+const macAddress = 'CC:28:AA:A6:C5:17';  // address MAC lamachine :)
 
 console.log(`[TEST WOL] Testing WOL plugin with MAC address: ${macAddress}`);
 console.log(`[TEST WOL] Plugin path: ${__dirname}/execute.js`);

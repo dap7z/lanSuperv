@@ -192,8 +192,8 @@ class Server {
                         const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = require('wrtc');
                         const webRtcUtils = require('./utils/webRtc');
                         
-                        // Map pour gérer les connexions par IP (permettre la réutilisation)
-                        const clientConnectionsByIP = new Map(); // Map<clientIP, { ws: WebSocket, clientState: Object, createdAt: Date }>
+                        // Map pour gérer les connexions par clientId (permettre plusieurs onglets depuis la même IP)
+                        const clientConnectionsById = new Map(); // Map<clientId, { ws: WebSocket, clientState: Object, createdAt: Date }>
                         
                         function cleanupClientState(clientState) {
                             webRtcUtils.cleanupConnection(clientState.pc, clientState.dataChannel, clientState.connectionTimeout, clientState.pendingIceCandidates);
@@ -207,7 +207,7 @@ class Server {
                             const now = Date.now();
                             const STALE_TIMEOUT = 15000; // 15 secondes
                             
-                            clientConnectionsByIP.forEach((conn, clientIP) => {
+                            clientConnectionsById.forEach((conn, clientId) => {
                                 if (!conn.clientState.pc) return;
                                 
                                 const state = conn.clientState.pc.connectionState;
@@ -215,12 +215,12 @@ class Server {
                                 
                                 // Si la connexion est en attente depuis trop longtemps
                                 if ((state === 'new' || state === 'connecting') && age > STALE_TIMEOUT) {
-                                    console.log(`[WebRTC Signaling] Cleaning up stale connection for IP ${clientIP} (state: ${state}, age: ${age}ms)`);
+                                    console.log(`[WebRTC Signaling] Cleaning up stale connection for ${clientId} (state: ${state}, age: ${age}ms)`);
                                     cleanupClientState(conn.clientState);
                                     if (conn.ws && conn.ws.readyState === WebSocket.OPEN) {
                                         conn.ws.close();
                                     }
-                                    clientConnectionsByIP.delete(clientIP);
+                                    clientConnectionsById.delete(clientId);
                                 }
                             });
                         }
@@ -234,17 +234,17 @@ class Server {
                                     case 'request-offer':
                                         console.log(`[WebRTC Signaling] request-offer from ${clientState.clientId}`);
                                         
-                                        // Vérifier s'il existe une connexion active pour cette IP
-                                        const existingConn = clientConnectionsByIP.get(clientState.clientIP);
+                                        // Vérifier s'il existe une connexion active pour ce clientId (permet plusieurs onglets)
+                                        const existingConn = clientConnectionsById.get(clientState.clientId);
                                         if (existingConn && existingConn.clientState.pc) {
                                             const existingState = existingConn.clientState.pc.connectionState;
                                             if (existingState === 'connected') {
-                                                console.log(`[WebRTC Signaling] Reusing connected connection for ${clientState.clientIP}`);
+                                                console.log(`[WebRTC Signaling] Reusing connected connection for ${clientState.clientId}`);
                                                 // Mettre à jour la référence WebSocket
                                                 if (existingConn.ws !== ws) {
                                                     existingConn.ws.close();
                                                 }
-                                                clientConnectionsByIP.set(clientState.clientIP, { 
+                                                clientConnectionsById.set(clientState.clientId, { 
                                                     ws, 
                                                     clientState: existingConn.clientState, 
                                                     createdAt: existingConn.createdAt 
@@ -253,22 +253,22 @@ class Server {
                                             } else if (existingState === 'connecting') {
                                                 const age = Date.now() - existingConn.createdAt;
                                                 if (age < 10000) {
-                                                    console.log(`[WebRTC Signaling] Connection already connecting for ${clientState.clientIP}, waiting...`);
+                                                    console.log(`[WebRTC Signaling] Connection already connecting for ${clientState.clientId}, waiting...`);
                                                     return;
                                                 } else {
-                                                    console.log(`[WebRTC Signaling] Cleaning stale connecting connection for ${clientState.clientIP}`);
+                                                    console.log(`[WebRTC Signaling] Cleaning stale connecting connection for ${clientState.clientId}`);
                                                     cleanupClientState(existingConn.clientState);
                                                     if (existingConn.ws !== ws) {
                                                         existingConn.ws.close();
                                                     }
-                                                    clientConnectionsByIP.delete(clientState.clientIP);
+                                                    clientConnectionsById.delete(clientState.clientId);
                                                 }
                                             } else {
                                                 cleanupClientState(existingConn.clientState);
                                                 if (existingConn.ws !== ws) {
                                                     existingConn.ws.close();
                                                 }
-                                                clientConnectionsByIP.delete(clientState.clientIP);
+                                                clientConnectionsById.delete(clientState.clientId);
                                             }
                                         }
                                         
@@ -295,9 +295,9 @@ class Server {
                                                 if (iceState === 'failed') {
                                                     console.error(`[WebRTC Signaling] ICE failed - ${clientState.clientId}`);
                                                     cleanupClientState(clientState);
-                                                    const conn = clientConnectionsByIP.get(clientState.clientIP);
+                                                    const conn = clientConnectionsById.get(clientState.clientId);
                                                     if (conn && conn.clientState === clientState) {
-                                                        clientConnectionsByIP.delete(clientState.clientIP);
+                                                        clientConnectionsById.delete(clientState.clientId);
                                                     }
                                                 }
                                             },
@@ -312,9 +312,9 @@ class Server {
                                                 } else if (connectionState === 'disconnected' || connectionState === 'failed') {
                                                     console.log(`[WebRTC Signaling] Connection ${connectionState} - ${clientState.clientId}`);
                                                     cleanupClientState(clientState);
-                                                    const conn = clientConnectionsByIP.get(clientState.clientIP);
+                                                    const conn = clientConnectionsById.get(clientState.clientId);
                                                     if (conn && conn.clientState === clientState) {
-                                                        clientConnectionsByIP.delete(clientState.clientIP);
+                                                        clientConnectionsById.delete(clientState.clientId);
                                                     }
                                                 }
                                             }
@@ -325,7 +325,7 @@ class Server {
                                             const offer = await webRtcUtils.createOffer(clientState.pc);
                                             
                                             // Enregistrer la connexion AVANT d'envoyer l'offre
-                                            clientConnectionsByIP.set(clientState.clientIP, { 
+                                            clientConnectionsById.set(clientState.clientId, { 
                                                 ws, 
                                                 clientState, 
                                                 createdAt: Date.now() 
@@ -336,27 +336,27 @@ class Server {
                                             } else {
                                                 console.error(`[WebRTC Signaling] WebSocket not open, cannot send offer to ${clientState.clientId}`);
                                                 cleanupClientState(clientState);
-                                                clientConnectionsByIP.delete(clientState.clientIP);
+                                                clientConnectionsById.delete(clientState.clientId);
                                                 return;
                                             }
                                             
                                             // Timeout pour nettoyer les connexions qui ne se connectent pas
                                             clientState.connectionTimeout = setTimeout(() => {
                                                 if (clientState.pc && clientState.pc.connectionState !== 'connected') {
-                                                    console.warn(`[WebRTC Signaling] Connection timeout for ${clientState.clientIP}`);
+                                                    console.warn(`[WebRTC Signaling] Connection timeout for ${clientState.clientId}`);
                                                     cleanupClientState(clientState);
-                                                    const conn = clientConnectionsByIP.get(clientState.clientIP);
+                                                    const conn = clientConnectionsById.get(clientState.clientId);
                                                     if (conn && conn.clientState === clientState) {
-                                                        clientConnectionsByIP.delete(clientState.clientIP);
+                                                        clientConnectionsById.delete(clientState.clientId);
                                                     }
                                                 }
                                             }, 20000);
                                         } catch (error) {
                                             console.error(`[WebRTC Signaling] Error creating offer for ${clientState.clientId}:`, error);
                                             cleanupClientState(clientState);
-                                            const conn = clientConnectionsByIP.get(clientState.clientIP);
+                                            const conn = clientConnectionsById.get(clientState.clientId);
                                             if (conn && conn.clientState === clientState) {
-                                                clientConnectionsByIP.delete(clientState.clientIP);
+                                                clientConnectionsById.delete(clientState.clientId);
                                             }
                                         }
                                         break;
@@ -479,12 +479,12 @@ class Server {
                             });
                             
                             ws.on('close', () => {
-                                console.log(`[WebRTC Signaling] Client disconnected - ${clientState.clientIP}`);
+                                console.log(`[WebRTC Signaling] Client disconnected - ${clientState.clientId}`);
                                 
                                 // Nettoyer la connexion de la map si c'est la connexion enregistrée
-                                const conn = clientConnectionsByIP.get(clientState.clientIP);
+                                const conn = clientConnectionsById.get(clientState.clientId);
                                 if (conn && conn.ws === ws) {
-                                    clientConnectionsByIP.delete(clientState.clientIP);
+                                    clientConnectionsById.delete(clientState.clientId);
                                 }
                                 
                                 // Nettoyer l'état du client

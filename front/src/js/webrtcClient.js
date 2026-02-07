@@ -1,6 +1,5 @@
 /**
  * WebRTCClient : Gère les connexions WebRTC côté client
- * Remplace Gun.js pour la synchronisation de données avec le serveur
  */
 import { 
     createPeerConnection, 
@@ -16,27 +15,28 @@ export default class WebRTCClient {
         this.config = config;
         this.pc = null;
         this.dataChannel = null;
-        this.ws = null; // WebSocket pour la signalisation
+        this.ws = null;
         this.localData = {
             computers: new Map(),
             messages: new Map()
         };
         this.listeners = {
-            computers: new Map(), // Map<id, Set<listeners>>
-            messages: new Map()    // Map<id, Set<listeners>>
+            computers: new Map(),
+            messages: new Map()
         };
         this.isConnected = false;
         this.serverUrl = this._getServerUrl();
-        this.serverIdPC = null; // idPC du serveur web actuel (pour déterminer isCurrentWebServer)
-        this.pendingIceCandidates = []; // Candidats ICE en attente
-        this.connectionTimeout = null; // Timeout pour détecter les échecs
-        this.isReconnecting = false; // Éviter les reconnexions multiples
+        this.serverIdPC = null;
+        this.pendingIceCandidates = [];
+        this.reconnectTimer = null;
+        this.connectionAttempts = 0;
+        this.maxReconnectDelay = 10000;
     }
 
     _getServerUrl() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const hostname = window.location.hostname;
-        let port = window.location.port;
+        const port = window.location.port;
         // Si pas de port dans l'URL (port par défaut), ne pas l'ajouter
         if (!port || port === '80' || port === '443') {
             return `${protocol}//${hostname}`;
@@ -56,68 +56,65 @@ export default class WebRTCClient {
      * Nettoie les ressources d'une connexion WebRTC
      */
     _cleanupConnection() {
-        cleanupConnection(this.pc, this.dataChannel, this.connectionTimeout, this.pendingIceCandidates);
-        this.connectionTimeout = null;
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+        cleanupConnection(this.pc, this.dataChannel, null, this.pendingIceCandidates);
         this.dataChannel = null;
         this.pc = null;
         this.isConnected = false;
+        this.pendingIceCandidates = [];
     }
 
     /**
      * Établit la connexion WebSocket pour la signalisation
      */
     _connectSignaling() {
-        if (this.isReconnecting || (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING))) {
-            return Promise.resolve();
-        }
-        
         return new Promise((resolve, reject) => {
-            const wsUrl = `${this.serverUrl}/webrtc-signaling`;
-            console.log(`[WebRTC Client] Connecting to signaling server: ${wsUrl}`);
-            
+            // Fermer l'ancienne connexion WebSocket si elle existe
             if (this.ws) {
                 this.ws.onclose = null;
+                this.ws.onerror = null;
                 this.ws.close();
             }
-            
-            if (this.pc && this.pc.connectionState !== 'connected' && this.pc.connectionState !== 'connecting') {
+
+            // Nettoyer l'ancienne connexion WebRTC si elle n'est pas connectée
+            if (this.pc && this.pc.connectionState !== 'connected') {
                 this._cleanupConnection();
             }
+
+            const wsUrl = `${this.serverUrl}/webrtc-signaling`;
+            console.log(`[WebRTC Client] Connecting to signaling: ${wsUrl}`);
             
             this.ws = new WebSocket(wsUrl);
+            
             this.ws.onopen = () => {
-                console.log("[WebRTC Client] Signaling WebSocket connected");
-                this.isReconnecting = false;
-                // Nettoyer l'ancienne connexion si elle existe et n'est pas active
-                if (this.pc && this.pc.connectionState !== 'connected' && this.pc.connectionState !== 'connecting') {
-                    console.log(`[WebRTC Client] Cleaning up old connection with state: ${this.pc.connectionState}`);
-                    this._cleanupConnection();
-                }
-                // Demander une nouvelle offre si pas de connexion active
-                if (!this.pc || this.pc.connectionState === 'closed' || this.pc.connectionState === 'failed' || this.pc.connectionState === 'disconnected') {
-                    this._requestOffer();
-                }
+                console.log("[WebRTC Client] Signaling connected");
+                this.connectionAttempts = 0;
+                this._requestOffer();
+                resolve();
             };
+            
             this.ws.onmessage = async (event) => {
                 try {
-                    await this._handleSignalingMessage(JSON.parse(event.data));
+                    const message = JSON.parse(event.data);
+                    await this._handleSignalingMessage(message);
                 } catch (error) {
                     console.error("[WebRTC Client] Error handling signaling message:", error);
                 }
             };
+            
             this.ws.onerror = (error) => {
                 console.error("[WebRTC Client] WebSocket error:", error);
                 reject(error);
             };
+            
             this.ws.onclose = () => {
+                console.log("[WebRTC Client] Signaling closed, reconnecting...");
                 this.isConnected = false;
-                this.isReconnecting = true;
-                setTimeout(() => {
-                    this.isReconnecting = false;
-                    this._connectSignaling();
-                }, 3000);
+                this._scheduleReconnect();
             };
-            setTimeout(() => resolve(), 100);
         });
     }
 
@@ -125,25 +122,31 @@ export default class WebRTCClient {
      * Demande une offre WebRTC au serveur
      */
     _requestOffer() {
-        console.log(`[WebRTC Client] _requestOffer called - pc: ${this.pc ? this.pc.connectionState : 'null'}, ws: ${this.ws?.readyState}`);
-        if (this.pc && (this.pc.connectionState === 'connected' || this.pc.connectionState === 'connecting')) {
-            console.log(`[WebRTC Client] Skipping request-offer: connection already ${this.pc.connectionState}`);
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.warn("[WebRTC Client] Cannot request offer: WebSocket not open");
             return;
         }
-        if (this.ws?.readyState === WebSocket.OPEN) {
-            console.log("[WebRTC Client] Sending request-offer to server");
-            this.ws.send(JSON.stringify({ type: 'request-offer' }));
-        } else {
-            console.warn(`[WebRTC Client] Cannot send request-offer: WebSocket state is ${this.ws?.readyState}`);
+        if (this.pc && (this.pc.connectionState === 'connected' || this.pc.connectionState === 'connecting')) {
+            console.log(`[WebRTC Client] Connection already ${this.pc.connectionState}, skipping request-offer`);
+            return;
         }
+        console.log("[WebRTC Client] Requesting offer from server");
+        this.ws.send(JSON.stringify({ type: 'request-offer' }));
     }
 
-    /**
-     * Helper pour la reconnexion après un échec
-     */
-    _reconnectAfterDelay(delay = 2000) {
-        this._cleanupConnection();
-        setTimeout(() => this._connectSignaling(), delay);
+    _scheduleReconnect() {
+        if (this.reconnectTimer) return;
+        
+        const delay = Math.min(1000 * Math.pow(2, this.connectionAttempts), this.maxReconnectDelay);
+        this.connectionAttempts++;
+        
+        console.log(`[WebRTC Client] Scheduling reconnect in ${delay}ms (attempt ${this.connectionAttempts})`);
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            this._connectSignaling().catch(err => {
+                console.error("[WebRTC Client] Reconnect failed:", err);
+            });
+        }, delay);
     }
 
     /**
@@ -154,14 +157,8 @@ export default class WebRTCClient {
             case 'offer':
                 await this._handleOffer(message.offer);
                 break;
-            case 'answer':
-                await this._handleAnswer(message.answer);
-                break;
             case 'ice-candidate':
                 await this._handleIceCandidate(message.candidate);
-                break;
-            case 'data':
-                this._handleDataMessage(message);
                 break;
         }
     }
@@ -170,84 +167,83 @@ export default class WebRTCClient {
      * Gère une offre WebRTC du serveur
      */
     async _handleOffer(offer) {
-        console.log("[WebRTC Client] Received offer from server");
+        console.log("[WebRTC Client] Received offer");
+        
+        // Nettoyer toute connexion existante
         this._cleanupConnection();
         
+        // Créer une nouvelle RTCPeerConnection
         this.pc = createPeerConnection(RTCPeerConnection);
-        this.pc.ondatachannel = (event) => this._setupDataChannel(event.channel);
+        
+        // Configurer le data channel (créé par le serveur)
+        this.pc.ondatachannel = (event) => {
+            this._setupDataChannel(event.channel);
+        };
 
+        // Configurer les handlers
         setupPeerConnectionHandlers(
             this.pc,
             (candidate) => {
+                // Envoyer les candidats ICE au serveur
                 if (this.ws?.readyState === WebSocket.OPEN) {
-                    console.log(`[WebRTC Client] Sending ICE candidate: ${candidate.candidate?.substring(0, 80)}...`);
                     this.ws.send(JSON.stringify({ type: 'ice-candidate', candidate }));
                 }
             },
             (iceState) => {
-                console.log(`[WebRTC Client] ICE connection state: ${iceState}`);
+                console.log(`[WebRTC Client] ICE state: ${iceState}`);
                 if (iceState === 'failed') {
-                    console.error("[WebRTC Client] ICE connection failed, reconnecting...");
-                    this._reconnectAfterDelay();
+                    console.error("[WebRTC Client] ICE failed, reconnecting...");
+                    this._cleanupConnection();
+                    this._scheduleReconnect();
                 }
             },
             (connectionState) => {
                 console.log(`[WebRTC Client] Connection state: ${connectionState}`);
                 this.isConnected = (connectionState === 'connected');
+                
                 if (connectionState === 'connected') {
-                    console.log("[WebRTC Client] Connection established successfully!");
-                    if (this.connectionTimeout) {
-                        clearTimeout(this.connectionTimeout);
-                        this.connectionTimeout = null;
-                    }
-                } else if (connectionState === 'disconnected' || connectionState === 'failed') {
-                    console.log(`[WebRTC Client] Connection lost (state: ${connectionState}), reconnecting...`);
-                    this._reconnectAfterDelay();
+                    console.log("[WebRTC Client] ✅ Connected!");
+                } else if (connectionState === 'failed' || connectionState === 'disconnected') {
+                    console.log(`[WebRTC Client] Connection ${connectionState}, reconnecting...`);
+                    this._cleanupConnection();
+                    this._scheduleReconnect();
                 }
             }
         );
 
         try {
+            // Créer et envoyer la réponse
             const answer = await createAnswer(this.pc, offer, RTCSessionDescription);
+            
+            // Appliquer les candidats ICE en attente (reçus avant setRemoteDescription)
             await applyPendingIceCandidates(this.pc, this.pendingIceCandidates, RTCIceCandidate, "[WebRTC Client]");
             
+            // Envoyer la réponse au serveur
             if (this.ws?.readyState === WebSocket.OPEN) {
-                console.log("[WebRTC Client] Sending answer to server");
                 this.ws.send(JSON.stringify({ type: 'answer', answer }));
-            } else {
-                console.error("[WebRTC Client] Cannot send answer: WebSocket not open");
             }
-
-            this.connectionTimeout = setTimeout(() => {
-                if (this.pc?.connectionState !== 'connected' && this.pc?.connectionState !== 'connecting') {
-                    console.warn("[WebRTC Client] Connection timeout, forcing reconnection...");
-                    this._reconnectAfterDelay();
-                }
-            }, 15000);
         } catch (error) {
             console.error("[WebRTC Client] Error handling offer:", error);
-            this._reconnectAfterDelay();
-        }
-    }
-
-    async _handleAnswer(answer) {
-        if (this.pc?.signalingState !== 'stable') {
-            await this.pc.setRemoteDescription(new RTCSessionDescription(answer));
+            this._cleanupConnection();
+            this._scheduleReconnect();
         }
     }
 
     async _handleIceCandidate(candidate) {
-        console.log(`[WebRTC Client] Received ICE candidate: ${candidate.candidate?.substring(0, 80)}...`);
         await addIceCandidate(this.pc, candidate, RTCIceCandidate, this.pendingIceCandidates, "[WebRTC Client]");
     }
 
     _setupDataChannel(dataChannel) {
-        console.log("[WebRTC Client] Data channel received:", dataChannel.label);
+        console.log(`[WebRTC Client] Data channel received: ${dataChannel.label}`);
+        
+        this.dataChannel = dataChannel;
+        
         dataChannel.onopen = () => {
-            this.dataChannel = dataChannel;
+            console.log("[WebRTC Client] Data channel open");
             this.isConnected = true;
             this._requestInitialData();
         };
+        
         dataChannel.onmessage = (event) => {
             try {
                 this._handleDataMessage(JSON.parse(event.data));
@@ -255,8 +251,13 @@ export default class WebRTCClient {
                 console.error("[WebRTC Client] Error parsing data message:", error);
             }
         };
-        dataChannel.onerror = (error) => console.error("[WebRTC Client] Data channel error:", error);
+        
+        dataChannel.onerror = (error) => {
+            console.error("[WebRTC Client] Data channel error:", error);
+        };
+        
         dataChannel.onclose = () => {
+            console.log("[WebRTC Client] Data channel closed");
             this.dataChannel = null;
             this.isConnected = false;
         };
@@ -325,6 +326,7 @@ export default class WebRTCClient {
                 this._notifyListeners('computers', id, pc);
             });
         }
+        
         if (data.messages) {
             Object.entries(data.messages).forEach(([id, msg]) => {
                 this.localData.messages.set(id, msg);
@@ -369,9 +371,6 @@ export default class WebRTCClient {
         }
     }
 
-    /**
-     * Émule l'API Gun.js : get(table)
-     */
     get(table) {
         // Extraire le nom de table depuis le chemin complet (ex: 'db-lansuperv/computers' -> 'computers')
         let tableName = table;
@@ -379,6 +378,7 @@ export default class WebRTCClient {
             tableName = table.split('/').pop();
         }
         // Normaliser le nom de table (computers ou messages)
+        
         if (tableName !== 'computers' && tableName !== 'messages') {
             // Si ce n'est pas un nom de table valide, essayer de le détecter
             if (tableName && typeof tableName === 'string') {
@@ -395,23 +395,11 @@ export default class WebRTCClient {
                 tableName = 'computers';
             }
         }
-        //console.log(`[WebRTC Client] get(${table}) -> tableName: ${tableName}`);
+        
         return new WebRTCNode(this, tableName);
-    }
-
-    /**
-     * Envoie une mise à jour au serveur
-     */
-    _sendUpdate(table, id, data) {
-        if (this.dataChannel?.readyState === 'open') {
-            this.dataChannel.send(JSON.stringify({ type: 'update', table, id, data }));
-        }
     }
 }
 
-/**
- * WebRTCNode : Émule un nœud Gun.js
- */
 class WebRTCNode {
     constructor(client, table) {
         this.client = client;
@@ -419,21 +407,14 @@ class WebRTCNode {
         this.id = null;
     }
 
-    /**
-     * Émule get(id)
-     */
     get(id) {
         const node = new WebRTCNode(this.client, this.table);
         node.id = id;
         return node;
     }
 
-    /**
-     * Émule put(data)
-     */
     put(data) {
         if (this.id && this.table) {
-            // Sauvegarder localement
             if (this.table === 'computers') {
                 this.client.localData.computers.set(this.id, data);
             } else if (this.table === 'messages') {
@@ -441,7 +422,14 @@ class WebRTCNode {
             }
             
             // Envoyer au serveur
-            this.client._sendUpdate(this.table, this.id, data);
+            if (this.client.dataChannel?.readyState === 'open') {
+                this.client.dataChannel.send(JSON.stringify({ 
+                    type: 'update', 
+                    table: this.table, 
+                    id: this.id, 
+                    data 
+                }));
+            }
             
             // Notifier les listeners
             this.client._notifyListeners(this.table, this.id, data);
@@ -449,20 +437,11 @@ class WebRTCNode {
         return this;
     }
 
-    /**
-     * Émule map().on(callback)
-     */
     map() {
         return {
             on: (callback) => {
-                // Vérifier que la table existe dans listeners
-                if (!this.client || !this.client.listeners) {
-                    console.error(`[WebRTC Client] Client or listeners not initialized`);
-                    return;
-                }
-                if (!this.table || !this.client.listeners[this.table]) {
-                    console.error(`[WebRTC Client] Unknown table: ${this.table}, available tables:`, Object.keys(this.client.listeners));
-                    return;
+                if (!this.client.listeners[this.table]) {
+                    this.client.listeners[this.table] = new Map();
                 }
                 if (!this.client.listeners[this.table].has('*')) {
                     this.client.listeners[this.table].set('*', new Set());
@@ -489,25 +468,17 @@ class WebRTCNode {
         };
     }
 
-    /**
-     * Émule on(callback)
-     */
     on(callback) {
         if (this.id && this.table) {
-            // Vérifier que la table existe dans listeners
-            if (!this.client.listeners[this.table]) {
-                console.error(`[WebRTC Client] Unknown table: ${this.table}`);
-                return this;
-            }
             if (!this.client.listeners[this.table].has(this.id)) {
                 this.client.listeners[this.table].set(this.id, new Set());
             }
             this.client.listeners[this.table].get(this.id).add(callback);
             
-            // Notifier avec les données existantes si disponibles
-            const data = this.table === 'computers'
-                ? this.client.localData.computers.get(this.id)
-                : this.client.localData.messages.get(this.id);
+            const dataMap = this.table === 'computers' 
+                ? this.client.localData.computers 
+                : this.client.localData.messages;
+            const data = dataMap.get(this.id);
             if (data) {
                 callback(data, this.id);
             }

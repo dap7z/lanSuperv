@@ -10,24 +10,6 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-// Détecter si on est en mode SEA (binaire compilé)
-function isAppCompiled() {
-    const execPath = process.execPath;
-    const execName = path.basename(execPath);
-    
-    // Windows: check for .exe extension (but not node.exe)
-    if (execPath.endsWith('.exe') && !execPath.includes('node.exe')) {
-        return true;
-    }
-    
-    // Linux: check if executable name contains 'linux'
-    if (execName.includes('linux')) {
-        return true;
-    }
-    
-    return false;
-}
-
 // Récupérer l'adresse MAC depuis les arguments
 const macAddress = process.argv[2];
 

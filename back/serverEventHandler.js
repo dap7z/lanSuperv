@@ -142,14 +142,18 @@ class ServerEventHandler {
                 return;
             }
             
+            console.log(`[PLUGIN ${eventName}] Plugin process ${execPath} spawned (PID: ${compute.pid})`);
+            
             // Verify that stdout and stderr are available
             let srvErrorOutput = '';
+            let srvStdOutput = '';
             if (!compute.stdout || !compute.stderr) {
-                console.error(`[PLUGIN ${eventName}] ERROR: fork() failed to create stdout/stderr streams. Path: ${execPath}`);
+                console.error(`[PLUGIN ${eventName}] ERROR: spawn() failed to create stdout/stderr streams. Path: ${execPath}`);
                 console.error(`[PLUGIN ${eventName}] This usually happens when the path contains spaces or special characters`);
                 resolve({});
                 return;
-            }else{
+            } else {
+                compute.stdout.setEncoding('utf8');
                 compute.stdout.on('data', (data) => {
                     const output = data.toString().trim();
                     if (output) {

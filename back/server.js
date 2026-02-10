@@ -8,14 +8,16 @@ if (process.env.LANSUPERV_PLUGIN_MODE === 'true') {
     module.exports = class DummyServer {
         constructor() {
             console.log('[SERVER] Running in plugin mode, server initialization skipped');
+            // EXAMPLE : [PLUGIN wol] stdout: [SERVER] Running in plugin mode, server initialization skipped
         }
         start() {
             console.log('[SERVER] Running in plugin mode, server startup skipped');
+            // EXAMPLE : [PLUGIN wol] stdout: [SERVER] Running in plugin mode, server startup skipped
         }
     };
     // Stop here, continue by example in /plugins/local-responses/screen-joke/app.js
 } else {
-    // Normal server mode - continue loading modules, and executre the rest of the file.
+    // Normal server mode - continue loading modules, and execute the rest of the file.
 
 //LIBRARIES:
 const Os = require('os');

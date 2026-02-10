@@ -153,30 +153,22 @@ class ServerEventHandler {
                 compute.stdout.on('data', (data) => {
                     const output = data.toString().trim();
                     if (output) {
-                        console.log(`[PLUGIN ${eventName}] stdout: ${output}`);
+                        console.log(`[PLUGIN ${eventName} standardOutput] ${output}`);   //OK
                     }
                 });
                 compute.stderr.on('data', (data) => {
                     const output = data.toString().trim();
                     srvErrorOutput += output + '\n';
                     if (output) {
-                        console.error(`[PLUGIN ${eventName}] stderr: ${output}`);
+                        console.error(`[PLUGIN ${eventName} errorOutput] ${output}`);  //OK
                     }
                 });
             }
             
-            // Send eventParams using IPC (wait a bit for process to be ready)
-            setTimeout(() => {
-                if (compute && !compute.killed) {
-                    compute.send(eventParams);
-                }
-            }, 100);
-            
+            // -- setup listener
             compute.on('message', (msg) => {
                 let text = '[PLUGIN ' + eventName + '] message: ';
                 if (typeof msg === 'object') {
-                    //console.log(text);
-                    //console.log(msg);
                     lastObjectMsg = msg;
                 } else {
                     console.log(text + msg);
@@ -187,12 +179,11 @@ class ServerEventHandler {
                     resolve(lastObjectMsg);
                 }
             });
-            
             compute.on('error', (error) => {
                 console.error(`[PLUGIN ${eventName}] Failed to start process:`, error);
                 resolve({});
             });
-            
+            // --
             // Send eventParams using IPC
             setTimeout(() => {
                 if (compute && !compute.killed) {

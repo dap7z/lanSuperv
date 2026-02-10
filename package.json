@@ -1,6 +1,6 @@
 {
   "name": "lan-superv",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "Node.js app for lan supervision",
   "author": "Damien Pointier",
   "license": "MIT",
@@ -33,7 +33,6 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "electron-updater": "^6.1.7",
     "@justjam2013/raw-socket": "^1.0.0",
     "body-parser": "^1.20.2",
     "bonjour": "^3.5.0",

@@ -198,16 +198,19 @@ class ElectronTray {
             }
         });
         
-        // Setup IPC handlers
-        ipcMain.on('about-open-folder', () => {
+        // Setup IPC handlers with named functions so they can be removed
+        const handleOpenFolder = () => {
             shell.openPath(appDirectory).catch((error) => {
                 console.error('[ELECTRON-TRAY] Error opening folder:', error);
             });
-        });
+        };
         
-        ipcMain.on('about-open-repo', () => {
+        const handleOpenRepo = () => {
             shell.openExternal(repoUrl);
-        });
+        };
+        
+        ipcMain.on('about-open-folder', handleOpenFolder);
+        ipcMain.on('about-open-repo', handleOpenRepo);
         
         // Create HTML content
         const html = `
@@ -309,6 +312,8 @@ class ElectronTray {
         this.aboutWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
         
         this.aboutWindow.on('closed', () => {
+            ipcMain.removeListener('about-open-folder', handleOpenFolder);
+            ipcMain.removeListener('about-open-repo', handleOpenRepo);
             this.aboutWindow = null;
         });
     }

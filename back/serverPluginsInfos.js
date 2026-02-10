@@ -80,10 +80,10 @@ class ServerPluginsInfos {
             };
 
             let exec = Fs.readdirSync(dirPath).filter(function (elm) {
-                return elm.match(/execute\.*/g);
+                return elm.match(/execute\.*/g) && !elm.includes('.test.');
             });
             if (exec.length === 1) {
-                execPath = dirPath + Path.sep + exec;
+                execPath = dirPath + Path.sep + exec[0];
                 tabResult[eventName].execPath = execPath;
                 tabResult[eventName].isEnabled = true;
             }

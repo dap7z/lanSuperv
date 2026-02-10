@@ -3,7 +3,8 @@
  *************************************************************************************/
 
 // CRITICAL: Check if we're in plugin mode BEFORE loading any modules
-if (process.env.LANSUPERV_PLUGIN_MODE === 'true') {
+// If LANSUPERV_PLUGIN_EXECUTE is set, we're in plugin mode
+if (process.env.LANSUPERV_PLUGIN_EXECUTE) {
     // We're in plugin mode, don't require modules.
     module.exports = class DummyServer {
         constructor() {

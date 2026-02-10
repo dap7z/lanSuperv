@@ -3,6 +3,7 @@ let G = null; //GLOBALS
 
 //LIBRARIES:
 const {fork} = require('child_process');
+const path = require('path');
 
 class ServerEventHandler {
 
@@ -119,17 +120,31 @@ class ServerEventHandler {
             // In SEA mode, use node explicitly to prevent the child process from inheriting the SEA environment (and try to get the port 842 too).
             const F = require('./functions');
             let compute;
-            let nodePath = process.execPath;
+            // Use Electron executable if available (lanSuperv.exe), otherwise use process.execPath (Node.js or SEA)
+            let nodePath = process.env.LANSUPERV_ELECTRON_EXE || process.execPath;
 
-            // CRITICAL: Set LANSUPERV_PLUGIN_MODE to prevent child process from starting their own server
-            // The environment variable will be checked by application.js at the very beginning
+            // CRITICAL: Set LANSUPERV_PLUGIN_EXECUTE to prevent child process from starting their own server
+            // Use LANSUPERV_PLUGIN_EXECUTE for both Electron plugins (app.js) and Node.js plugins (execute.js)
             const pluginEnv = { ...process.env };
-            pluginEnv.LANSUPERV_PLUGIN_MODE = 'true'; // Signal that we're in plugin mode
+            pluginEnv.LANSUPERV_PLUGIN_EXECUTE = execPath; // Pass plugin script path via environment variable
             delete pluginEnv.NODE_OPTIONS; // Clear NODE_OPTIONS to prevent environment inheritance
             
             const {spawn} = require('child_process');
-            // Use spawn with node/lanSuperv.exe as executable and plugin script
-            compute = spawn(nodePath, [execPath], {
+            
+            // Detect if we're using a compiled binary (SEA or Electron) or standard Node.js
+            const nodePathBasename = path.basename(nodePath);
+            const isCompiledBinary = nodePathBasename.startsWith('lan-superv') || nodePathBasename.includes('lanSuperv');
+            
+            // Build spawn arguments
+            let spawnArgs = [];
+            if (!isCompiledBinary) {
+                // Standard Node.js: need to pass application.js as argument
+                const applicationPath = F.determineScriptPath({ scriptName: 'application.js', callerDirname: __dirname });
+                spawnArgs = [applicationPath];
+            }
+            // For compiled binaries (SEA or Electron), no arguments needed - they handle LANSUPERV_PLUGIN_EXECUTE automatically
+            
+            compute = spawn(nodePath, spawnArgs, {
                 stdio: ['pipe', 'pipe', 'pipe', 'ipc'], // Enable IPC for message passing
                 env: pluginEnv, // Use environment with plugin mode flag
                 shell: false // Don't use shell to avoid path escaping issues

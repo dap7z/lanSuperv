@@ -1,4 +1,4 @@
-// ~~~~~~~~ ENTRY POINT FOR ELECTRON MAIN BIG PROCESS (!= ELECTRON PLUGIN TINY PROCESS WHEN LANSUPERV_PLUGIN_MODE) ~~~~~~~~
+// ~~~~~~~~ ENTRY POINT FOR ELECTRON MAIN BIG PROCESS (!= ELECTRON PLUGIN TINY PROCESS WHEN LANSUPERV_PLUGIN_EXECUTE) ~~~~~~~~
 const fs = require('fs');
 const path = require('path');
 const F = require(path.join(__dirname, 'back', 'functions.js'));
@@ -33,23 +33,13 @@ let isShuttingDown = false; // Flag to prevent multiple shutdown calls
 function loadElectronConfig() {
     // Use the same directory as the executable (portable mode)
     // This ensures the config is persistent and writable
-    let configDir;
-    try {
-        // This function is called in app.whenReady(), so app is available
-        const exePath = app.getPath('exe');
-        configDir = path.dirname(exePath);
-    } catch (error) {
-        // Fallback if app.getPath fails (shouldn't happen, but just in case)
-        configDir = path.dirname(process.execPath);
-        F.writeLogToFile('[ELECTRON] Using process.execPath fallback for config dir: ' + error.message);
-    }
+    const configDir = F.getElectronConfigDirectory(app);
     
     const configPath = path.join(configDir, 'electron-config.json');
     const defaultConfig = {
         autoStart: false,
         autoUpdate: true,
-        minimizeOnStartup: false,
-        serverPort: 842
+        minimizeOnStartup: false
     };
     
     if (fs.existsSync(configPath)) {
@@ -77,27 +67,41 @@ function loadElectronConfig() {
 // Load server config to get SERVER_PORT
 function loadServerConfig() {
     try {
-        const F = require('./back/functions');
-        const configPath = path.join(F.getAppDirectory(), 'config.js');
+        const configDir = F.getElectronConfigDirectory(app);
+        const configPath = path.join(configDir, 'config.js');
     
+        if (!fs.existsSync(configPath)) {
+            F.writeLogToFile('[ELECTRON] config.js not found at: ' + configPath);
+            throw new Error('config.js not found at ' + configPath);
+        }
+        
         try {
-            // Load config.js as a module to propely get the SERVER_PORT
+            // Load config.js as a module to properly get the SERVER_PORT
             const config = require(configPath);
             if (config && config.val) {
                 const port = config.val('SERVER_PORT');
+                F.writeLogToFile('[ELECTRON] SERVER_PORT from config.val(): ' + port);
                 if (port && port !== '') {
-                    return parseInt(port, 10);
+                    const portNum = parseInt(port, 10);
+                    F.writeLogToFile('[ELECTRON] SERVER_PORT parsed to: ' + portNum); // VERIF
+                    return portNum;
+                } else {
+                    F.writeLogToFile('[ELECTRON] SERVER_PORT is empty or falsy');
                 }
+            } else {
+                F.writeLogToFile('[ELECTRON] config.js loaded but val() method not found');
             }
         } catch (error) {
             F.writeLogToFile('[ELECTRON] Error loading config.js: ' + error.message);
+            F.writeLogToFile('[ELECTRON] Error stack: ' + error.stack);
         }
         
     } catch (error) {
         F.writeLogToFile('[ELECTRON] Error in loadServerConfig: ' + error.message);
     }
     
-    return null; // config.js should always exist (just copied from config.js.sample at first launch in the worse case)
+    // Don't return a default, throw an error to force the caller to handle it
+    throw new Error('SERVER_PORT not found in config.js');
 }
 
 // Launch Node.js server
@@ -110,38 +114,14 @@ function launchNodeServer() {
         const isAsar = appPath.endsWith('.asar');
         const appDir = isAsar ? path.dirname(appPath) : appPath;
 
-        // Get config directory using app.getPath('exe') (same directory as the Electron executable)
-        // In "dir" mode, the executable is directly in the output directory
-        // We must use app.getPath('exe') because process.execPath in the Node.js child process
-        // will point to node.exe, not the Electron executable
-        let configDir;
+        // Get config directory using F.getElectronConfigDirectory (same directory as the Electron executable)
+        const configDir = F.getElectronConfigDirectory(app);
         let electronExePath;
         try {
             // Use app.getPath('exe') to get the Electron executable directory
-            const exePath = app.getPath('exe');
-            electronExePath = exePath; // Store full path to Electron executable
-            configDir = path.dirname(exePath);
-            /*
-            // DIAG DIR PATHS :
-            F.writeLogToFile('[ELECTRON] Electron executable path: ' + exePath);
-            F.writeLogToFile('[ELECTRON] Config dir (from app.getPath): ' + configDir);
-            F.writeLogToFile('[ELECTRON] Config path: ' + path.join(configDir, 'config.js'));
-            F.writeLogToFile('[ELECTRON] Config exists: ' + fs.existsSync(path.join(configDir, 'config.js')));
-            */
+            electronExePath = app.getPath('exe');
         } catch (error) {
-            F.writeLogToFile('[ELECTRON] Error getting config dir, using F.getAppDirectory(): ' + error.message);
-            try {
-                const F = require('./back/functions');
-                configDir = F.getAppDirectory();
-                F.writeLogToFile('[ELECTRON] Config dir from F.getAppDirectory(): ' + configDir);
-                // Try to find Electron executable in configDir
-                electronExePath = path.join(configDir, path.basename(process.execPath));
-            } catch (error2) {
-                F.writeLogToFile('[ELECTRON] Error getting config dir, using app dir: ' + error2.message);
-                // Fallback to app directory
-                configDir = appDir;
-                electronExePath = process.execPath; // Fallback to process.execPath
-            }
+            electronExePath = process.execPath; // Fallback
         }
         const configPath = path.join(configDir, 'config.js');
         
@@ -151,16 +131,7 @@ function launchNodeServer() {
         
         // In Electron compiled app with asar, files needed by external Node.js process
         // must be unpacked in app.asar.unpacked
-        let serverScript;
-        if (isAsar) {
-            // With asar enabled, unpacked files are in app.asar.unpacked
-            // appDir is resources/ directory, so app.asar.unpacked is at the same level
-            const unpackedPath = path.join(appDir, 'app.asar.unpacked');
-            serverScript = path.join(unpackedPath, 'start.js');
-        } else {
-            // Development mode
-            serverScript = path.join(__dirname, 'start.js');
-        }
+        const serverScript = F.determineScriptPath({ scriptName: 'start.js', app: app, callerDirname: __dirname });
         
         const args = [serverScript];
         if (configPath && fs.existsSync(configPath)) {
@@ -382,20 +353,32 @@ function createDebugWindow() {
     app.whenReady().then(() => {
     F.writeLogToFile('App is ready!');
     
-    // Load configurations first (needed for debug window creation)
+    // Load configurations first, will be used for tray menu and debug window.
     try {
         electronConfig = loadElectronConfig();
-        const serverPort = loadServerConfig();
+        let serverPort;
+        try {
+            serverPort = loadServerConfig();
+            F.writeLogToFile('[ELECTRON] Server port loaded from config.js: ' + serverPort); // VERIF
+        } catch (error) {
+            F.writeLogToFile('[ELECTRON] ERROR loading SERVER_PORT from config.js: ' + error.message);
+            F.writeLogToFile('[ELECTRON] ERROR stack: ' + error.stack);
+            throw error; // Re-throw to be caught by outer catch
+        }
         config = {
             ...electronConfig,
             serverPort: serverPort
         };
         console.log('[ELECTRON] Config loaded:', config);
+        console.log('[ELECTRON] Server port:', config.serverPort);
     } catch (error) {
         F.writeLogToFile('ERROR loading config: ' + error.message);
-        // Use defaults
+        F.writeLogToFile('ERROR stack: ' + error.stack);
+        // Use defaults only if absolutely necessary
         electronConfig = loadElectronConfig();
         config = { ...electronConfig, serverPort: 842 };
+        console.error('[ELECTRON] Using default port 842 due to error:', error.message);
+        F.writeLogToFile('[ELECTRON] Using default port 842 due to error');
     }
     
     // Create debug window after config is loaded
@@ -536,15 +519,7 @@ process.on('unhandledRejection', (reason, promise) => {
 function saveElectronConfig() {
     // Use the same directory as the executable (portable mode)
     // This ensures the config is persistent and writable
-    let configDir;
-    try {
-        // This function is called after app.whenReady(), so app is available
-        const exePath = app.getPath('exe');
-        configDir = path.dirname(exePath);
-    } catch (error) {
-        F.writeLogToFile('[ELECTRON] Error getting config dir for save: ' + error.message);
-        return; // Can't save if we can't determine the directory
-    }
+    const configDir = F.getElectronConfigDirectory(app);
     
     const configPath = path.join(configDir, 'electron-config.json');
     

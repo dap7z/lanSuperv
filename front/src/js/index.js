@@ -9,6 +9,7 @@ import Client from './client';
 import Chat from './chat';
 import WebRTCClient from './webrtcClient';
 import { StateManager } from './utils/stateManager.js';
+import { updateAllTimeAgo } from './utils/date.js';
 
 function clearLocalStorage() {
     return new Promise((resolve) => {
@@ -64,6 +65,10 @@ clearLocalStorage().then(async () => {
         clientJS.init();
         let chatJS = new Chat(dbSendMessage);
         chatJS.init();
+        
+        // Initialiser la mise à jour automatique des timestamps
+        updateAllTimeAgo();
+        setInterval(updateAllTimeAgo, 1000); // Interval maj en ms des <time class"timeago">
 
         //listen on dbComputers database updates
         //.on() automatically loads existing data like .once() AND listens for future changes

@@ -1,4 +1,4 @@
-﻿//=================================//
+//=================================//
 // LANSUPERV FUNCTIONS COLLECTIONS //
 //=================================//
 
@@ -170,6 +170,84 @@ class F {
         const path = require('path');
         return this.isAppCompiled() ? path.dirname(process.execPath) : process.cwd();
     }
+
+    /**
+     * Returns the Electron config directory (where config.js should be located)
+     * - In Electron compiled mode: returns the resources/ directory
+     * - In Electron dev mode: returns the app directory
+     * - Fallback: uses process.execPath directory
+     * @param {Object} app - Electron app object (optional)
+     * @returns {string} Config directory path
+     */
+    static getElectronConfigDirectory(app) {
+        const path = require('path');
+        const fs = require('fs');
+        if (app && typeof app.getPath === 'function') {
+            try {
+                const exePath = app.getPath('exe');
+                const exeDir = path.dirname(exePath);
+                // In Electron compiled mode, config.js is in resources/
+                const resourcesDir = path.join(exeDir, 'resources');
+                if (fs.existsSync(resourcesDir)) {
+                    return resourcesDir;
+                }
+                // Fallback to executable directory if resources/ doesn't exist
+                return exeDir;
+            } catch (error) {
+                // Fallback if app.getPath fails
+                return path.dirname(process.execPath);
+            }
+        }
+        return path.dirname(process.execPath);
+    }
+
+    /**
+     * Determines the correct path to a script file based on the execution context
+     * - In Electron compiled mode with asar: returns app.asar.unpacked/scriptName
+     * - In Electron dev mode: returns __dirname/scriptName (or caller's __dirname)
+     * - In Node.js standard mode: returns __dirname/../scriptName (from back/ directory)
+     * @param {Object} options - Options object
+     * @param {string} options.scriptName - Name of the script file (e.g. 'application.js', 'start.js')
+     * @param {Object} options.app - Electron app object (optional, for Electron mode)
+     * @param {string} options.callerDirname - __dirname of the caller (optional, defaults to back/ directory)
+     * @returns {string} Path to the script file
+     */
+    static determineScriptPath(options = {}) {
+        const path = require('path');
+        const { scriptName, app, callerDirname } = options;
+        
+        if (!scriptName) {
+            throw new Error('scriptName is required');
+        }
+        
+        // Electron mode: check if we're in asar
+        if (app && typeof app.getPath === 'function') {
+            try {
+                const appPath = app.getAppPath();
+                const isAsar = appPath.endsWith('.asar');
+                if (isAsar) {
+                    // With asar enabled, unpacked files are in app.asar.unpacked
+                    // appDir is resources/ directory, so app.asar.unpacked is at the same level
+                    const appDir = path.dirname(appPath);
+                    const unpackedPath = path.join(appDir, 'app.asar.unpacked');
+                    return path.join(unpackedPath, scriptName);
+                } else {
+                    // Electron dev mode: use caller's __dirname or default to root
+                    const baseDir = callerDirname || path.join(__dirname, '..');
+                    return path.join(baseDir, scriptName);
+                }
+            } catch (error) {
+                // Fallback if app.getPath fails
+                const baseDir = callerDirname || path.join(__dirname, '..');
+                return path.join(baseDir, scriptName);
+            }
+        }
+        
+        // Node.js standard mode: assume caller is in back/ directory
+        const baseDir = callerDirname || __dirname;
+        return path.join(baseDir, '..', scriptName);
+    }
+
 
     // CIDR range function (replaces cidr-range package to avoid vulnerable ip dependency)
     // Used in serverLanScanner.js and debug-lan-discovery.js

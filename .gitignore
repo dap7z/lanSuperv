@@ -102,4 +102,8 @@ cypress/videos/
 cypress/screenshots/
 cypress/downloads/
 _dev/scripts/ping_history*.csv
-/dist-electron
+
+/dist-electron/*
+#!/dist-electron/**/*.zip   #TOO BIG, USE GITHUB RELEASE
+/dist-sea/*
+#!/dist-sea/**/*.zip        #TOO BIG, USE GITHUB RELEASE

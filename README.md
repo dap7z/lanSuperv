@@ -45,5 +45,5 @@ User loads the web page.
 This iterates over previously known devices (G.VISIBLE_COMPUTERS).
 For each device, check current status (Ping, HTTP, TCP Socket with onePcScan function).
 2) Then triggers a Full network Scan (lanScanner.startBroadcastScan()):
-It scans the entire IP range to discover new devices.
+It scans the entire IP range to discover new devices with ARP request.
 Finally, onePcScans are triggered for newly found devices (EVENT_DEVICE_INFOS)

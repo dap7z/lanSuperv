@@ -11,7 +11,7 @@ process.on('message', (eventParams) => {
         // Use Electron executable path from environment variable if available
         // In compiled Electron app, we have two problems :
         //   - 'electron' command is not available in PATH
-        //   - LANSUPERV_ELECTRON_EXE is lanSuperv.exe (electron-entrypoint.js) which launch the server if not in process.env.LANSUPERV_PLUGIN_MODE
+        //   - LANSUPERV_ELECTRON_EXE is lanSuperv.exe (electron-entrypoint.js) which launch the server if not in plugin mode (LANSUPERV_PLUGIN_EXECUTE)
         let electronPath = process.env.LANSUPERV_ELECTRON_EXE || 'electron';
         // Resolve to absolute path to ensure it works in both dev and compiled modes
         const appPath = path.resolve(__dirname, 'app.js');

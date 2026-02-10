@@ -300,7 +300,7 @@ function launchAppJS(options) {
     
     // Set environment variable with plugin app path
     const pluginEnv = { ...process.env };
-    pluginEnv.LANSUPERV_PLUGIN_APP_JS = appPath;
+    pluginEnv.LANSUPERV_PLUGIN_EXECUTE = appPath;
     
     // Transmettre les options de l'événement via variable d'environnement
     if (Object.keys(eventOptions).length > 0) {
@@ -318,7 +318,7 @@ function launchAppJS(options) {
         console.log(`[${pluginName}] Mode développement: ajout de electron-entrypoint.js comme argument: ${electronEntryPoint}`);
     }
     
-    // electron-entrypoint.js will detect LANSUPERV_PLUGIN_APP_JS and load the plugin
+    // electron-entrypoint.js will detect LANSUPERV_PLUGIN_EXECUTE and load the plugin
     const child = Spawn(electronPath, spawnArgs, {
         stdio: 'inherit',
         cwd: pluginDir,

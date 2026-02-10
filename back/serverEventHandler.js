@@ -3,6 +3,7 @@ let G = null; //GLOBALS
 
 //LIBRARIES:
 const {fork} = require('child_process');
+const path = require('path');
 
 class ServerEventHandler {
 
@@ -119,17 +120,31 @@ class ServerEventHandler {
             // In SEA mode, use node explicitly to prevent the child process from inheriting the SEA environment (and try to get the port 842 too).
             const F = require('./functions');
             let compute;
-            let nodePath = process.execPath;
+            // Use Electron executable if available (lanSuperv.exe), otherwise use process.execPath (Node.js or SEA)
+            let nodePath = process.env.LANSUPERV_ELECTRON_EXE || process.execPath;
 
-            // CRITICAL: Set LANSUPERV_PLUGIN_MODE to prevent child process from starting their own server
-            // The environment variable will be checked by application.js at the very beginning
+            // CRITICAL: Set LANSUPERV_PLUGIN_EXECUTE to prevent child process from starting their own server
+            // Use LANSUPERV_PLUGIN_EXECUTE for both Electron plugins (app.js) and Node.js plugins (execute.js)
             const pluginEnv = { ...process.env };
-            pluginEnv.LANSUPERV_PLUGIN_MODE = 'true'; // Signal that we're in plugin mode
+            pluginEnv.LANSUPERV_PLUGIN_EXECUTE = execPath; // Pass plugin script path via environment variable
             delete pluginEnv.NODE_OPTIONS; // Clear NODE_OPTIONS to prevent environment inheritance
             
             const {spawn} = require('child_process');
-            // Use spawn with node/lanSuperv.exe as executable and plugin script
-            compute = spawn(nodePath, [execPath], {
+            
+            // Detect if we're using a compiled binary (SEA or Electron) or standard Node.js
+            const nodePathBasename = path.basename(nodePath);
+            const isCompiledBinary = nodePathBasename.startsWith('lan-superv') || nodePathBasename.includes('lanSuperv');
+            
+            // Build spawn arguments
+            let spawnArgs = [];
+            if (!isCompiledBinary) {
+                // Standard Node.js: need to pass application.js as argument
+                const applicationPath = F.determineScriptPath({ scriptName: 'application.js', callerDirname: __dirname });
+                spawnArgs = [applicationPath];
+            }
+            // For compiled binaries (SEA or Electron), no arguments needed - they handle LANSUPERV_PLUGIN_EXECUTE automatically
+            
+            compute = spawn(nodePath, spawnArgs, {
                 stdio: ['pipe', 'pipe', 'pipe', 'ipc'], // Enable IPC for message passing
                 env: pluginEnv, // Use environment with plugin mode flag
                 shell: false // Don't use shell to avoid path escaping issues
@@ -142,41 +157,37 @@ class ServerEventHandler {
                 return;
             }
             
+            console.log(`[PLUGIN ${eventName}] Plugin process ${execPath} spawned (PID: ${compute.pid})`);
+            
             // Verify that stdout and stderr are available
             let srvErrorOutput = '';
+            let srvStdOutput = '';
             if (!compute.stdout || !compute.stderr) {
-                console.error(`[PLUGIN ${eventName}] ERROR: fork() failed to create stdout/stderr streams. Path: ${execPath}`);
+                console.error(`[PLUGIN ${eventName}] ERROR: spawn() failed to create stdout/stderr streams. Path: ${execPath}`);
                 console.error(`[PLUGIN ${eventName}] This usually happens when the path contains spaces or special characters`);
                 resolve({});
                 return;
-            }else{
+            } else {
+                compute.stdout.setEncoding('utf8');
                 compute.stdout.on('data', (data) => {
                     const output = data.toString().trim();
                     if (output) {
-                        console.log(`[PLUGIN ${eventName}] stdout: ${output}`);
+                        console.log(`[PLUGIN ${eventName} standardOutput] ${output}`);   //OK
                     }
                 });
                 compute.stderr.on('data', (data) => {
                     const output = data.toString().trim();
                     srvErrorOutput += output + '\n';
                     if (output) {
-                        console.error(`[PLUGIN ${eventName}] stderr: ${output}`);
+                        console.error(`[PLUGIN ${eventName} errorOutput] ${output}`);  //OK
                     }
                 });
             }
             
-            // Send eventParams using IPC (wait a bit for process to be ready)
-            setTimeout(() => {
-                if (compute && !compute.killed) {
-                    compute.send(eventParams);
-                }
-            }, 100);
-            
+            // -- setup listener
             compute.on('message', (msg) => {
                 let text = '[PLUGIN ' + eventName + '] message: ';
                 if (typeof msg === 'object') {
-                    //console.log(text);
-                    //console.log(msg);
                     lastObjectMsg = msg;
                 } else {
                     console.log(text + msg);
@@ -187,12 +198,11 @@ class ServerEventHandler {
                     resolve(lastObjectMsg);
                 }
             });
-            
             compute.on('error', (error) => {
                 console.error(`[PLUGIN ${eventName}] Failed to start process:`, error);
                 resolve({});
             });
-            
+            // --
             // Send eventParams using IPC
             setTimeout(() => {
                 if (compute && !compute.killed) {
@@ -411,85 +421,43 @@ class ServerEventHandler {
                     console.log(`[EVENT-RECEPTION] Event ${eventData.eventName} (id: ${id}) marked as received at ${eventReceivedAt}`);
                     
                     // Now process the event
-                    if(eventData.eventName === 'check')
-                    {
-                        if(this.eventTargetIsThisPC(eventData))
-                        {
-                            //check events (specific, socketCheck update database directly) :
-                            let finalResult = F.checkData(G.THIS_PC, 'socket', G.PLUGINS_INFOS);
-                            
-                            // Détecter les vidéos disponibles du plugin screen-joke
-                            if (G.PLUGINS_INFOS['screen-joke'] && G.PLUGINS_INFOS['screen-joke'].isEnabled) {
-                                const screenJokeDir = G.PLUGINS_INFOS['screen-joke'].dirPath;
-                                const availableVideos = F.listAvailableVideos(screenJokeDir);
-                                
-                                // Construire la liste des options : webcam-mirror par défaut + vidéos disponibles
-                                let optionsList = ['webcam-mirror']; // Option par défaut toujours disponible
-                                
-                                if (availableVideos.length > 0) {
-                                    // Ajouter les options de vidéos disponibles
-                                    const videoOptions = availableVideos.map(v => v.option);
-                                    optionsList = optionsList.concat(videoOptions);
-                                }
-                                
-                                // Format JSON pour les options : structure avec champs définis
-                                // Format: screen-joke-videos = JSON avec structure {type: {type: 'radio', options: [...]}, ...}
-                                const optionsConfig = {
-                                    type: {
-                                        type: 'radio',
-                                        options: optionsList
-                                    },
-                                    loop: {
-                                        type: 'radio',
-                                        options: ['yes', 'no'],
-                                        defaultValue: 'no'
-                                    }
-                                };
-                                
-                                // Options disponibles pour screen-joke
-                                finalResult['screen-joke-videos'] = JSON.stringify(optionsConfig);
-                            }
-                            
-                            finalResult['idPC'] = pcTargetIdPC;
-                            G.database.dbComputersSaveData(finalResult.idPC, finalResult, "socket"); //NEW
-                            
-                            // Update eventResult for check events
-                            eventData.eventResult = JSON.stringify({ msg: 'check completed' });
-                            G.webrtcManager.saveData('messages', id, eventData);
-                        }
+                    //standard events :
+                    let p = {
+                        eventName: eventData.eventName,
+                        pcTargetLanMAC: eventData.pcTargetLanMAC,
+                        pcTargetMachineID: eventData.pcTargetMachineID,
+                    };
+                    //events with options :
+                    if (eventData.eventOptions) {
+                        p.eventOptions = eventData.eventOptions;
                     }
-                    else
-                    {
-                        //standard events :
-                        let p = {
-                            eventName: eventData.eventName,
-                            pcTargetLanMAC: eventData.pcTargetLanMAC,
-                            pcTargetMachineID: eventData.pcTargetMachineID,
-                        };
-                        //events with options :
-                        if (eventData.eventOptions) {
-                            p.eventOptions = eventData.eventOptions;
+                    
+                    //use await to wait for processing to complete
+                    this.eventDispatcher(p, 'socket').then((responseData) => {
+                        let evtResult = {};
+                        if (responseData) {
+                            evtResult = responseData;
+                            //contain evtResult.msg
+                        }
+                        else {
+                            evtResult.msg = eventData.eventName + ' event received (no response)';
                         }
                         
-                        // Use await to wait for processing to complete
-                        this.eventDispatcher(p, 'socket').then((responseData) => {
-                            let evtResult = {};
-                            if (responseData) {
-                                evtResult = responseData;
-                                //contain evtResult.msg
-                            }
-                            else {
-                                evtResult.msg = eventData.eventName + ' event received (no response)';
-                            }
-                            //send response message by updating eventResult database field:
-                            eventData.eventResult = JSON.stringify(evtResult);
-                            G.webrtcManager.saveData('messages', id, eventData);
-                        }).catch((error) => {
-                            console.error(`[EVENT] Error processing event ${eventData.eventName}:`, error);
-                            eventData.eventResult = JSON.stringify({ msg: 'error: ' + error.message });
-                            G.webrtcManager.saveData('messages', id, eventData);
-                        });
-                    }
+                        //specific handling for self check events: save to computers database
+                        if (eventData.eventName === 'check' && responseData && this.eventTargetIsThisPC(eventData)) {
+                            let finalResult = responseData;
+                            finalResult['idPC'] = pcTargetIdPC;
+                            G.database.dbComputersSaveData(finalResult.idPC, finalResult, "socket");
+                        }
+                        
+                        //send response message by updating eventResult database field:
+                        eventData.eventResult = JSON.stringify(evtResult);
+                        G.webrtcManager.saveData('messages', id, eventData);
+                    }).catch((error) => {
+                        console.error(`[EVENT] Error processing event ${eventData.eventName}:`, error);
+                        eventData.eventResult = JSON.stringify({ msg: 'error: ' + error.message });
+                        G.webrtcManager.saveData('messages', id, eventData);
+                    });
 
                 }
             }

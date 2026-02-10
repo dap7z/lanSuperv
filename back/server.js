@@ -3,19 +3,22 @@
  *************************************************************************************/
 
 // CRITICAL: Check if we're in plugin mode BEFORE loading any modules
-if (process.env.LANSUPERV_PLUGIN_MODE === 'true') {
+// If LANSUPERV_PLUGIN_EXECUTE is set, we're in plugin mode
+if (process.env.LANSUPERV_PLUGIN_EXECUTE) {
     // We're in plugin mode, don't require modules.
     module.exports = class DummyServer {
         constructor() {
             console.log('[SERVER] Running in plugin mode, server initialization skipped');
+            // EXAMPLE : [PLUGIN wol] stdout: [SERVER] Running in plugin mode, server initialization skipped
         }
         start() {
             console.log('[SERVER] Running in plugin mode, server startup skipped');
+            // EXAMPLE : [PLUGIN wol] stdout: [SERVER] Running in plugin mode, server startup skipped
         }
     };
     // Stop here, continue by example in /plugins/local-responses/screen-joke/app.js
 } else {
-    // Normal server mode - continue loading modules, and executre the rest of the file.
+    // Normal server mode - continue loading modules, and execute the rest of the file.
 
 //LIBRARIES:
 const Os = require('os');
@@ -188,156 +191,305 @@ class Server {
                         
                         // Define handleWebRTCSignaling in the scope of start()
                         const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = require('wrtc');
+                        const webRtcUtils = require('./utils/webRtc');
                         
+                        // Map pour gérer les connexions par clientId (permettre plusieurs onglets depuis la même IP)
+                        const clientConnectionsById = new Map(); // Map<clientId, { ws: WebSocket, clientState: Object, createdAt: Date }>
+                        
+                        function cleanupClientState(clientState) {
+                            webRtcUtils.cleanupConnection(clientState.pc, clientState.dataChannel, clientState.connectionTimeout, clientState.pendingIceCandidates);
+                            clientState.dataChannel = null;
+                            clientState.pc = null;
+                            clientState.connectionTimeout = null;
+                        }
+                        
+                        // Nettoyer les connexions en attente trop longtemps
+                        function cleanupStaleConnections() {
+                            const now = Date.now();
+                            const STALE_TIMEOUT = 15000; // 15 secondes
+                            
+                            clientConnectionsById.forEach((conn, clientId) => {
+                                if (!conn.clientState.pc) return;
+                                
+                                const state = conn.clientState.pc.connectionState;
+                                const age = now - conn.createdAt;
+                                
+                                // Si la connexion est en attente depuis trop longtemps
+                                if ((state === 'new' || state === 'connecting') && age > STALE_TIMEOUT) {
+                                    console.log(`[WebRTC Signaling] Cleaning up stale connection for ${clientId} (state: ${state}, age: ${age}ms)`);
+                                    cleanupClientState(conn.clientState);
+                                    if (conn.ws && conn.ws.readyState === WebSocket.OPEN) {
+                                        conn.ws.close();
+                                    }
+                                    clientConnectionsById.delete(clientId);
+                                }
+                            });
+                        }
+                        
+                        // Vérifier toutes les 5 secondes
+                        setInterval(cleanupStaleConnections, 5000);
+
                         async function handleWebRTCSignaling(ws, message, clientState) {
-                            switch (message.type) {
-                                case 'request-offer':
-                                    // Client requests an offer, create a WebRTC connection
-                                    if (!clientState.pc) {
-                                        clientState.pc = new RTCPeerConnection({
-                                            iceServers: [
-                                                { urls: 'stun:stun.l.google.com:19302' }
-                                            ]
-                                        });
+                            try {
+                                switch (message.type) {
+                                    case 'request-offer':
+                                        console.log(`[WebRTC Signaling] request-offer from ${clientState.clientId}`);
                                         
-                                        // Create a data channel to exchange data
-                                        const dataChannel = clientState.pc.createDataChannel('lansuperv', {
-                                            ordered: true
-                                        });
-                                        
-                                        clientState.dataChannel = dataChannel;
-                                        setupServerDataChannel(dataChannel);
-                                        
-                                        // Handle ICE candidates
-                                        clientState.pc.onicecandidate = (event) => {
-                                            if (event.candidate && ws.readyState === WebSocket.OPEN) {
-                                                ws.send(JSON.stringify({
-                                                    type: 'ice-candidate',
-                                                    candidate: event.candidate
-                                                }));
+                                        // Vérifier s'il existe une connexion active pour ce clientId (permet plusieurs onglets)
+                                        const existingConn = clientConnectionsById.get(clientState.clientId);
+                                        if (existingConn && existingConn.clientState.pc) {
+                                            const existingState = existingConn.clientState.pc.connectionState;
+                                            if (existingState === 'connected') {
+                                                console.log(`[WebRTC Signaling] Reusing connected connection for ${clientState.clientId}`);
+                                                // Mettre à jour la référence WebSocket
+                                                if (existingConn.ws !== ws) {
+                                                    existingConn.ws.close();
+                                                }
+                                                clientConnectionsById.set(clientState.clientId, { 
+                                                    ws, 
+                                                    clientState: existingConn.clientState, 
+                                                    createdAt: existingConn.createdAt 
+                                                });
+                                                return;
+                                            } else if (existingState === 'connecting') {
+                                                const age = Date.now() - existingConn.createdAt;
+                                                if (age < 10000) {
+                                                    console.log(`[WebRTC Signaling] Connection already connecting for ${clientState.clientId}, waiting...`);
+                                                    return;
+                                                } else {
+                                                    console.log(`[WebRTC Signaling] Cleaning stale connecting connection for ${clientState.clientId}`);
+                                                    cleanupClientState(existingConn.clientState);
+                                                    if (existingConn.ws !== ws) {
+                                                        existingConn.ws.close();
+                                                    }
+                                                    clientConnectionsById.delete(clientState.clientId);
+                                                }
+                                            } else {
+                                                cleanupClientState(existingConn.clientState);
+                                                if (existingConn.ws !== ws) {
+                                                    existingConn.ws.close();
+                                                }
+                                                clientConnectionsById.delete(clientState.clientId);
                                             }
-                                        };
+                                        }
                                         
-                                        // Create an offer
-                                        const offer = await clientState.pc.createOffer();
-                                        await clientState.pc.setLocalDescription(offer);
+                                        // Nettoyer l'état actuel si nécessaire
+                                        if (clientState.pc) {
+                                            cleanupClientState(clientState);
+                                        }
                                         
-                                        ws.send(JSON.stringify({
-                                            type: 'offer',
-                                            offer: offer
-                                        }));
-                                    }
-                                    break;
+                                        // Créer une nouvelle connexion
+                                        clientState.pc = webRtcUtils.createPeerConnection(RTCPeerConnection);
+                                        clientState.dataChannel = clientState.pc.createDataChannel('lansuperv', { ordered: true });
+                                        setupServerDataChannel(clientState.dataChannel);
+                                        
+                                        // Configurer les handlers
+                                        webRtcUtils.setupPeerConnectionHandlers(
+                                            clientState.pc,
+                                            (candidate) => {
+                                                if (ws.readyState === WebSocket.OPEN) {
+                                                    ws.send(JSON.stringify({ type: 'ice-candidate', candidate }));
+                                                }
+                                            },
+                                            (iceState) => {
+                                                console.log(`[WebRTC Signaling] ICE state: ${iceState} - ${clientState.clientId}`);
+                                                if (iceState === 'failed') {
+                                                    console.error(`[WebRTC Signaling] ICE failed - ${clientState.clientId}`);
+                                                    cleanupClientState(clientState);
+                                                    const conn = clientConnectionsById.get(clientState.clientId);
+                                                    if (conn && conn.clientState === clientState) {
+                                                        clientConnectionsById.delete(clientState.clientId);
+                                                    }
+                                                }
+                                            },
+                                            (connectionState) => {
+                                                console.log(`[WebRTC Signaling] Connection state: ${connectionState} - ${clientState.clientId}`);
+                                                if (connectionState === 'connected') {
+                                                    console.log(`[WebRTC Signaling] ✅ Connected to ${clientState.clientId}`);
+                                                    if (clientState.connectionTimeout) {
+                                                        clearTimeout(clientState.connectionTimeout);
+                                                        clientState.connectionTimeout = null;
+                                                    }
+                                                } else if (connectionState === 'disconnected' || connectionState === 'failed') {
+                                                    console.log(`[WebRTC Signaling] Connection ${connectionState} - ${clientState.clientId}`);
+                                                    cleanupClientState(clientState);
+                                                    const conn = clientConnectionsById.get(clientState.clientId);
+                                                    if (conn && conn.clientState === clientState) {
+                                                        clientConnectionsById.delete(clientState.clientId);
+                                                    }
+                                                }
+                                            }
+                                        );
+                                        
+                                        // Créer et envoyer l'offre
+                                        try {
+                                            const offer = await webRtcUtils.createOffer(clientState.pc);
+                                            
+                                            // Enregistrer la connexion AVANT d'envoyer l'offre
+                                            clientConnectionsById.set(clientState.clientId, { 
+                                                ws, 
+                                                clientState, 
+                                                createdAt: Date.now() 
+                                            });
+                                            
+                                            if (ws.readyState === WebSocket.OPEN) {
+                                                ws.send(JSON.stringify({ type: 'offer', offer }));
+                                            } else {
+                                                console.error(`[WebRTC Signaling] WebSocket not open, cannot send offer to ${clientState.clientId}`);
+                                                cleanupClientState(clientState);
+                                                clientConnectionsById.delete(clientState.clientId);
+                                                return;
+                                            }
+                                            
+                                            // Timeout pour nettoyer les connexions qui ne se connectent pas
+                                            clientState.connectionTimeout = setTimeout(() => {
+                                                if (clientState.pc && clientState.pc.connectionState !== 'connected') {
+                                                    console.warn(`[WebRTC Signaling] Connection timeout for ${clientState.clientId}`);
+                                                    cleanupClientState(clientState);
+                                                    const conn = clientConnectionsById.get(clientState.clientId);
+                                                    if (conn && conn.clientState === clientState) {
+                                                        clientConnectionsById.delete(clientState.clientId);
+                                                    }
+                                                }
+                                            }, 20000);
+                                        } catch (error) {
+                                            console.error(`[WebRTC Signaling] Error creating offer for ${clientState.clientId}:`, error);
+                                            cleanupClientState(clientState);
+                                            const conn = clientConnectionsById.get(clientState.clientId);
+                                            if (conn && conn.clientState === clientState) {
+                                                clientConnectionsById.delete(clientState.clientId);
+                                            }
+                                        }
+                                        break;
+                                        
+                                    case 'answer':
+                                        console.log(`[WebRTC Signaling] answer from ${clientState.clientId}`);
+                                        if (!clientState.pc) {
+                                            console.warn(`[WebRTC Signaling] Received answer but no peer connection exists for ${clientState.clientId}`);
+                                            return;
+                                        }
+                                        try {
+                                            await clientState.pc.setRemoteDescription(new RTCSessionDescription(message.answer));
+                                            await webRtcUtils.applyPendingIceCandidates(
+                                                clientState.pc, 
+                                                clientState.pendingIceCandidates, 
+                                                RTCIceCandidate, 
+                                                '[WebRTC Signaling]'
+                                            );
+                                        } catch (error) {
+                                            console.error(`[WebRTC Signaling] Error setting remote description for ${clientState.clientId}:`, error);
+                                        }
+                                        break;
                                     
-                                case 'answer':
-                                    if (clientState.pc) {
-                                        await clientState.pc.setRemoteDescription(new RTCSessionDescription(message.answer));
-                                    }
-                                    break;
+                                    case 'ice-candidate':
+                                        if (!message.candidate) {
+                                            console.warn(`[WebRTC Signaling] Received null ICE candidate from ${clientState.clientId}`);
+                                            return;
+                                        }
+                                        try {
+                                            await webRtcUtils.addIceCandidate(
+                                                clientState.pc, 
+                                                message.candidate, 
+                                                RTCIceCandidate, 
+                                                clientState.pendingIceCandidates, 
+                                                '[WebRTC Signaling]'
+                                            );
+                                        } catch (error) {
+                                            console.error(`[WebRTC Signaling] Error adding ICE candidate from ${clientState.clientId}:`, error);
+                                        }
+                                        break;
                                     
-                                case 'ice-candidate':
-                                    if (clientState.pc && clientState.pc.remoteDescription) {
-                                        await clientState.pc.addIceCandidate(new RTCIceCandidate(message.candidate));
-                                    }
-                                    break;
+                                    default:
+                                        console.warn(`[WebRTC Signaling] Unknown message type: ${message.type}`);
+                                }
+                            } catch (error) {
+                                console.error(`[WebRTC Signaling] Error handling message from ${clientState.clientId}:`, error);
                             }
                         }
                         
                         function setupServerDataChannel(dataChannel) {
-                            // Function to send initial data
                             const sendInitialData = () => {
-                                // Check that idPC is defined before sending
                                 if (!G.THIS_PC.idPC) {
-                                    console.log('[WebRTC Signaling] Waiting for idPC to be defined before sending initial data...');
-                                    // Retry after a short delay
                                     setTimeout(sendInitialData, 100);
                                     return;
                                 }
                                 
-                                const initialData = {
-                                    computers: {},
-                                    messages: {},
-                                    serverIdPC: G.THIS_PC.idPC
-                                };
-                                
-                                // Retrieve all computers data from WebRTCManager
+                                const initialData = { computers: {}, messages: {}, serverIdPC: G.THIS_PC.idPC };
                                 if (G.webrtcManager) {
-                                    const computers = G.webrtcManager.getAllData('computers');
-                                    computers.forEach((pc, id) => {
+                                    G.webrtcManager.getAllData('computers').forEach((pc, id) => {
                                         initialData.computers[id] = pc;
                                     });
-                                    
-                                    const messages = G.webrtcManager.getAllData('messages');
-                                    messages.forEach((msg, id) => {
+                                    G.webrtcManager.getAllData('messages').forEach((msg, id) => {
                                         initialData.messages[id] = msg;
                                     });
                                 }
                                 
-                                console.log('[WebRTC Signaling] Sending initial data with serverIdPC:', G.THIS_PC.idPC, 'initialData:', JSON.stringify(initialData));
-                                dataChannel.send(JSON.stringify({
-                                    type: 'initial-data',
-                                    data: initialData
-                                }));
+                                dataChannel.send(JSON.stringify({ type: 'initial-data', data: initialData }));
                             };
                             
-                            dataChannel.onopen = () => {
-                                // Send initial data (with idPC check)
-                                sendInitialData();
-                            };
-                            
+                            dataChannel.onopen = sendInitialData;
                             dataChannel.onmessage = (event) => {
                                 try {
                                     const message = JSON.parse(event.data);
-                                    if (message.type === 'update') {
-                                        // Save via WebRTCManager
-                                        if (G.webrtcManager) {
-                                            G.webrtcManager.saveData(message.table, message.id, message.data);
-                                        }
+                                    if (message.type === 'update' && G.webrtcManager) {
+                                        G.webrtcManager.saveData(message.table, message.id, message.data);
                                     }
                                 } catch (error) {
                                     console.error('[WebRTC Signaling] Error handling data channel message:', error);
                                 }
                             };
                             
-                            // Listen for updates from WebRTCManager to send to client
                             if (G.webrtcManager) {
                                 const updateListener = ({ table, id, data }) => {
                                     if (dataChannel.readyState === 'open') {
-                                        dataChannel.send(JSON.stringify({
-                                            type: 'update',
-                                            table: table,
-                                            id: id,
-                                            data: data
-                                        }));
+                                        dataChannel.send(JSON.stringify({ type: 'update', table, id, data }));
                                     }
                                 };
                                 G.webrtcManager.on('dataUpdate', updateListener);
-                                
-                                // Clean up listener when data channel closes
-                                dataChannel.onclose = () => {
-                                    G.webrtcManager.removeListener('dataUpdate', updateListener);
-                                };
+                                dataChannel.onclose = () => G.webrtcManager.removeListener('dataUpdate', updateListener);
                             }
                         }
                         
-                        G.WEBSOCKET_SERVER.on('connection', (ws) => {
-                            console.log('[WebRTC Signaling] Client connected');
-                            const clientState = { pc: null, dataChannel: null };
+                        G.WEBSOCKET_SERVER.on('connection', (ws, req) => {
+                            const clientIP = req.socket.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+                            const clientPort = req.socket.remotePort || 'unknown';
+                            const clientId = `${clientIP}:${clientPort}`;
+                            
+                            console.log(`[WebRTC Signaling] Client connected - ${clientId}`);
+                            
+                            const clientState = { 
+                                pc: null, 
+                                dataChannel: null,
+                                pendingIceCandidates: [],
+                                connectionTimeout: null,
+                                clientId,
+                                clientIP
+                            };
                             
                             ws.on('message', async (message) => {
                                 try {
-                                    const data = JSON.parse(message);
-                                    await handleWebRTCSignaling(ws, data, clientState);
+                                    const parsed = JSON.parse(message);
+                                    await handleWebRTCSignaling(ws, parsed, clientState);
                                 } catch (error) {
-                                    console.error('[WebRTC Signaling] Error handling message:', error);
+                                    console.error(`[WebRTC Signaling] Error handling message from ${clientState.clientId}:`, error);
                                 }
                             });
                             
+                            ws.on('error', (error) => {
+                                console.error(`[WebRTC Signaling] WebSocket error for ${clientState.clientId}:`, error);
+                            });
+                            
                             ws.on('close', () => {
-                                console.log('[WebRTC Signaling] Client disconnected');   // we do pass here when browser tab closes
-                                if (clientState.pc) {
-                                    clientState.pc.close();
+                                console.log(`[WebRTC Signaling] Client disconnected - ${clientState.clientId}`);
+                                
+                                // Nettoyer la connexion de la map si c'est la connexion enregistrée
+                                const conn = clientConnectionsById.get(clientState.clientId);
+                                if (conn && conn.ws === ws) {
+                                    clientConnectionsById.delete(clientState.clientId);
                                 }
+                                
+                                // Nettoyer l'état du client
+                                cleanupClientState(clientState);
                             });
                         });
                         

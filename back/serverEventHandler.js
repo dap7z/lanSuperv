@@ -411,85 +411,43 @@ class ServerEventHandler {
                     console.log(`[EVENT-RECEPTION] Event ${eventData.eventName} (id: ${id}) marked as received at ${eventReceivedAt}`);
                     
                     // Now process the event
-                    if(eventData.eventName === 'check')
-                    {
-                        if(this.eventTargetIsThisPC(eventData))
-                        {
-                            //check events (specific, socketCheck update database directly) :
-                            let finalResult = F.checkData(G.THIS_PC, 'socket', G.PLUGINS_INFOS);
-                            
-                            // Détecter les vidéos disponibles du plugin screen-joke
-                            if (G.PLUGINS_INFOS['screen-joke'] && G.PLUGINS_INFOS['screen-joke'].isEnabled) {
-                                const screenJokeDir = G.PLUGINS_INFOS['screen-joke'].dirPath;
-                                const availableVideos = F.listAvailableVideos(screenJokeDir);
-                                
-                                // Construire la liste des options : webcam-mirror par défaut + vidéos disponibles
-                                let optionsList = ['webcam-mirror']; // Option par défaut toujours disponible
-                                
-                                if (availableVideos.length > 0) {
-                                    // Ajouter les options de vidéos disponibles
-                                    const videoOptions = availableVideos.map(v => v.option);
-                                    optionsList = optionsList.concat(videoOptions);
-                                }
-                                
-                                // Format JSON pour les options : structure avec champs définis
-                                // Format: screen-joke-videos = JSON avec structure {type: {type: 'radio', options: [...]}, ...}
-                                const optionsConfig = {
-                                    type: {
-                                        type: 'radio',
-                                        options: optionsList
-                                    },
-                                    loop: {
-                                        type: 'radio',
-                                        options: ['yes', 'no'],
-                                        defaultValue: 'no'
-                                    }
-                                };
-                                
-                                // Options disponibles pour screen-joke
-                                finalResult['screen-joke-videos'] = JSON.stringify(optionsConfig);
-                            }
-                            
-                            finalResult['idPC'] = pcTargetIdPC;
-                            G.database.dbComputersSaveData(finalResult.idPC, finalResult, "socket"); //NEW
-                            
-                            // Update eventResult for check events
-                            eventData.eventResult = JSON.stringify({ msg: 'check completed' });
-                            G.webrtcManager.saveData('messages', id, eventData);
-                        }
+                    //standard events :
+                    let p = {
+                        eventName: eventData.eventName,
+                        pcTargetLanMAC: eventData.pcTargetLanMAC,
+                        pcTargetMachineID: eventData.pcTargetMachineID,
+                    };
+                    //events with options :
+                    if (eventData.eventOptions) {
+                        p.eventOptions = eventData.eventOptions;
                     }
-                    else
-                    {
-                        //standard events :
-                        let p = {
-                            eventName: eventData.eventName,
-                            pcTargetLanMAC: eventData.pcTargetLanMAC,
-                            pcTargetMachineID: eventData.pcTargetMachineID,
-                        };
-                        //events with options :
-                        if (eventData.eventOptions) {
-                            p.eventOptions = eventData.eventOptions;
+                    
+                    //use await to wait for processing to complete
+                    this.eventDispatcher(p, 'socket').then((responseData) => {
+                        let evtResult = {};
+                        if (responseData) {
+                            evtResult = responseData;
+                            //contain evtResult.msg
+                        }
+                        else {
+                            evtResult.msg = eventData.eventName + ' event received (no response)';
                         }
                         
-                        // Use await to wait for processing to complete
-                        this.eventDispatcher(p, 'socket').then((responseData) => {
-                            let evtResult = {};
-                            if (responseData) {
-                                evtResult = responseData;
-                                //contain evtResult.msg
-                            }
-                            else {
-                                evtResult.msg = eventData.eventName + ' event received (no response)';
-                            }
-                            //send response message by updating eventResult database field:
-                            eventData.eventResult = JSON.stringify(evtResult);
-                            G.webrtcManager.saveData('messages', id, eventData);
-                        }).catch((error) => {
-                            console.error(`[EVENT] Error processing event ${eventData.eventName}:`, error);
-                            eventData.eventResult = JSON.stringify({ msg: 'error: ' + error.message });
-                            G.webrtcManager.saveData('messages', id, eventData);
-                        });
-                    }
+                        //specific handling for self check events: save to computers database
+                        if (eventData.eventName === 'check' && responseData && this.eventTargetIsThisPC(eventData)) {
+                            let finalResult = responseData;
+                            finalResult['idPC'] = pcTargetIdPC;
+                            G.database.dbComputersSaveData(finalResult.idPC, finalResult, "socket");
+                        }
+                        
+                        //send response message by updating eventResult database field:
+                        eventData.eventResult = JSON.stringify(evtResult);
+                        G.webrtcManager.saveData('messages', id, eventData);
+                    }).catch((error) => {
+                        console.error(`[EVENT] Error processing event ${eventData.eventName}:`, error);
+                        eventData.eventResult = JSON.stringify({ msg: 'error: ' + error.message });
+                        G.webrtcManager.saveData('messages', id, eventData);
+                    });
 
                 }
             }

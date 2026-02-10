@@ -1,6 +1,8 @@
 /**
  * Utilitaires WebRTC partagés entre client et serveur
  * Compatible avec les APIs natives du navigateur et le package 'wrtc' de Node.js
+ * 
+ * ⚠️ CODE SOURCE COMMUN AVEC LE BACK : lanSuperv\back\utils\webRtc.js
  */
 
 /**
@@ -165,4 +167,18 @@ export function cleanupConnection(pc, dataChannel = null, connectionTimeout = nu
         pendingCandidates.length = 0;
     }
     return { isConnected: false };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    // necessaire pour le back : 
+    module.exports = {
+        createWebRTCConfig,
+        createPeerConnection,
+        setupPeerConnectionHandlers,
+        applyPendingIceCandidates,
+        addIceCandidate,
+        createOffer,
+        createAnswer,
+        cleanupConnection
+    };
 }

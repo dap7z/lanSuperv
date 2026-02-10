@@ -161,7 +161,6 @@ class ServerEventHandler {
             
             // Verify that stdout and stderr are available
             let srvErrorOutput = '';
-            let srvStdOutput = '';
             if (!compute.stdout || !compute.stderr) {
                 console.error(`[PLUGIN ${eventName}] ERROR: spawn() failed to create stdout/stderr streams. Path: ${execPath}`);
                 console.error(`[PLUGIN ${eventName}] This usually happens when the path contains spaces or special characters`);

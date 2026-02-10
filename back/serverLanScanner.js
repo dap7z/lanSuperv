@@ -321,12 +321,12 @@ class ServerLanScanner extends EventEmitter {
         const promises = [];
 
         let delay = 0;
-        const DELAY_BETWEEN_ONE_PC_SCAN = 200; // Délai de 200ms entre chaque scan de PC
+        const minimumCheckIntervalMS = G.CONFIG.val('MINIMUM_CHECK_INTERVAL_MS');
 
         for (let [idPC, pcObject] of G.VISIBLE_COMPUTERS) {
             pcObject.QuickScanExecutedAt = G.QUICKSCAN_EXECUTED_AT;
             
-            // Créer une promesse qui attend le délai puis lance le scan
+            // Créer une promesse qui attend le délai puis lance onePcScan()
             const pcPromise = new Promise((resolve) => {
                 setTimeout(async () => {
                     // onePcScan retourne maintenant une seule promesse qui attend tous les checks
@@ -341,10 +341,10 @@ class ServerLanScanner extends EventEmitter {
             });
             
             promises.push(pcPromise);
-            delay += DELAY_BETWEEN_ONE_PC_SCAN; // Incrémenter le délai pour le prochain PC
+            delay += minimumCheckIntervalMS; // Incrémenter le délai pour le prochain PC
         }
 
-        console.log(`OK! QuickScan launched (work in async, not finished yet) - ${G.VISIBLE_COMPUTERS.size} PC(s) will be scanned with ${DELAY_BETWEEN_ONE_PC_SCAN}ms delay between each`);
+        console.log(`OK! QuickScan launched (work in async, not finished yet) - ${G.VISIBLE_COMPUTERS.size} PC(s) will be scanned with ${minimumCheckIntervalMS}ms delay between each`);
         return promises;
     }
 
@@ -512,7 +512,7 @@ class ServerLanScanner extends EventEmitter {
                     
                     // Clear timeout reference
                     G.SCAN_TIMEOUT = null;
-                }, G.CONFIG.val('TIMEOUT_SCAN') * 60 * 1000);
+                }, 60 * 1000);
             }).catch((err) => {
                 console.error('[SCAN] Failed to get default interface for scan:', err.message);
                 console.error('[SCAN] Stack:', err.stack);

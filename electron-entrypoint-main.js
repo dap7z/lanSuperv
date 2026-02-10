@@ -81,11 +81,13 @@ function loadServerConfig() {
         const configPath = path.join(F.getAppDirectory(), 'config.js');
     
         try {
-            // Load config.js and extract SERVER_PORT
-            const configContent = fs.readFileSync(configPath, 'utf8');
-            const portMatch = configContent.match(/PARAMS\['SERVER_PORT'\]\s*=\s*(\d+)/);
-            if (portMatch) {
-                return parseInt(portMatch[1], 10);
+            // Load config.js as a module to propely get the SERVER_PORT
+            const config = require(configPath);
+            if (config && config.val) {
+                const port = config.val('SERVER_PORT');
+                if (port && port !== '') {
+                    return parseInt(port, 10);
+                }
             }
         } catch (error) {
             F.writeLogToFile('[ELECTRON] Error loading config.js: ' + error.message);
@@ -95,7 +97,7 @@ function loadServerConfig() {
         F.writeLogToFile('[ELECTRON] Error in loadServerConfig: ' + error.message);
     }
     
-    return 842; // Default port
+    return null; // config.js should always exist (just copied from config.js.sample at first launch in the worse case)
 }
 
 // Launch Node.js server
@@ -286,6 +288,7 @@ function createDebugWindow() {
             title: 'lanSuperv Debug Console',
             show: !shouldMinimize, // Hide if should minimize
             skipTaskbar: true, // Don't show in taskbar
+            autoHideMenuBar: true,
             webPreferences: {
                 nodeIntegration: true,
                 contextIsolation: false

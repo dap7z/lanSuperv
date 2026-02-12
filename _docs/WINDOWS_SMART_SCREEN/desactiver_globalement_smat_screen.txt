@@ -1,0 +1,23 @@
+#Désactiver Smart App Control sur Windows 11  :
+(/!\ globalement car au 02/2026 ils ne propose pas de liste blanche probablement pour favoriser vente certificats EV minimum 250€/an chez certumcodecloudev /!\)
+
+
+Ouvrir Paramètres → Confidentialité et sécurité → Sécurité Windows → Contrôle des applications et du navigateur.
+
+Cliquer sur Paramètres de Smart App Control.
+
+Basculer l’option sur Désactivé ou Off.
+
+
+=> BONNE NOUVELLE, CETTE DESACTIVATION GLOBAL N'EMPECHE PAS L'AVERTISSEMENT SMARTSCREEN D'APPARAITRE :
+============================================================================================
+Windows a protégé votre ordinateur
+
+Microsoft Defender SmartScreen a empêcher le démarrage d'une application non reconnue.
+L'execution de cette application peut mettre votre ordinateur en danger.
+
+Application: lanSuperv.exe
+Editeur: Editeur inconnu
+
+[Exécuter quand même] [Ne pas ecécuter]
+============================================================================================

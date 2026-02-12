@@ -41,14 +41,10 @@ class ElectronAutoStart {
             // Create scheduled task that runs at logon with highest privileges
             // Note: Creating a task with /RL HIGHEST requires administrator privileges
             // The application must be run as administrator to create this task
-            const childProcess = spawn('schtasks', [
-                '/Create',
-                '/TN', taskName,
-                '/TR', `"${execPath}"`,
-                '/SC', 'ONLOGON',
-                '/RL', 'HIGHEST',
-                '/F'
-            ], {
+            // Required for windows 11 by example : add quotes to executable paths with spaces 
+            // Build the complete command as a single string to preserve quotes correctly
+            const command = `schtasks /Create /TN "${taskName}" /TR "${execPath}" /SC ONLOGON /RL HIGHEST /F`;
+            const childProcess = spawn(command, [], {
                 shell: true,
                 stdio: ['ignore', 'pipe', 'pipe']
             });
